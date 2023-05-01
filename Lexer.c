@@ -310,9 +310,10 @@ bool Lexer_skip_comment(struct Lexer* self)
 			self->p += 1;
 			if (self->p >= self->end)
 				return true;
-			if (*self->p++ == '\n')
+			if (*self->p == '\n')
 				break;
 			}
+		self->p += 1;
 		self->line_number += 1;
 		self->at_line_start = true;
 		return true;
