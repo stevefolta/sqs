@@ -49,10 +49,8 @@ Object* Dict_set_at(struct Dict* self, String* key, Object* value)
 			self->items = (Dict_KV*) realloc_mem(self->items, self->capacity * sizeof(Dict_KV));
 			memset(self->items + old_capacity, 0, (self->capacity - old_capacity) * sizeof(Dict_KV));
 			}
-		else {
+		else
 			self->items = (Dict_KV*) alloc_mem(self->capacity * sizeof(Dict_KV));
-			memset(self->items, 0, self->capacity * sizeof(Dict_KV));
-			}
 		}
 
 	self->items[self->capacity].key = key;

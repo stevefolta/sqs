@@ -33,10 +33,8 @@ Object* Array_set_at(struct Array* self, size_t index, Object* value)
 				self->items = (Object**) realloc_mem(self->items, self->capacity * sizeof(Object*));
 				memset(self->items + old_capacity, 0, (self->capacity - old_capacity) * sizeof(Object*));
 				}
-			else {
+			else
 				self->items = (Object**) alloc_mem(self->capacity * sizeof(Object*));
-				memset(self->items, 0, self->capacity * sizeof(Object*));
-				}
 			}
 		self->size = index + 1;
 		}
