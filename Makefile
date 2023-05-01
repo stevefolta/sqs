@@ -4,8 +4,10 @@ CFLAGS += -Wall
 
 -include Makefile.local
 
-SOURCES := main.c Error.c
-SOURCES += Lexer.c String.c Boolean.c Array.c Dict.c
+SOURCES := main.c
+SOURCES += Lexer.c
+SOURCES += String.c Boolean.c Array.c Dict.c ByteArray.c
+SOURCES += Error.c
 LIBRARIES = gc
 
 OBJECTS = $(foreach source,$(SOURCES),$(OBJECTS_DIR)/$(source:.c=.o))
