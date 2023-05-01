@@ -32,6 +32,7 @@ static void lexer_test(const char* file_path)
 			case Identifier:
 			case IntLiteral:
 			case FloatLiteral:
+			case StringLiteral:
 			case Operator:
 				fwrite(token.token->str, token.token->size, 1, stdout);
 				printf("\n");

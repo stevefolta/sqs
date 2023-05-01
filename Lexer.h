@@ -8,7 +8,7 @@
 
 typedef struct Token {
 	enum {
-		EndOfText, EOL, Identifier, IntLiteral, FloatLiteral, Operator, Indent, Unindent,
+		EndOfText, EOL, Identifier, IntLiteral, FloatLiteral, StringLiteral, Operator, Indent, Unindent,
 		} type;
 	String* token;
 	} Token;
