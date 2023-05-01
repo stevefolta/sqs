@@ -167,7 +167,6 @@ Token Lexer_next_token(struct Lexer* self)
 		case '=':
 		case '!':
 		case '+':
-		case '-':
 		case '*':
 		case '/':
 		case '%':
@@ -177,6 +176,18 @@ Token Lexer_next_token(struct Lexer* self)
 				c = *self->p;
 				if (c == '=')
 					self->p += 1;
+				}
+			result.type = Operator;
+			break;
+
+		case '-':
+			// Possibly followed by '=', or the start of a number.
+			if (self->p < self->end) {
+				c = *self->p;
+				if (c == '=')
+					self->p += 1;
+				else if (c >= '0' && c <= '9')
+					goto number;
 				}
 			result.type = Operator;
 			break;
@@ -201,6 +212,52 @@ Token Lexer_next_token(struct Lexer* self)
 					self->p += 1;
 				}
 			result.type = Operator;
+			break;
+
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+		number:
+			{
+			bool is_float = false;
+			if (c == '0' && self->p < self->end && *self->p == 'x') {
+				self->p += 1;
+				while (self->p < self->end) {
+					c = *self->p;
+					if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
+						// Keep going.
+						}
+					else
+						break;
+					self->p += 1;
+					}
+				}
+			else {
+				while (self->p < self->end) {
+					c = *self->p;
+					if (c == '.') {
+						if (is_float)
+							break;
+						is_float = true;
+						}
+					else if (c == 'e' || c == 'E') {
+						is_float = true;
+						self->p += 1;
+						if (self->p < self->end) {
+							c = *self->p;
+							if (c == '+' || c == '-')
+								self->p += 1;
+							}
+						}
+					else if (c >= '0' && c <= '9') {
+						// Keep going.
+						}
+					else
+						break;
+					self->p += 1;
+					}
+				}
+			result.type = (is_float ? FloatLiteral : IntLiteral);
+			}
 			break;
 
 		default:
