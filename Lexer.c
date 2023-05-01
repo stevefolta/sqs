@@ -158,6 +158,7 @@ Token Lexer_next_token(struct Lexer* self)
 			self->paren_level -= 1;
 			break;
 
+		case '.':
 		case ',':
 		case ':':
 		case '~':
