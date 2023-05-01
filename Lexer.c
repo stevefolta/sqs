@@ -22,7 +22,7 @@ void Lexer_init(Lexer* self, const char* text, size_t size)
 	self->end = text + size;
 	self->at_line_start = true;
 	self->paren_level = 0;
-	self->line_number = 0;
+	self->line_number = 1;
 	self->indent_stack = (size_t*) alloc_mem(indent_stack_max * sizeof(size_t));
 	self->indent_stack_size = 0;
 	self->unindent_to = -1;
@@ -88,9 +88,9 @@ Token Lexer_next_token(struct Lexer* self)
 		// EOL?
 		if (*self->p == '\n') {
 			self->p += 1;
-			result.type = EOL;
 			self->line_number += 1;
 			self->at_line_start = true;
+			result.type = EOL;
 			return result;
 			}
 
@@ -261,6 +261,7 @@ Token Lexer_next_token(struct Lexer* self)
 		case '`':
 			{
 			char delimiter = c;
+			size_t start_line = self->line_number;
 			token_start += 1;
 			while (self->p < self->end) {
 				c = *self->p;
@@ -273,8 +274,10 @@ Token Lexer_next_token(struct Lexer* self)
 				self->p += 1;
 				if (c == '\\')
 					self->p += 1;
+				else if (c == '\n')
+					self->line_number += 1;
 				}
-			Error("Unterminated string.");
+			Error("Unterminated string starting at line %d.", start_line);
 			}
 			break;
 

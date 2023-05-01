@@ -1,5 +1,5 @@
 #pragma once
 
-extern void Error(const char* message);
+extern void Error(const char* message, ...);
 
 
