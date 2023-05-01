@@ -6,9 +6,6 @@
 
 #define capacity_increment 16
 
-extern Object* Dict_at(struct Dict* self, struct String* key);
-extern Object* Dict_set_at(struct Dict* self, struct String* key, struct Object* value);
-
 typedef struct Dict_KV {
 	String* key;
 	Object* value;
@@ -27,7 +24,7 @@ Object* Dict_init(struct Dict* self)
 Object* Dict_at(struct Dict* self, String* key)
 {
 	for (int i = 0; i < self->size; ++i) {
-		if (key->equals(key, self->items[i].key))
+		if (String_equals(key, self->items[i].key))
 			return self->items[i].value;
 		}
 
@@ -38,7 +35,7 @@ Object* Dict_at(struct Dict* self, String* key)
 Object* Dict_set_at(struct Dict* self, String* key, Object* value)
 {
 	for (int i = 0; i < self->size; ++i) {
-		if (key->equals(key, self->items[i].key)) {
+		if (String_equals(key, self->items[i].key)) {
 			self->items[i].value = value;
 			return value;
 			}

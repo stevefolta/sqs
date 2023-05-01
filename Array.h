@@ -11,21 +11,19 @@ typedef struct Array {
 	Class* class_;
 	size_t size, capacity;
 	Object** items;
-
-	Object* (*init)(struct Array* self);
-	Object* (*at)(struct Array* self, size_t index);
-	Object* (*set_at)(struct Array* self, size_t index, Object* value);
-	Object* (*append)(struct Array* self, Object* value);
 	} Array;
 
 
 extern Object* Array_init(Array* self);
+extern Object* Array_at(struct Array* self, size_t index);
+extern Object* Array_set_at(struct Array* self, size_t index, Object* value);
+extern Object* Array_append(struct Array* self, Object* value);
+
 
 inline Array* new_Array()
 {
 	Array* self = (Array*) alloc_mem(sizeof(Array));
-	self->init = Array_init;
-	self->init(self);
+	Array_init(self);
 	return self;
 }
 

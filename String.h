@@ -10,14 +10,12 @@ typedef struct String {
 	Class* class_;
 	const char* str;
 	size_t size;
-
-	void (*init)(struct String* self, const char* str, size_t size);
-	Object* (*equals)(struct String* self, struct String* other);
-	Object* (*less_than)(struct String* self, struct String* other);
 	} String;
 
 
 extern String* new_String(const char* str, size_t size);
+extern Object* String_equals(struct String* self, struct String* other);
+extern Object* String_less_than(struct String* self, struct String* other);
 
 #define make_string(str) (new_String(str, 0))
 

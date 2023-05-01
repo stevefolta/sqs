@@ -4,19 +4,12 @@
 
 #define capacity_increment 16
 
-extern Object* Array_at(struct Array* self, size_t index);
-extern Object* Array_set_at(struct Array* self, size_t index, Object* value);
-extern Object* Array_append(struct Array* self, Object* value);
-
 
 Object* Array_init(struct Array* self)
 {
 	self->class_ = NULL; 	// TODO
 	self->size = self->capacity = 0;
 	self->items = NULL;
-	self->at = Array_at;
-	self->set_at = Array_set_at;
-	self->append = Array_append;
 	return (Object*) self;
 }
 
@@ -56,7 +49,7 @@ Object* Array_set_at(struct Array* self, size_t index, Object* value)
 
 Object* Array_append(struct Array* self, Object* value)
 {
-	return self->set_at(self, self->size, value);
+	return Array_set_at(self, self->size, value);
 }
 
 

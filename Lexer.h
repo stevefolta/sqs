@@ -22,10 +22,8 @@ typedef struct Lexer {
 	size_t* indent_stack;
 	size_t indent_stack_size;
 	int unindent_to; 	// -1: no unindents pending
-
-	void (*init)(struct Lexer* self, const char* text, size_t size);
-	Token (*next_token)(struct Lexer* self);
-	bool (*skip_comment)(struct Lexer* self);
 	} Lexer;
 
 extern Lexer* new_Lexer(const char* text, size_t size);
+extern Token Lexer_next_token(struct Lexer* self);
+

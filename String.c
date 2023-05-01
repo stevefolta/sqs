@@ -8,18 +8,17 @@ extern void String_init(String* self, const char* str, size_t size);
 String* new_String(const char* str, size_t size)
 {
 	String* string = (String*) alloc_mem(sizeof(String));
-	string->init = String_init;
-	string->init(string, str, size);
+	String_init(string, str, size);
 	return string;
 }
 
 
-static Object* String_equals(struct String* self, struct String* other)
+Object* String_equals(struct String* self, struct String* other)
 {
 	return make_bool(self->size == other->size && memcmp(self->str, other->str, self->size) == 0);
 }
 
-static Object* String_less_than(struct String* self, struct String* other)
+Object* String_less_than(struct String* self, struct String* other)
 {
 	if (self->size == other->size)
 		return make_bool(memcmp(self->str, other->str, self->size) < 0);
@@ -43,8 +42,6 @@ static Object* String_less_than(struct String* self, struct String* other)
 void String_init(String* self, const char* str, size_t size)
 {
 	self->class_ = NULL; 	// TODO
-	self->equals = String_equals;
-	self->less_than = String_less_than;
 
 	if (size == 0)
 		size = strlen(str);

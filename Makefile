@@ -54,4 +54,8 @@ clean:
 tags:
 	ctags -R .
 
+.PHONY: edit-all
+edit-all:
+	$(EDITOR) $(foreach source,$(SOURCES),$(source:.c=.h) $(source))
+
 

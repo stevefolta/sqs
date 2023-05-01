@@ -6,23 +6,18 @@
 
 
 extern void Lexer_init(Lexer* self, const char* text, size_t size);
-extern Token Lexer_next_token(struct Lexer* self);
 extern bool Lexer_skip_comment(struct Lexer* self);
 
 
 Lexer* new_Lexer(const char* text, size_t size)
 {
 	Lexer* lexer = (Lexer*) alloc_mem(sizeof(Lexer));
-	lexer->init = Lexer_init;
-	lexer->init(lexer, text, size);
+	Lexer_init(lexer, text, size);
 	return lexer;
 }
 
 void Lexer_init(Lexer* self, const char* text, size_t size)
 {
-	self->next_token = Lexer_next_token;
-	self->skip_comment = Lexer_skip_comment;
-
 	self->p = text;
 	self->end = text + size;
 	self->at_line_start = true;
@@ -86,7 +81,7 @@ Token Lexer_next_token(struct Lexer* self)
 			}
 
 		// Comment?
-		if (self->skip_comment(self)) {
+		if (Lexer_skip_comment(self)) {
 			result.type = EOL;
 			return result;
 			}
@@ -127,7 +122,7 @@ Token Lexer_next_token(struct Lexer* self)
 			}
 
 		// Comment?
-		if (self->skip_comment(self)) {
+		if (Lexer_skip_comment(self)) {
 			if (self->paren_level == 0) {
 				result.type = EOL;
 				return result;
