@@ -60,7 +60,7 @@ Token Lexer_next_token(struct Lexer* self)
 			}
 		}
 
-	if (self->at_line_start) {
+	if (self->at_line_start && self->paren_level == 0) {
 		self->at_line_start = false;
 
 		// Get the indentation.
@@ -107,7 +107,7 @@ Token Lexer_next_token(struct Lexer* self)
 		while (true) {
 			// Skip whitespace since the previous token.
 			char c = *self->p;
-			if (c != ' ' && c != '\t')
+			if (c != ' ' && c != '\t' && c != '\r' && !(c == '\n' && self->paren_level > 0))
 				break;
 			self->p += 1;
 			if (self->p >= self->end)
@@ -116,8 +116,10 @@ Token Lexer_next_token(struct Lexer* self)
 
 		// Comment?
 		if (self->skip_comment(self)) {
-			result.type = EOL;
-			return result;
+			if (self->paren_level == 0) {
+				result.type = EOL;
+				return result;
+				}
 			}
 		}
 
