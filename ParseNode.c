@@ -2,15 +2,16 @@
 #include "MethodBuilder.h"
 #include "ByteArray.h"
 #include "Array.h"
+#include "Object.h"
 
 
-int Block_emit_method(struct ParseNode* super, struct MethodBuilder* method)
+int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 {
 	Block* self = (Block*) super;
 	size_t size = self->statements->size;
 	for (int i = 0; i < size; ++i) {
 		ParseNode* statement = (ParseNode*) Array_at(self->statements, i);
-		statement->emit_method(statement, method);
+		statement->emit(statement, method);
 		}
 	return -1;
 }
@@ -18,7 +19,7 @@ int Block_emit_method(struct ParseNode* super, struct MethodBuilder* method)
 Block* new_Block()
 {
 	Block* block = alloc_obj(Block);
-	block->parse_node.emit_method = Block_emit_method;
+	block->parse_node.emit = Block_emit;
 	block->statements = new_Array();
 	return block;
 }
@@ -29,22 +30,22 @@ void Block_append(Block* self, ParseNode* statement)
 }
 
 
-int IfStatement_emit_method(ParseNode* super, MethodBuilder* method)
+int IfStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	IfStatement* self = (IfStatement*) super;
-	int condition_reg = self->condition->emit_method(self->condition, method);
+	int condition_reg = self->condition->emit(self->condition, method);
 	/*** TODO ***/
 }
 
 IfStatement* new_IfStatement()
 {
 	IfStatement* if_statement = alloc_obj(IfStatement);
-	if_statement->parse_node.emit_method = IfStatement_emit_method;
+	if_statement->parse_node.emit = IfStatement_emit;
 	return if_statement;
 }
 
 
-int WhileStatement_emit_method(ParseNode* super, MethodBuilder* method)
+int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	WhileStatement* self = (WhileStatement*) super;
 	/*** TODO ***/
@@ -53,12 +54,12 @@ int WhileStatement_emit_method(ParseNode* super, MethodBuilder* method)
 WhileStatement* new_WhileStatement()
 {
 	WhileStatement* self = alloc_obj(WhileStatement);
-	self->parse_node.emit_method = WhileStatement_emit_method;
+	self->parse_node.emit = WhileStatement_emit;
 	return self;
 }
 
 
-int ForStatement_emit_method(ParseNode* super, MethodBuilder* method)
+int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	ForStatement* self = (ForStatement*) super;
 	/*** TODO ***/
@@ -67,7 +68,68 @@ int ForStatement_emit_method(ParseNode* super, MethodBuilder* method)
 ForStatement* new_ForStatement()
 {
 	ForStatement* self = alloc_obj(ForStatement);
-	self->parse_node.emit_method = ForStatement_emit_method;
+	self->parse_node.emit = ForStatement_emit;
+	return self;
+}
+
+
+int SetExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	SetExpr* self = (SetExpr*) super;
+	return self->left->emit_set(self->left, self->right, method);
+}
+
+SetExpr* new_SetExpr()
+{
+	SetExpr* self = alloc_obj(SetExpr);
+	self->parse_node.emit = SetExpr_emit;
+	return self;
+}
+
+
+int ShortCircuitOrExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	ShortCircuitOrExpr* self = (ShortCircuitOrExpr*) super;
+	/*** TODO ***/
+}
+
+ShortCircuitOrExpr* new_ShortCircutOrExpr(ParseNode* expr1, ParseNode* expr2)
+{
+	ShortCircuitOrExpr* self = alloc_obj(ShortCircuitOrExpr);
+	self->parse_node.emit = ShortCircuitOrExpr_emit;
+	self->expr1 = expr1;
+	self->expr2 = expr2;
+	return self;
+}
+
+
+int ShortCircuitAndExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	ShortCircuitAndExpr* self = (ShortCircuitAndExpr*) super;
+	/*** TODO ***/
+}
+
+ShortCircuitAndExpr* new_ShortCircutAndExpr(ParseNode* expr1, ParseNode* expr2)
+{
+	ShortCircuitAndExpr* self = alloc_obj(ShortCircuitAndExpr);
+	self->parse_node.emit = ShortCircuitAndExpr_emit;
+	self->expr1 = expr1;
+	self->expr2 = expr2;
+	return self;
+}
+
+
+int StringLiteralExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	StringLiteralExpr* self = (StringLiteralExpr*) super;
+	return MethodBuilder_add_literal(method, (Object*) self->str); 	// TODO: return the right thing.
+}
+
+StringLiteralExpr* new_StringLiteralExpr(struct String* str)
+{
+	StringLiteralExpr* self = alloc_obj(StringLiteralExpr);
+	self->parse_node.emit = StringLiteralExpr_emit;
+	self->str = str;
 	return self;
 }
 

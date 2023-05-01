@@ -12,6 +12,21 @@ extern ParseNode* Parser_parse_if_statement(Parser* self);
 extern ParseNode* Parser_parse_while_statement(Parser* self);
 extern ParseNode* Parser_parse_for_statement(Parser* self);
 extern ParseNode* Parser_parse_expression(Parser* self);
+extern ParseNode* Parser_parse_logical_or_expression(Parser* self);
+extern ParseNode* Parser_parse_logical_and_expression(Parser* self);
+extern ParseNode* Parser_parse_not_expression(Parser* self);
+extern ParseNode* Parser_parse_inclusive_or_expression(Parser* self);
+extern ParseNode* Parser_parse_exclusive_or_expression(Parser* self);
+extern ParseNode* Parser_parse_and_expression(Parser* self);
+extern ParseNode* Parser_parse_equality_expression(Parser* self);
+extern ParseNode* Parser_parse_relational_expression(Parser* self);
+extern ParseNode* Parser_parse_shift_expression(Parser* self);
+extern ParseNode* Parser_parse_additive_expression(Parser* self);
+extern ParseNode* Parser_parse_multiplicative_expression(Parser* self);
+extern ParseNode* Parser_parse_unary_expression(Parser* self);
+extern ParseNode* Parser_parse_postfix_expression(Parser* self);
+extern ParseNode* Parser_parse_primary_expression(Parser* self);
+extern ParseNode* Parser_parse_string_literal(Parser* self);
 
 
 extern Parser* new_Parser(const char* text, size_t size)
@@ -169,7 +184,225 @@ ParseNode* Parser_parse_for_statement(Parser* self)
 
 ParseNode* Parser_parse_expression(Parser* self)
 {
+	ParseNode* expr = Parser_parse_logical_or_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	Token next_token = Lexer_peek(self->lexer);
+	if (next_token.type == Operator && String_equals_c(next_token.token, "=")) {
+		Lexer_next(self->lexer);
+		if (!expr->emit_set)
+			Error("Attempt to set something that isn't settable (line %d).", next_token.line_number);
+		ParseNode* right = Parser_parse_expression(self);
+		if (right == NULL)
+			Error("Missing expression after \"=\" (line %d).", next_token.line_number);
+		SetExpr* setter = new_SetExpr();
+		setter->left = expr;
+		setter->right = right;
+		expr = (ParseNode*) setter;
+		}
+
+	// TODO: +=, etc.
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_logical_or_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_logical_and_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	while (true) {
+		Token next_token = Lexer_peek(self->lexer);
+		if (next_token.type != Operator || !String_equals_c(next_token.token, "||"))
+			break;
+
+		ParseNode* expr2 = Parser_parse_logical_and_expression(self);
+		if (expr2 == NULL)
+			Error("Missing expression after \"||\" (line %d).", next_token.line_number);
+		expr = (ParseNode*) new_ShortCircutOrExpr(expr, expr2);
+		}
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_logical_and_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_not_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	while (true) {
+		Token next_token = Lexer_peek(self->lexer);
+		if (next_token.type != Operator || !String_equals_c(next_token.token, "&&"))
+			break;
+
+		ParseNode* expr2 = Parser_parse_not_expression(self);
+		if (expr2 == NULL)
+			Error("Missing expression after \"||\" (line %d).", next_token.line_number);
+		expr = (ParseNode*) new_ShortCircutAndExpr(expr, expr2);
+		}
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_not_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_inclusive_or_expression(self);
+	if (expr == NULL)
+		return NULL;
+
 	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_inclusive_or_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_exclusive_or_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_exclusive_or_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_and_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_and_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_equality_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_equality_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_relational_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_relational_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_shift_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_shift_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_additive_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_additive_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_multiplicative_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_multiplicative_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_unary_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_unary_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_postfix_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_postfix_expression(Parser* self)
+{
+	ParseNode* expr = Parser_parse_primary_expression(self);
+	if (expr == NULL)
+		return NULL;
+
+	/***/
+
+	return expr;
+}
+
+
+ParseNode* Parser_parse_primary_expression(Parser* self)
+{
+	Token next_token = Lexer_peek(self->lexer);
+
+	if (next_token.type == StringLiteral)
+		return Parser_parse_string_literal(self);
+
+	/***/
+
+	return NULL;
+}
+
+
+ParseNode* Parser_parse_string_literal(Parser* self)
+{
+	Token token = Lexer_next(self->lexer);
+
+	/*** TODO: process interpolations and escapes ***/
+	/***/
+
+	return (ParseNode*) new_StringLiteralExpr(token.token);
 }
 
 

@@ -12,4 +12,10 @@ MethodBuilder* new_MethodBuilder()
 }
 
 
+int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
+{
+	/***/
+}
+
+
 

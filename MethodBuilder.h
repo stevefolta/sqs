@@ -1,6 +1,7 @@
 #pragma once
 
 struct Method;
+struct Object;
 
 typedef struct MethodBuilder {
 	struct Method* method;
@@ -8,4 +9,5 @@ typedef struct MethodBuilder {
 	} MethodBuilder;
 
 extern MethodBuilder* new_MethodBuilder();
+extern int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal);
 

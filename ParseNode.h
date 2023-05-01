@@ -5,8 +5,10 @@ struct Array;
 struct String;
 
 typedef struct ParseNode {
-	int (*emit_method)(struct ParseNode* self, struct MethodBuilder* method);
+	int (*emit)(struct ParseNode* self, struct MethodBuilder* method);
 		// Returns register containing the result (if an expression).
+	int (*emit_set)(struct ParseNode* self, struct ParseNode* value, struct MethodBuilder* method);
+		// Emits setting an lvalue.  Won't exist for non-lvalue nodes.
 	} ParseNode;
 
 
@@ -44,4 +46,32 @@ typedef struct ForStatement {
 extern ForStatement* new_ForStatement();
 
 
+typedef struct SetExpr {
+	ParseNode parse_node;
+	ParseNode* left;
+	ParseNode* right;
+	} SetExpr;
+extern SetExpr* new_SetExpr();
+
+
+typedef struct ShortCircuitOrExpr {
+	ParseNode parse_node;
+	ParseNode* expr1;
+	ParseNode* expr2;
+	} ShortCircuitOrExpr;
+extern ShortCircuitOrExpr* new_ShortCircutOrExpr(ParseNode* expr1, ParseNode* expr2);
+
+typedef struct ShortCircuitAndExpr {
+	ParseNode parse_node;
+	ParseNode* expr1;
+	ParseNode* expr2;
+	} ShortCircuitAndExpr;
+extern ShortCircuitAndExpr* new_ShortCircutAndExpr(ParseNode* expr1, ParseNode* expr2);
+
+
+typedef struct StringLiteralExpr {
+	ParseNode parse_node;
+	struct String* str;
+	} StringLiteralExpr;
+extern StringLiteralExpr* new_StringLiteralExpr(struct String* str);
 
