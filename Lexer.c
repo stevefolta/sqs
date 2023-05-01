@@ -34,6 +34,18 @@ void Lexer_init(Lexer* self, const char* text, size_t size)
 }
 
 
+static bool is_identifier_character(char c)
+{
+	return
+		(c >= 'A' && c <= 'Z') ||
+		(c >= 'a' && c <= 'z') ||
+		(c >= '0' && c <= '9') ||
+		c == '-' ||
+		c == '_' ||
+		(c & 0x80) != 0;
+}
+
+
 Token Lexer_next_token(struct Lexer* self)
 {
 	Token result = { EndOfText, NULL };
@@ -130,25 +142,36 @@ Token Lexer_next_token(struct Lexer* self)
 			self->line_number += 1;
 			self->at_line_start = true;
 			result.type = EOL;
+			return result;
 			break;
 
 		case '(':
 		case '[':
 		case '{':
 			result.type = Operator;
-			result.token = new_String(token_start, self->p - token_start);
 			self->paren_level += 1;
 			break;
 		case ')':
 		case ']':
 		case '}':
 			result.type = Operator;
-			result.token = new_String(token_start, self->p - token_start);
 			self->paren_level -= 1;
+			break;
+
+		case ',':
+		case ':':
+		case '~':
+			result.type = Operator;
 			break;
 
 		case '=':
 		case '!':
+		case '+':
+		case '-':
+		case '*':
+		case '/':
+		case '%':
+		case '^':
 			// Possibly followed by '='.
 			if (self->p < self->end) {
 				c = *self->p;
@@ -156,14 +179,37 @@ Token Lexer_next_token(struct Lexer* self)
 					self->p += 1;
 				}
 			result.type = Operator;
-			result.token = new_String(token_start, self->p - token_start);
+			break;
+
+		case '<':
+		case '>':
+			// Could be doubled, then possibly followed by '='.
+			if (self->p < self->end && *self->p == c) {
+				self->p += 1;
+				if (self->p < self->end && *self->p == '=')
+					self->p += 1;
+				}
+			result.type = Operator;
+			break;
+
+		case '&':
+		case '|':
+			// Could be doubled, or followed by '='.
+			if (self->p < self->end) {
+				char next_c = *self->p;
+				if (next_c == c || next_c == '=')
+					self->p += 1;
+				}
+			result.type = Operator;
 			break;
 
 		default:
 			// Identifier.
+			if (!is_identifier_character(c))
+				Error("Unknown character");
 			while (self->p < self->end) {
 				c = *self->p;
-				if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || (c & 0x80) != 0) {
+				if (is_identifier_character(c)) {
 					// Good identifier character, keep going.
 					self->p += 1;
 					}
@@ -171,10 +217,10 @@ Token Lexer_next_token(struct Lexer* self)
 					break;
 				}
 			result.type = Identifier;
-			result.token = new_String(token_start, self->p - token_start);
 			break;
 		}
 
+	result.token = new_String(token_start, self->p - token_start);
 	return result;
 }
 

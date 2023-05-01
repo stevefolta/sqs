@@ -1,33 +1,29 @@
 #include "Lexer.h"
 #include "Boolean.h"
 #include "String.h"
+#include "Memory.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
-static const char* test_text = "\
-hello there 	# comment\n\
-\n\
-# comment\n\
-+ 3\n\
-if foo == bar\n\
-	baz = 12\n\
-	for quux in quixm\n\
-		print(quux)\n\
-\n\
-foo = [\n\
-	bar\n\
-	baz\n\
-	quux\n\
-	]\n\
-";
 
-int main(int argc, char* argv[])
+static void lexer_test(const char* file_path)
 {
-	true_obj.class_ = NULL; 	// TODO
-	false_obj.class_ = NULL; 	// TODO
+	// Read the test file.
+	FILE* file = fopen(file_path, "r");
+	if (file == NULL) {
+		fprintf(stderr, "Couldn't open \"%s\" (%s).", file_path, strerror(errno));
+		return;
+		}
+	fseek(file, 0, SEEK_END);
+	size_t size = ftell(file);
+	rewind(file);
+	char* text = (char*) alloc_mem(size);
+	size_t bytes_read = fread(text, 1, size, file);
+	fclose(file);
 
-	Lexer* lexer = new_Lexer(test_text, strlen(test_text));
+	Lexer* lexer = new_Lexer(text, bytes_read);
 	while (true) {
 		Token token = lexer->next_token(lexer);
 		if (token.type == EndOfText)
@@ -51,6 +47,18 @@ int main(int argc, char* argv[])
 				break;
 			}
 		}
+
+}
+
+int main(int argc, char* argv[])
+{
+	true_obj.class_ = NULL; 	// TODO
+	false_obj.class_ = NULL; 	// TODO
+
+	if (argc < 2)
+		return 1;
+	lexer_test(argv[1]);
+
 	return 0;
 }
 
