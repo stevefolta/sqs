@@ -1,8 +1,6 @@
 #pragma once
 
 #include "String.h"
-#include "Memory.h"
-#include <stdlib.h>
 #include <stdbool.h>
 
 
@@ -11,6 +9,7 @@ typedef struct Token {
 		EndOfText, EOL, Identifier, IntLiteral, FloatLiteral, StringLiteral, Operator, Indent, Unindent,
 		} type;
 	String* token;
+	size_t line_number;
 	} Token;
 
 typedef struct Lexer {
@@ -22,8 +21,12 @@ typedef struct Lexer {
 	size_t* indent_stack;
 	size_t indent_stack_size;
 	int unindent_to; 	// -1: no unindents pending
+	Token peeked_token;
+	bool have_peeked_token;
 	} Lexer;
 
 extern Lexer* new_Lexer(const char* text, size_t size);
-extern Token Lexer_next_token(struct Lexer* self);
+extern Token Lexer_peek(Lexer* self);
+extern Token Lexer_next(Lexer* self);
+extern Token Lexer_next_token(Lexer* self);
 

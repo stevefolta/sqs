@@ -14,16 +14,10 @@ typedef struct Array {
 	} Array;
 
 
-extern Object* Array_init(Array* self);
+extern Array* new_Array();
 extern Object* Array_at(struct Array* self, size_t index);
 extern Object* Array_set_at(struct Array* self, size_t index, Object* value);
 extern Object* Array_append(struct Array* self, Object* value);
 
 
-inline Array* new_Array()
-{
-	Array* self = (Array*) alloc_mem(sizeof(Array));
-	Array_init(self);
-	return self;
-}
 

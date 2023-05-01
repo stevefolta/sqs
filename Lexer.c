@@ -1,6 +1,7 @@
 #include "Lexer.h"
+#include "Memory.h"
 #include "Error.h"
-#include <stdbool.h>
+#include <stdlib.h>
 
 #define indent_stack_max 64
 
@@ -26,6 +27,27 @@ void Lexer_init(Lexer* self, const char* text, size_t size)
 	self->indent_stack = (size_t*) alloc_mem(indent_stack_max * sizeof(size_t));
 	self->indent_stack_size = 0;
 	self->unindent_to = -1;
+	self->have_peeked_token = false;
+}
+
+
+Token Lexer_peek(Lexer* self)
+{
+	if (!self->have_peeked_token) {
+		self->peeked_token = Lexer_next_token(self);
+		self->have_peeked_token = true;
+		}
+	return self->peeked_token;
+}
+
+
+Token Lexer_next(Lexer* self)
+{
+	if (self->have_peeked_token) {
+		self->have_peeked_token = false;
+		return self->peeked_token;
+		}
+	return Lexer_next_token(self);
 }
 
 
@@ -43,7 +65,7 @@ static bool is_identifier_character(char c)
 
 Token Lexer_next_token(struct Lexer* self)
 {
-	Token result = { EndOfText, NULL };
+	Token result = { EndOfText, NULL, self->line_number };
 
 	// End of text.
 	if (self->p >= self->end) {

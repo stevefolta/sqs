@@ -18,6 +18,12 @@ Object* String_equals(struct String* self, struct String* other)
 	return make_bool(self->size == other->size && memcmp(self->str, other->str, self->size) == 0);
 }
 
+Object* String_equals_c(struct String* self, const char* other)
+{
+	return make_bool(self->size == strlen(other) && memcmp(self->str, other, self->size) == 0);
+}
+
+
 Object* String_less_than(struct String* self, struct String* other)
 {
 	if (self->size == other->size)

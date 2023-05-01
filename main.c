@@ -25,7 +25,7 @@ static void lexer_test(const char* file_path)
 
 	Lexer* lexer = new_Lexer(text, bytes_read);
 	while (true) {
-		Token token = Lexer_next_token(lexer);
+		Token token = Lexer_next(lexer);
 		if (token.type == EndOfText)
 			break;
 		switch (token.type) {

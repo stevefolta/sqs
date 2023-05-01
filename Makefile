@@ -5,7 +5,7 @@ CFLAGS += -Wall
 -include Makefile.local
 
 SOURCES := main.c
-SOURCES += Lexer.c
+SOURCES += Lexer.c Parser.c ParseNode.c
 SOURCES += String.c Boolean.c Array.c Dict.c ByteArray.c
 SOURCES += Error.c
 LIBRARIES = gc

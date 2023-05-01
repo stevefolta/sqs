@@ -5,12 +5,13 @@
 #define capacity_increment 16
 
 
-Object* Array_init(struct Array* self)
+Array* new_Array()
 {
+	Array* self = alloc_obj(Array);
 	self->class_ = NULL; 	// TODO
 	self->size = self->capacity = 0;
 	self->items = NULL;
-	return (Object*) self;
+	return self;
 }
 
 
