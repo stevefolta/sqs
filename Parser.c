@@ -55,6 +55,16 @@ ParseNode* Parser_parse_block(Parser* self)
 }
 
 
+typedef struct {
+	const char* name;
+	ParseNode* (*fn)(Parser* self);
+	} StatementParser;
+static StatementParser statement_parsers[] = {
+	{ "if", &Parser_parse_if_statement },
+	{ "while", &Parser_parse_while_statement },
+	{ "for", &Parser_parse_for_statement },
+	};
+
 ParseNode* Parser_parse_statement(Parser* self)
 {
 	Token next_token = Lexer_peek(self->lexer);
@@ -64,12 +74,10 @@ ParseNode* Parser_parse_statement(Parser* self)
 		}
 
 	if (next_token.type == Identifier) {
-		if (String_equals_c(next_token.token, "if"))
-			return Parser_parse_if_statement(self);
-		else if (String_equals_c(next_token.token, "while"))
-			return Parser_parse_while_statement(self);
-		else if (String_equals_c(next_token.token, "for"))
-			return Parser_parse_for_statement(self);
+		for (int i = 0; i < sizeof(statement_parsers) / sizeof(statement_parsers[0]); ++i) {
+			if (String_equals_c(next_token.token, statement_parsers[i].name))
+				return statement_parsers[i].fn(self);
+			}
 		}
 
 	ParseNode* expression = Parser_parse_expression(self);
@@ -85,6 +93,7 @@ ParseNode* Parser_parse_statement(Parser* self)
 ParseNode* Parser_parse_if_statement(Parser* self)
 {
 	int line_number = Lexer_next(self->lexer).line_number;
+
 	ParseNode* condition = Parser_parse_expression(self);
 	if (condition == NULL)
 		Error("Missing expression at line %d.", line_number);
@@ -115,15 +124,46 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 
 ParseNode* Parser_parse_while_statement(Parser* self)
 {
-	Lexer_next(self->lexer);
-	/***/
+	int line_number = Lexer_next(self->lexer).line_number;
+
+	ParseNode* condition = Parser_parse_expression(self);
+	if (condition == NULL)
+		Error("Missing expression at line %d.", line_number);
+	if (Lexer_next(self->lexer).type != EOL)
+		Error("Extra characters after expression at line %d.", line_number);
+	WhileStatement* statement = new_WhileStatement();
+	statement->condition = condition;
+	if (Lexer_peek(self->lexer).type == Indent) {
+		Lexer_next(self->lexer);
+		statement->body = Parser_parse_block(self);
+		}
+	return (ParseNode*) statement;
 }
 
 
 ParseNode* Parser_parse_for_statement(Parser* self)
 {
-	Lexer_next(self->lexer);
-	/***/
+	int line_number = Lexer_next(self->lexer).line_number;
+
+	Token token = Lexer_next(self->lexer);
+	if (token.type != Identifier)
+		Error("Need identifier for \"for\" statement (line %d).", line_number);
+	ForStatement* statement = new_ForStatement();
+	statement->variable_name = token.token;
+	token = Lexer_next(self->lexer);
+	if (token.type != Operator || !String_equals_c(token.token, ":"))
+		Error("Missing \":\" in \"for\" statement (line %d).", line_number);
+	statement->collection = Parser_parse_expression(self);
+	if (statement->collection == NULL)
+		Error("Missing expression in \"for\" statement (line %d).", line_number);
+	if (Lexer_next(self->lexer).type != EOL)
+		Error("Extra characters after expression at line %d.", line_number);
+	if (Lexer_peek(self->lexer).type == Indent) {
+		Lexer_next(self->lexer);
+		statement->body = Parser_parse_block(self);
+		}
+
+	return (ParseNode*) statement;
 }
 
 
