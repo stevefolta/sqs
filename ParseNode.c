@@ -87,8 +87,46 @@ ParseNode* Block_autodeclare(Block* self, String* name)
 int IfStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	IfStatement* self = (IfStatement*) super;
+
+	int orig_locals = method->cur_num_variables;
 	int condition_reg = self->condition->emit(self->condition, method);
-	/*** TODO ***/
+
+	if (self->if_block) {
+		// Branch if false.
+		MethodBuilder_add_bytecode(method, BC_BRANCH_IF_FALSE);
+		MethodBuilder_add_bytecode(method, condition_reg);
+		int false_patch_point = MethodBuilder_add_offset8(method);
+		method->cur_num_variables = orig_locals;
+
+		self->if_block->emit(self->if_block, method);
+
+		if (self->else_block) {
+			// Finish "if" block".
+			MethodBuilder_add_bytecode(method, BC_BRANCH);
+			int end_patch_point = MethodBuilder_add_offset8(method);
+
+			// "else" block.
+			MethodBuilder_patch_offset8(method, false_patch_point);
+			self->else_block->emit(self->else_block, method);
+
+			// Finish.
+			MethodBuilder_patch_offset8(method, end_patch_point);
+			}
+		else
+			MethodBuilder_patch_offset8(method, false_patch_point);
+		}
+
+	else {
+		// *Only* an "else" block!
+		MethodBuilder_add_bytecode(method, BC_BRANCH_IF_TRUE);
+		MethodBuilder_add_bytecode(method, condition_reg);
+		int end_patch_point = MethodBuilder_add_offset8(method);
+
+		self->else_block->emit(self->else_block, method);
+		MethodBuilder_patch_offset8(method, end_patch_point);
+		}
+
+	return 0;
 }
 
 IfStatement* new_IfStatement()

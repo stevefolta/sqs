@@ -45,4 +45,20 @@ void MethodBuilder_release_locals(MethodBuilder* self, int num_locals)
 }
 
 
+int MethodBuilder_add_offset8(MethodBuilder* self)
+{
+	int patch_point = self->method->bytecode->size;
+	ByteArray_append(self->method->bytecode, 0);
+	return patch_point;
+}
+
+
+void MethodBuilder_patch_offset8(MethodBuilder* self, int patch_point)
+{
+	ByteArray* bytecode = self->method->bytecode;
+	int offset = bytecode->size - patch_point - 1;
+	ByteArray_set_at(bytecode, patch_point, offset);
+}
+
+
 
