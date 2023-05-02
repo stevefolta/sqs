@@ -49,7 +49,7 @@ const char* String_c_str(struct String* self)
 {
 	char* str = (char*) alloc_mem(self->size + 1);
 	memcpy(str, self->str, self->size);
-	str[self->size - 1] = 0;
+	str[self->size] = 0;
 	return str;
 }
 

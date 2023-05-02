@@ -89,6 +89,8 @@ int IfStatement_emit(ParseNode* super, MethodBuilder* method)
 	IfStatement* self = (IfStatement*) super;
 
 	int orig_locals = method->cur_num_variables;
+	if (self->condition->resolve_names)
+		self->condition->resolve_names(self->condition, method);
 	int condition_reg = self->condition->emit(self->condition, method);
 
 	if (self->if_block) {
@@ -121,6 +123,7 @@ int IfStatement_emit(ParseNode* super, MethodBuilder* method)
 		MethodBuilder_add_bytecode(method, BC_BRANCH_IF_TRUE);
 		MethodBuilder_add_bytecode(method, condition_reg);
 		int end_patch_point = MethodBuilder_add_offset8(method);
+		method->cur_num_variables = orig_locals;
 
 		self->else_block->emit(self->else_block, method);
 		MethodBuilder_patch_offset8(method, end_patch_point);
@@ -140,7 +143,31 @@ IfStatement* new_IfStatement()
 int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	WhileStatement* self = (WhileStatement*) super;
-	/*** TODO ***/
+
+	// Condition.
+	if (self->condition->resolve_names)
+		self->condition->resolve_names(self->condition, method);
+	int orig_locals = method->cur_num_variables;
+	int loop_point = MethodBuilder_get_offset(method);
+	int condition_loc = self->condition->emit(self->condition, method);
+
+	// Branch out if false.
+	MethodBuilder_add_bytecode(method, BC_BRANCH_IF_FALSE);
+	MethodBuilder_add_bytecode(method, condition_loc);
+	int end_patch_point = MethodBuilder_add_offset8(method);
+	method->cur_num_variables = orig_locals;
+
+	// Body.
+	if (self->body)
+		self->body->emit(self->body, method);
+
+	// Jump back to beginning.
+	MethodBuilder_add_bytecode(method, BC_BRANCH);
+	MethodBuilder_add_back_offset8(method, loop_point);
+
+	// Finish.
+	MethodBuilder_patch_offset8(method, end_patch_point);
+	return 0;
 }
 
 WhileStatement* new_WhileStatement()
@@ -290,7 +317,7 @@ int Variable_emit(ParseNode* super, MethodBuilder* method)
 {
 	Variable* self = (Variable*) super;
 	if (self->resolved == NULL)
-		Error("Unresolved variable.");
+		Error("Unresolved variable \"%s\".", String_c_str(self->name));
 	return self->resolved->emit(self->resolved, method);
 }
 
@@ -298,7 +325,7 @@ int Variable_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 {
 	Variable* self = (Variable*) super;
 	if (self->resolved == NULL)
-		Error("Unresolved variable.");
+		Error("Unresolved variable \"%s\".", String_c_str(self->name));
 	return self->resolved->emit_set(self->resolved, value, method);
 }
 

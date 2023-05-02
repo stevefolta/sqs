@@ -29,6 +29,35 @@ void MethodBuilder_add_bytecode(MethodBuilder* self, uint8_t bytecode)
 }
 
 
+int MethodBuilder_add_offset8(MethodBuilder* self)
+{
+	int patch_point = self->method->bytecode->size;
+	ByteArray_append(self->method->bytecode, 0);
+	return patch_point;
+}
+
+
+void MethodBuilder_add_back_offset8(MethodBuilder* self, int patch_point)
+{
+	int offset = patch_point - self->method->bytecode->size - 1;
+	ByteArray_append(self->method->bytecode, offset);
+}
+
+
+void MethodBuilder_patch_offset8(MethodBuilder* self, int patch_point)
+{
+	ByteArray* bytecode = self->method->bytecode;
+	int offset = bytecode->size - patch_point - 1;
+	ByteArray_set_at(bytecode, patch_point, offset);
+}
+
+
+int MethodBuilder_get_offset(MethodBuilder* self)
+{
+	return self->method->bytecode->size;
+}
+
+
 int MethodBuilder_reserve_locals(MethodBuilder* self, int num_locals)
 {
 	int base_index = self->cur_num_variables;
@@ -42,22 +71,6 @@ int MethodBuilder_reserve_locals(MethodBuilder* self, int num_locals)
 void MethodBuilder_release_locals(MethodBuilder* self, int num_locals)
 {
 	self->cur_num_variables -= num_locals;
-}
-
-
-int MethodBuilder_add_offset8(MethodBuilder* self)
-{
-	int patch_point = self->method->bytecode->size;
-	ByteArray_append(self->method->bytecode, 0);
-	return patch_point;
-}
-
-
-void MethodBuilder_patch_offset8(MethodBuilder* self, int patch_point)
-{
-	ByteArray* bytecode = self->method->bytecode;
-	int offset = bytecode->size - patch_point - 1;
-	ByteArray_set_at(bytecode, patch_point, offset);
 }
 
 
