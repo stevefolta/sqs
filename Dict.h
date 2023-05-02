@@ -1,22 +1,23 @@
 #pragma once
 
-#include "Class.h"
-#include "Object.h"
-#include "Memory.h"
-#include <stdlib.h>
+#include <stdint.h>
 
+struct DictNode;
 struct String;
+struct Object;
 
 typedef struct Dict {
-	Class* class_;
-	size_t size, capacity;
-	struct Dict_KV* items;
+	struct DictNode* tree;
+	int capacity, size;
 	} Dict;
 
 extern Dict* new_Dict();
-extern Object* Dict_at(struct Dict* self, struct String* key);
-extern Object* Dict_set_at(struct Dict* self, struct String* key, struct Object* value);
-extern struct String* Dict_key_at(struct Dict* self, struct String* key);
+extern void Dict_init(Dict* self);
+extern void Dict_set_at(Dict* self, struct String* key, struct Object* value);
+extern struct Object* Dict_at(Dict* self, struct String* key);
+extern struct String* Dict_key_at(Dict* self, struct String* key);
 	// Useful to avoid proliferations of the same string.
+extern void Dict_dump(Dict* self);
+
 
 
