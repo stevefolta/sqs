@@ -55,7 +55,7 @@ void Method_dump(Method* self)
 	size = self->literals->size;
 	for (int i = 0; i < size; ++i) {
 		// TODO: Don't assume they're all strings!
-		printf("%d: \"", -i - 1);
+		printf("  %d: \"", -i - 1);
 		String* str = (String*) self->literals->items[i];
 		fwrite(str->str, str->size, 1, stdout);
 		printf("\"\n");
