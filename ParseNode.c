@@ -219,7 +219,36 @@ SetExpr* new_SetExpr()
 int ShortCircuitOrExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	ShortCircuitOrExpr* self = (ShortCircuitOrExpr*) super;
-	/*** TODO ***/
+
+	int result_slot = MethodBuilder_reserve_locals(method, 1);
+	int orig_locals = method->cur_num_variables;
+
+	// expr1
+	if (self->expr1->resolve_names)
+		self->expr1->resolve_names(self->expr1, method);
+	int expr_loc = self->expr1->emit(self->expr1, method);
+	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
+	MethodBuilder_add_bytecode(method, expr_loc);
+	MethodBuilder_add_bytecode(method, result_slot);
+	method->cur_num_variables = orig_locals;
+
+	// Test.
+	MethodBuilder_add_bytecode(method, BC_BRANCH_IF_TRUE);
+	MethodBuilder_add_bytecode(method, result_slot);
+	int patch_point = MethodBuilder_add_offset8(method);
+
+	// expr2
+	if (self->expr2->resolve_names)
+		self->expr2->resolve_names(self->expr2, method);
+	expr_loc = self->expr2->emit(self->expr2, method);
+	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
+	MethodBuilder_add_bytecode(method, expr_loc);
+	MethodBuilder_add_bytecode(method, result_slot);
+	method->cur_num_variables = orig_locals;
+
+	// Finish.
+	MethodBuilder_patch_offset8(method, patch_point);
+	return 0;
 }
 
 ShortCircuitOrExpr* new_ShortCircutOrExpr(ParseNode* expr1, ParseNode* expr2)

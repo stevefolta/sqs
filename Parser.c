@@ -217,6 +217,7 @@ ParseNode* Parser_parse_logical_or_expression(Parser* self)
 		Token next_token = Lexer_peek(self->lexer);
 		if (next_token.type != Operator || !String_equals_c(next_token.token, "||"))
 			break;
+		Lexer_next(self->lexer);
 
 		ParseNode* expr2 = Parser_parse_logical_and_expression(self);
 		if (expr2 == NULL)
@@ -238,10 +239,11 @@ ParseNode* Parser_parse_logical_and_expression(Parser* self)
 		Token next_token = Lexer_peek(self->lexer);
 		if (next_token.type != Operator || !String_equals_c(next_token.token, "&&"))
 			break;
+		Lexer_next(self->lexer);
 
 		ParseNode* expr2 = Parser_parse_not_expression(self);
 		if (expr2 == NULL)
-			Error("Missing expression after \"||\" (line %d).", next_token.line_number);
+			Error("Missing expression after \"&&\" (line %d).", next_token.line_number);
 		expr = (ParseNode*) new_ShortCircutAndExpr(expr, expr2);
 		}
 
