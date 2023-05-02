@@ -122,7 +122,7 @@ ShortCircuitAndExpr* new_ShortCircutAndExpr(ParseNode* expr1, ParseNode* expr2)
 int StringLiteralExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	StringLiteralExpr* self = (StringLiteralExpr*) super;
-	return MethodBuilder_add_literal(method, (Object*) self->str); 	// TODO: return the right thing.
+	return -MethodBuilder_add_literal(method, (Object*) self->str) - 1;
 }
 
 StringLiteralExpr* new_StringLiteralExpr(struct String* str)
@@ -130,6 +130,21 @@ StringLiteralExpr* new_StringLiteralExpr(struct String* str)
 	StringLiteralExpr* self = alloc_obj(StringLiteralExpr);
 	self->parse_node.emit = StringLiteralExpr_emit;
 	self->str = str;
+	return self;
+}
+
+
+int GlobalExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	GlobalExpr* self = (GlobalExpr*) super;
+	int name_literal = MethodBuilder_add_literal(method, (Object*) self->name);
+}
+
+GlobalExpr* new_GlobalExpr(struct String* name)
+{
+	GlobalExpr* self = alloc_obj(GlobalExpr);
+	self->parse_node.emit = GlobalExpr_emit;
+	self->name = name;
 	return self;
 }
 

@@ -75,3 +75,9 @@ typedef struct StringLiteralExpr {
 	} StringLiteralExpr;
 extern StringLiteralExpr* new_StringLiteralExpr(struct String* str);
 
+typedef struct GlobalExpr {
+	ParseNode parse_node;
+	struct String* name;
+	} GlobalExpr;
+extern GlobalExpr* new_GlobalExpr(struct String* name);
+

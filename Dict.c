@@ -12,12 +12,13 @@ typedef struct Dict_KV {
 	} Dict_KV;
 
 
-Object* Dict_init(struct Dict* self)
+Dict* new_Dict()
 {
+	Dict* self = (Dict*) alloc_mem(sizeof(Dict));
 	self->class_ = NULL; 	// TODO
 	self->size = self->capacity = 0;
 	self->items = NULL;
-	return (Object*) self;
+	return self;
 }
 
 
@@ -58,6 +59,17 @@ Object* Dict_set_at(struct Dict* self, String* key, Object* value)
 	self->capacity += 1;
 
 	return value;
+}
+
+
+String* Dict_key_at(struct Dict* self, struct String* key)
+{
+	for (int i = 0; i < self->size; ++i) {
+		if (String_equals(key, self->items[i].key))
+			return self->items[i].key;
+		}
+
+	return NULL;
 }
 
 

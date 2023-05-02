@@ -1,4 +1,5 @@
 #include "Lexer.h"
+#include "Environment.h"
 #include "Boolean.h"
 #include "String.h"
 #include "Memory.h"
@@ -54,6 +55,7 @@ static void lexer_test(const char* file_path)
 
 int main(int argc, char* argv[])
 {
+	GlobalEnvironment_init();
 	true_obj.class_ = NULL; 	// TODO
 	false_obj.class_ = NULL; 	// TODO
 

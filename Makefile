@@ -6,6 +6,7 @@ CFLAGS += -Wall
 
 SOURCES := main.c
 SOURCES += Lexer.c Parser.c ParseNode.c Method.c MethodBuilder.c
+SOURCES += Environment.c
 SOURCES += String.c Boolean.c Array.c Dict.c ByteArray.c
 SOURCES += Error.c
 LIBRARIES = gc

@@ -13,15 +13,10 @@ typedef struct Dict {
 	struct Dict_KV* items;
 	} Dict;
 
-extern Object* Dict_init(Dict* self);
+extern Dict* new_Dict();
 extern Object* Dict_at(struct Dict* self, struct String* key);
 extern Object* Dict_set_at(struct Dict* self, struct String* key, struct Object* value);
+extern struct String* Dict_key_at(struct Dict* self, struct String* key);
+	// Useful to avoid proliferations of the same string.
 
-
-inline Dict* new_Dict()
-{
-	Dict* self = (Dict*) alloc_mem(sizeof(Dict));
-	Dict_init(self);
-	return self;
-}
 
