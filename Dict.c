@@ -1,5 +1,7 @@
 #include "Dict.h"
 #include "String.h"
+#include "Class.h"
+#include "Memory.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -9,7 +11,7 @@ typedef struct DictNode {
 	Dict_index_t left, right;
 	Dict_index_t level;
 	String* key;
-	Object* value;
+	struct Object* value;
 	} DictNode;
 
 #define capacity_increment 32
@@ -18,6 +20,16 @@ typedef struct DictNode {
 // root as its "left".
 
 #define Node(index) (self->tree[index])
+
+
+static Class Dict_class;
+
+void Dict_init_class()
+{
+	Class_init_static(&Dict_class, "Dict", 3);
+}
+
+
 
 
 static Dict_index_t Dict_skew(Dict* self, Dict_index_t node)

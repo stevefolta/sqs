@@ -1,9 +1,12 @@
 #pragma once
 
-#include "Class.h"
+struct Class;
 
 typedef struct Object {
-	Class* class_;
+	struct Class* class_;
 	} Object;
 
+
+extern struct Class Object_class;
+extern void Object_init_class();
 

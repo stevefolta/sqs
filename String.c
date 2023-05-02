@@ -1,13 +1,23 @@
 #include "String.h"
+#include "Class.h"
+#include "Memory.h"
 #include <string.h>
 
+Class String_class;
 
 extern void String_init(String* self, const char* str, size_t size);
 
 String* new_String(const char* str, size_t size)
 {
-	String* string = (String*) alloc_mem(sizeof(String));
+	String* string = alloc_obj(String);
 	String_init(string, str, size);
+	return string;
+}
+
+String* new_static_String(const char* str)
+{
+	String* string = alloc_obj(String);
+	String_init_static(string, str);
 	return string;
 }
 
@@ -46,6 +56,8 @@ bool String_less_than(struct String* self, struct String* other)
 
 const char* String_c_str(struct String* self)
 {
+	// Useful for debugging.
+
 	char* str = (char*) alloc_mem(self->size + 1);
 	memcpy(str, self->str, self->size);
 	str[self->size] = 0;
@@ -55,7 +67,7 @@ const char* String_c_str(struct String* self)
 
 void String_init(String* self, const char* str, size_t size)
 {
-	self->class_ = NULL; 	// TODO
+	self->class_ = &String_class;
 
 	if (size == 0)
 		size = strlen(str);
@@ -63,5 +75,20 @@ void String_init(String* self, const char* str, size_t size)
 	self->str = alloc_mem(size);
 	memcpy((char*) self->str, str, size);
 }
+
+
+void String_init_static(String* self, const char* str)
+{
+	self->class_ = &String_class;
+	self->str = str;
+	self->size = strlen(str);
+}
+
+
+void String_init_class()
+{
+	Class_init_static(&String_class, "String", 2);
+}
+
 
 

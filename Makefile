@@ -7,6 +7,7 @@ CFLAGS += -Wall
 SOURCES := main.c
 SOURCES += Lexer.c Parser.c ParseNode.c Method.c MethodBuilder.c
 SOURCES += Environment.c
+SOURCES += Class.c Object.c Init.c
 SOURCES += String.c Boolean.c Array.c Dict.c ByteArray.c
 SOURCES += Error.c
 LIBRARIES = gc
@@ -60,6 +61,6 @@ tags:
 
 .PHONY: edit-all
 edit-all:
-	$(EDITOR) $(foreach source,$(SOURCES),$(source:.c=.h) $(source))
+	$(EDITOR) $(filter-out main.h,$(foreach source,$(SOURCES),$(source:.c=.h) $(source)))
 
 

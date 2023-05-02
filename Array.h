@@ -1,23 +1,24 @@
 #pragma once
 
-#include "Class.h"
-#include "Object.h"
-#include "Memory.h"
 #include <stddef.h>
 #include <stdlib.h>
 
+struct Object;
+struct Class;
+
 
 typedef struct Array {
-	Class* class_;
+	struct Class* class_;
 	size_t size, capacity;
-	Object** items;
+	struct Object** items;
 	} Array;
 
 
 extern Array* new_Array();
-extern Object* Array_at(struct Array* self, size_t index);
-extern Object* Array_set_at(struct Array* self, size_t index, Object* value);
-extern Object* Array_append(struct Array* self, Object* value);
+extern struct Object* Array_at(Array* self, size_t index);
+extern struct Object* Array_set_at(Array* self, size_t index, struct Object* value);
+extern struct Object* Array_append(Array* self, struct Object* value);
 
 
+extern void Array_init_class();
 

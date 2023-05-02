@@ -5,8 +5,10 @@
 struct DictNode;
 struct String;
 struct Object;
+struct Class;
 
 typedef struct Dict {
+	struct Class_* class_;
 	struct DictNode* tree;
 	int capacity, size;
 	} Dict;
@@ -18,6 +20,8 @@ extern struct Object* Dict_at(Dict* self, struct String* key);
 extern struct String* Dict_key_at(Dict* self, struct String* key);
 	// Useful to avoid proliferations of the same string.
 extern void Dict_dump(Dict* self);
+
+extern void Dict_init_class();
 
 
 

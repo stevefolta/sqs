@@ -1,14 +1,24 @@
 #include "Array.h"
+#include "Class.h"
+#include "Object.h"
+#include "Memory.h"
 #include "Error.h"
 #include <string.h>
 
 #define capacity_increment 16
 
+static Class Array_class;
+
+void Array_init_class()
+{
+	Class_init_static(&Array_class, "Array", 3);
+}
+
 
 Array* new_Array()
 {
 	Array* self = alloc_obj(Array);
-	self->class_ = NULL; 	// TODO
+	self->class_ = &Array_class;
 	self->size = self->capacity = 0;
 	self->items = NULL;
 	return self;

@@ -13,3 +13,6 @@ inline Object* make_bool(bool value)
 	return (value ? &true_obj : &false_obj);
 }
 
+extern void Boolean_init_class();
+
+

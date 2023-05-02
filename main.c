@@ -7,6 +7,7 @@
 #include "Boolean.h"
 #include "String.h"
 #include "Memory.h"
+#include "Init.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -82,9 +83,7 @@ static void compile_test(const char* file_path)
 int main(int argc, char* argv[])
 {
 	// Set up.
-	GlobalEnvironment_init();
-	true_obj.class_ = NULL; 	// TODO
-	false_obj.class_ = NULL; 	// TODO
+	init_all();
 
 	if (argc < 2)
 		return 1;
