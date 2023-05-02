@@ -228,6 +228,7 @@ ParseNode* new_NilLiteral()
 {
 	ParseNode* self = alloc_obj(ParseNode);
 	self->emit = NilLiteral_emit;
+	return self;
 }
 
 
@@ -235,6 +236,7 @@ int GlobalExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	GlobalExpr* self = (GlobalExpr*) super;
 	int name_literal = MethodBuilder_add_literal(method, (Object*) self->name);
+	return name_literal;
 }
 
 GlobalExpr* new_GlobalExpr(struct String* name)
@@ -276,6 +278,7 @@ Variable* new_Variable(struct String* name)
 	self->parse_node.emit = Variable_emit;
 	self->parse_node.emit_set = Variable_emit_set;
 	self->parse_node.resolve_names = Variable_resolve_names;
+	return self;
 }
 
 
@@ -293,6 +296,8 @@ int Local_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
 	MethodBuilder_add_bytecode(method, value_loc);
 	MethodBuilder_add_bytecode(method, self->block->locals_base + self->block_index);
+
+	return value_loc;
 }
 
 Local* new_Local(Block* block, int block_index)
