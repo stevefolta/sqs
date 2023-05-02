@@ -1,5 +1,4 @@
 #include "String.h"
-#include "Boolean.h"
 #include <string.h>
 
 
@@ -24,23 +23,23 @@ bool String_equals_c(struct String* self, const char* other)
 }
 
 
-Object* String_less_than(struct String* self, struct String* other)
+bool String_less_than(struct String* self, struct String* other)
 {
 	if (self->size == other->size)
-		return make_bool(memcmp(self->str, other->str, self->size) < 0);
+		return memcmp(self->str, other->str, self->size) < 0;
 	else if (self->size < other->size) {
 		int result = memcmp(self->str, other->str, self->size);
 		// "abc" < "abcdef": true
 		// "abb" < "abcdef": true
 		// "abd" < "abcdef": false
-		return make_bool(result <= 0);
+		return result <= 0;
 		}
 	else {
 		int result = memcmp(self->str, other->str, other->size);
 		// "abbdef" < "abc": true
 		// "abcdef" < "abc": false
 		// "abddef" < "abc:: false
-		return make_bool(result < 0);
+		return result < 0;
 		}
 }
 
