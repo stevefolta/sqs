@@ -396,7 +396,7 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 			return (ParseNode*) new_BooleanLiteral(false);
 		else if (String_equals_c(next_token.token, "nil"))
 			return new_NilLiteral();
-		return new_Variable(next_token.token);
+		return (ParseNode*) new_Variable(next_token.token);
 		}
 
 	/***/
