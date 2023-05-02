@@ -1,4 +1,8 @@
 #include "Lexer.h"
+#include "Parser.h"
+#include "ParseNode.h"
+#include "MethodBuilder.h"
+#include "Method.h"
 #include "Environment.h"
 #include "Boolean.h"
 #include "String.h"
@@ -50,18 +54,41 @@ static void lexer_test(const char* file_path)
 				break;
 			}
 		}
-
 }
+
+static void compile_test(const char* file_path)
+{
+	// Read the test file.
+	FILE* file = fopen(file_path, "r");
+	if (file == NULL) {
+		fprintf(stderr, "Couldn't open \"%s\" (%s).", file_path, strerror(errno));
+		return;
+		}
+	fseek(file, 0, SEEK_END);
+	size_t size = ftell(file);
+	rewind(file);
+	char* text = (char*) alloc_mem(size);
+	size_t bytes_read = fread(text, 1, size, file);
+	fclose(file);
+
+	Parser* parser = new_Parser(text, bytes_read);
+	ParseNode* ast = Parser_parse_block(parser);
+	MethodBuilder* method_builder = new_MethodBuilder();
+	ast->emit(ast, method_builder);
+	Method_dump(method_builder->method);
+}
+
 
 int main(int argc, char* argv[])
 {
+	// Set up.
 	GlobalEnvironment_init();
 	true_obj.class_ = NULL; 	// TODO
 	false_obj.class_ = NULL; 	// TODO
 
 	if (argc < 2)
 		return 1;
-	lexer_test(argv[1]);
+	compile_test(argv[1]);
 
 	return 0;
 }

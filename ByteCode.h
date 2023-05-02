@@ -6,6 +6,6 @@
 
 enum {
 	BC_NOP,
-	BC_LOAD_GLOBAL, 	// followed by location of global name (typically a global).
+	BC_LOAD_GLOBAL, 	// followed by location of global name (typically a literal).
 	};
 

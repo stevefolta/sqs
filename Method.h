@@ -10,5 +10,6 @@ typedef struct Method {
 	} Method;
 
 Method* new_Method();
+void Method_dump(Method* self);
 
 

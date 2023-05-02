@@ -7,6 +7,7 @@ struct Object;
 
 
 typedef struct Environment {
+	struct Environment* parent;
 	struct ParseNode* (*find)(struct Environment* self, struct String* name);
 	} Environment;
 

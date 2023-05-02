@@ -1,5 +1,6 @@
 #include "MethodBuilder.h"
 #include "Method.h"
+#include "Array.h"
 #include "Memory.h"
 
 
@@ -14,7 +15,8 @@ MethodBuilder* new_MethodBuilder()
 
 int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
 {
-	/***/
+	Array_append(self->method->literals, literal);
+	return self->method->literals->size - 1;
 }
 
 

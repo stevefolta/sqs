@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 struct Lexer;
+struct ParseNode;
 
 typedef struct Parser {
 	struct Lexer* lexer;
@@ -10,6 +11,7 @@ typedef struct Parser {
 
 
 extern Parser* new_Parser(const char* text, size_t size);
+extern struct ParseNode* Parser_parse_block(Parser* self);
 
 
 

@@ -6,7 +6,6 @@
 #include "Error.h"
 #include <stdbool.h>
 
-extern ParseNode* Parser_parse_block(Parser* self);
 extern ParseNode* Parser_parse_statement(Parser* self);
 extern ParseNode* Parser_parse_if_statement(Parser* self);
 extern ParseNode* Parser_parse_while_statement(Parser* self);
