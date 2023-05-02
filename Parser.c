@@ -222,7 +222,7 @@ ParseNode* Parser_parse_logical_or_expression(Parser* self)
 		ParseNode* expr2 = Parser_parse_logical_and_expression(self);
 		if (expr2 == NULL)
 			Error("Missing expression after \"||\" (line %d).", next_token.line_number);
-		expr = (ParseNode*) new_ShortCircutOrExpr(expr, expr2);
+		expr = (ParseNode*) new_ShortCircuitExpr(expr, expr2, false);
 		}
 
 	return expr;
@@ -244,7 +244,7 @@ ParseNode* Parser_parse_logical_and_expression(Parser* self)
 		ParseNode* expr2 = Parser_parse_not_expression(self);
 		if (expr2 == NULL)
 			Error("Missing expression after \"&&\" (line %d).", next_token.line_number);
-		expr = (ParseNode*) new_ShortCircutAndExpr(expr, expr2);
+		expr = (ParseNode*) new_ShortCircuitExpr(expr, expr2, true);
 		}
 
 	return expr;

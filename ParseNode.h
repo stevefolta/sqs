@@ -63,19 +63,13 @@ typedef struct SetExpr {
 extern SetExpr* new_SetExpr();
 
 
-typedef struct ShortCircuitOrExpr {
+typedef struct ShortCircuitExpr {
 	ParseNode parse_node;
 	ParseNode* expr1;
 	ParseNode* expr2;
-	} ShortCircuitOrExpr;
-extern ShortCircuitOrExpr* new_ShortCircutOrExpr(ParseNode* expr1, ParseNode* expr2);
-
-typedef struct ShortCircuitAndExpr {
-	ParseNode parse_node;
-	ParseNode* expr1;
-	ParseNode* expr2;
-	} ShortCircuitAndExpr;
-extern ShortCircuitAndExpr* new_ShortCircutAndExpr(ParseNode* expr1, ParseNode* expr2);
+	bool is_and;
+	} ShortCircuitExpr;
+extern ShortCircuitExpr* new_ShortCircuitExpr(ParseNode* expr1, ParseNode* expr2, bool is_and);
 
 
 typedef struct StringLiteralExpr {

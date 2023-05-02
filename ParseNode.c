@@ -216,9 +216,9 @@ SetExpr* new_SetExpr()
 }
 
 
-int ShortCircuitOrExpr_emit(ParseNode* super, MethodBuilder* method)
+int ShortCircuitExpr_emit(ParseNode* super, MethodBuilder* method)
 {
-	ShortCircuitOrExpr* self = (ShortCircuitOrExpr*) super;
+	ShortCircuitExpr* self = (ShortCircuitExpr*) super;
 
 	int result_slot = MethodBuilder_reserve_locals(method, 1);
 	int orig_locals = method->cur_num_variables;
@@ -233,7 +233,7 @@ int ShortCircuitOrExpr_emit(ParseNode* super, MethodBuilder* method)
 	method->cur_num_variables = orig_locals;
 
 	// Test.
-	MethodBuilder_add_bytecode(method, BC_BRANCH_IF_TRUE);
+	MethodBuilder_add_bytecode(method, (self->is_and ? BC_BRANCH_IF_FALSE : BC_BRANCH_IF_TRUE));
 	MethodBuilder_add_bytecode(method, result_slot);
 	int patch_point = MethodBuilder_add_offset8(method);
 
@@ -251,28 +251,13 @@ int ShortCircuitOrExpr_emit(ParseNode* super, MethodBuilder* method)
 	return 0;
 }
 
-ShortCircuitOrExpr* new_ShortCircutOrExpr(ParseNode* expr1, ParseNode* expr2)
+ShortCircuitExpr* new_ShortCircuitExpr(ParseNode* expr1, ParseNode* expr2, bool is_and)
 {
-	ShortCircuitOrExpr* self = alloc_obj(ShortCircuitOrExpr);
-	self->parse_node.emit = ShortCircuitOrExpr_emit;
+	ShortCircuitExpr* self = alloc_obj(ShortCircuitExpr);
+	self->parse_node.emit = ShortCircuitExpr_emit;
 	self->expr1 = expr1;
 	self->expr2 = expr2;
-	return self;
-}
-
-
-int ShortCircuitAndExpr_emit(ParseNode* super, MethodBuilder* method)
-{
-	ShortCircuitAndExpr* self = (ShortCircuitAndExpr*) super;
-	/*** TODO ***/
-}
-
-ShortCircuitAndExpr* new_ShortCircutAndExpr(ParseNode* expr1, ParseNode* expr2)
-{
-	ShortCircuitAndExpr* self = alloc_obj(ShortCircuitAndExpr);
-	self->parse_node.emit = ShortCircuitAndExpr_emit;
-	self->expr1 = expr1;
-	self->expr2 = expr2;
+	self->is_and = is_and;
 	return self;
 }
 
