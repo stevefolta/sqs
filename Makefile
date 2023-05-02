@@ -23,6 +23,7 @@ all: $(PROGRAM)
 CPP := g++
 CFLAGS += -MMD
 CFLAGS += -g
+CFLAGS += -Wno-unused-function
 CFLAGS += $(foreach switch,$(SWITCHES),-D$(switch))
 LINK_FLAGS += $(foreach lib,$(LIBRARIES),-l$(lib))
 
