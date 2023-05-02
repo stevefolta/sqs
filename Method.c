@@ -20,7 +20,8 @@ void Method_dump(Method* self)
 {
 	printf("Bytecode:\n");
 	size_t size = self->bytecode->size;
-	uint8_t* bytecode = self->bytecode->array;
+	int8_t* bytecode = (int8_t*) self->bytecode->array;
+	int8_t src, dest;
 	for (int i = 0; i < size; ++i) {
 		uint8_t opcode = bytecode[i];
 		switch (opcode) {
@@ -29,6 +30,23 @@ void Method_dump(Method* self)
 				break;
 			case BC_LOAD_GLOBAL:
 				printf("  load_global %d\n", bytecode[++i]);
+				break;
+			case BC_SET_LOCAL:
+				src = bytecode[++i];
+				dest = bytecode[++i];
+				printf("  set_local %d -> %d\n", src, dest);
+				break;
+			case BC_TRUE:
+				printf("  true -> %d\n", bytecode[++i]);
+				break;
+			case BC_FALSE:
+				printf("  false -> %d\n", bytecode[++i]);
+				break;
+			case BC_NIL:
+				printf("  nil -> %d\n", bytecode[++i]);
+				break;
+			default:
+				printf("  UNKNOWN %d\n", opcode);
 				break;
 			}
 		}

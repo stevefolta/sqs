@@ -110,7 +110,7 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 
 	ParseNode* condition = Parser_parse_expression(self);
 	if (condition == NULL)
-		Error("Missing expression at line %d.", line_number);
+		Error("Missing expression in \"if\" statement at line %d.", line_number);
 	if (Lexer_next(self->lexer).type != EOL)
 		Error("Extra characters after expression at line %d.", line_number);
 	IfStatement* statement = new_IfStatement();
@@ -142,7 +142,7 @@ ParseNode* Parser_parse_while_statement(Parser* self)
 
 	ParseNode* condition = Parser_parse_expression(self);
 	if (condition == NULL)
-		Error("Missing expression at line %d.", line_number);
+		Error("Missing expression in \"while\" statement at line %d.", line_number);
 	if (Lexer_next(self->lexer).type != EOL)
 		Error("Extra characters after expression at line %d.", line_number);
 	WhileStatement* statement = new_WhileStatement();
@@ -387,6 +387,17 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 
 	if (next_token.type == StringLiteral)
 		return Parser_parse_string_literal(self);
+
+	else if (next_token.type == Identifier) {
+		Lexer_next(self->lexer);
+		if (String_equals_c(next_token.token, "true"))
+			return (ParseNode*) new_BooleanLiteral(true);
+		else if (String_equals_c(next_token.token, "false"))
+			return (ParseNode*) new_BooleanLiteral(false);
+		else if (String_equals_c(next_token.token, "nil"))
+			return new_NilLiteral();
+		return new_Variable(next_token.token);
+		}
 
 	/***/
 

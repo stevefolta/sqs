@@ -1,23 +1,32 @@
 #pragma once
 
+#include <stdbool.h>
+
 struct MethodBuilder;
 struct Array;
+struct Dict;
 struct String;
+
 
 typedef struct ParseNode {
 	int (*emit)(struct ParseNode* self, struct MethodBuilder* method);
 		// Returns register containing the result (if an expression).
 	int (*emit_set)(struct ParseNode* self, struct ParseNode* value, struct MethodBuilder* method);
 		// Emits setting an lvalue.  Won't exist for non-lvalue nodes.
+	void (*resolve_names)(struct ParseNode* self, struct MethodBuilder* method);
 	} ParseNode;
 
 
 typedef struct Block {
 	ParseNode parse_node;
 	struct Array* statements;
+	struct Dict* locals;
+	int locals_base;
 	} Block;
 extern Block* new_Block();
 extern void Block_append(Block* self, ParseNode* statement);
+extern ParseNode* Block_get_local(Block* self, struct String* name);
+extern ParseNode* Block_autodeclare(Block* self, struct String* name);
 
 
 typedef struct IfStatement {
@@ -75,9 +84,30 @@ typedef struct StringLiteralExpr {
 	} StringLiteralExpr;
 extern StringLiteralExpr* new_StringLiteralExpr(struct String* str);
 
+typedef struct BooleanLiteral {
+	ParseNode parse_node;
+	bool value;
+	} BooleanLiteral;
+extern BooleanLiteral* new_BooleanLiteral(bool value);
+extern ParseNode* new_NilLiteral();
+
 typedef struct GlobalExpr {
 	ParseNode parse_node;
 	struct String* name;
 	} GlobalExpr;
 extern GlobalExpr* new_GlobalExpr(struct String* name);
+
+typedef struct Variable {
+	ParseNode parse_node;
+	struct String* name;
+	ParseNode* resolved;
+	} Variable;
+extern Variable* new_Variable(struct String* name);
+
+typedef struct Local {
+	ParseNode parse_node;
+	Block* block;
+	int block_index;
+	} Local;
+extern Local* new_Local(Block* block, int block_index);
 

@@ -7,5 +7,9 @@
 enum {
 	BC_NOP,
 	BC_LOAD_GLOBAL, 	// followed by location of global name (typically a literal).
+	BC_SET_LOCAL, 	// src, dest
+	BC_TRUE,	// dest
+	BC_FALSE,	// dest
+	BC_NIL,	// dest
 	};
 

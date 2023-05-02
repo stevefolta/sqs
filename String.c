@@ -13,14 +13,14 @@ String* new_String(const char* str, size_t size)
 }
 
 
-Object* String_equals(struct String* self, struct String* other)
+bool String_equals(struct String* self, struct String* other)
 {
-	return make_bool(self->size == other->size && memcmp(self->str, other->str, self->size) == 0);
+	return self->size == other->size && memcmp(self->str, other->str, self->size) == 0;
 }
 
-Object* String_equals_c(struct String* self, const char* other)
+bool String_equals_c(struct String* self, const char* other)
 {
-	return make_bool(self->size == strlen(other) && memcmp(self->str, other, self->size) == 0);
+	return self->size == strlen(other) && memcmp(self->str, other, self->size) == 0;
 }
 
 
@@ -42,6 +42,15 @@ Object* String_less_than(struct String* self, struct String* other)
 		// "abddef" < "abc:: false
 		return make_bool(result < 0);
 		}
+}
+
+
+const char* String_c_str(struct String* self)
+{
+	char* str = (char*) alloc_mem(self->size + 1);
+	memcpy(str, self->str, self->size);
+	str[self->size - 1] = 0;
+	return str;
 }
 
 
