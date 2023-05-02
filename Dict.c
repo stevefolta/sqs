@@ -54,9 +54,9 @@ Object* Dict_set_at(struct Dict* self, String* key, Object* value)
 			self->items = (Dict_KV*) alloc_mem(self->capacity * sizeof(Dict_KV));
 		}
 
-	self->items[self->capacity].key = key;
-	self->items[self->capacity].value = value;
-	self->capacity += 1;
+	self->items[self->size].key = key;
+	self->items[self->size].value = value;
+	self->size += 1;
 
 	return value;
 }

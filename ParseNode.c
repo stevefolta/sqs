@@ -14,26 +14,23 @@ void Block_resolve_names(struct ParseNode* super, struct MethodBuilder* method)
 {
 	Block* self = (Block*) super;
 
-	// Push our context.
-	BlockContext context;
-	BlockContext_init(&context, self, method->environment);
-	method->environment = &context.environment;
-
 	size_t size = self->statements->size;
 	for (int i = 0; i < size; ++i) {
 		ParseNode* statement = (ParseNode*) Array_at(self->statements, i);
 		if (statement->resolve_names)
 			statement->resolve_names(statement, method);
 		}
-
-	// Pop our context.
-	method->environment = context.environment.parent;
 }
 
 int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 {
-	Block_resolve_names(super, method);
+	// Push our context.
 	Block* self = (Block*) super;
+	BlockContext context;
+	BlockContext_init(&context, self, method->environment);
+	method->environment = &context.environment;
+
+	Block_resolve_names(super, method);
 
 	if (self->locals)
 		self->locals_base = MethodBuilder_reserve_locals(method, self->locals->size);
@@ -45,6 +42,9 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 		ParseNode* statement = (ParseNode*) Array_at(self->statements, i);
 		statement->emit(statement, method);
 		}
+
+	// Pop our context.
+	method->environment = context.environment.parent;
 
 	method->cur_num_variables = self->locals_base;
 	return -1;
@@ -316,6 +316,7 @@ Variable* new_Variable(struct String* name)
 	self->parse_node.emit = Variable_emit;
 	self->parse_node.emit_set = Variable_emit_set;
 	self->parse_node.resolve_names = Variable_resolve_names;
+	self->name = name;
 	return self;
 }
 
