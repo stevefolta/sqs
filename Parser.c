@@ -97,7 +97,7 @@ ParseNode* Parser_parse_statement(Parser* self)
 	ParseNode* expression = Parser_parse_expression(self);
 	if (expression == NULL)
 		return NULL;
-	next_token = Lexer_peek(self->lexer);
+	next_token = Lexer_next(self->lexer);
 	if (next_token.type != EOL)
 		Error("Extra characters after expression at line %d.", next_token.line_number);
 	return expression;
