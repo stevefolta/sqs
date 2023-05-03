@@ -25,4 +25,6 @@ extern void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* spec
 
 extern void Class_init_class();
 
+#define NumSlotsFor(type) ((sizeof(type) + sizeof(struct Object*) - 1) / sizeof(struct Object*) - 1)
+
 

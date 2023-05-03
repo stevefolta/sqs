@@ -14,6 +14,7 @@ typedef struct MethodBuilder {
 	} MethodBuilder;
 
 extern MethodBuilder* new_MethodBuilder();
+extern void MethodBuilder_finish(MethodBuilder* self);
 extern int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal);
 
 extern void MethodBuilder_add_bytecode(MethodBuilder* self, uint8_t bytecode);

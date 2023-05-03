@@ -10,6 +10,7 @@ typedef struct Method {
 	int num_args; 	// Put this in the same position in both Method and BuiltinMethod.
 	struct ByteArray* bytecode;
 	struct Array* literals;
+	int stack_size;
 	} Method;
 
 Method* new_Method();

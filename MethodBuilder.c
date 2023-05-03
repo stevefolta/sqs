@@ -16,6 +16,12 @@ MethodBuilder* new_MethodBuilder()
 }
 
 
+void MethodBuilder_finish(MethodBuilder* self)
+{
+	self->method->stack_size = self->max_num_variables;
+}
+
+
 int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
 {
 	Array_append(self->method->literals, literal);
