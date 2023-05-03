@@ -263,39 +263,62 @@ ParseNode* Parser_parse_not_expression(Parser* self)
 }
 
 
-ParseNode* Parser_parse_inclusive_or_expression(Parser* self)
+ParseNode* Parser_parse_binop(
+	Parser* self,
+	ParseNode* (*parse_tighter)(Parser* self),
+	const char** tokens)
 {
-	ParseNode* expr = Parser_parse_exclusive_or_expression(self);
+	ParseNode* expr = parse_tighter(self);
 	if (expr == NULL)
 		return NULL;
 
-	/***/
+	while (true) {
+		// Is the next token one of the ones we're looking for?
+		Token op = Lexer_peek(self->lexer);
+		if (op.type != Operator)
+			return expr;
+		bool matches = false;
+		for (const char** token = tokens; *token; ++token) {
+			if (String_equals_c(op.token, *token)) {
+				matches = true;
+				break;
+				}
+			}
+		if (!matches)
+			break;
+
+		// Parse the argument.
+		Lexer_next(self->lexer);
+		ParseNode* expr2 = parse_tighter(self);
+		if (expr2 == NULL)
+			Error("Missing expression after \"%s\" in line %d.", op.token, op.line_number);
+
+		// Make the binop.
+		expr = (ParseNode*) new_CallExpr_binop(expr, expr2, op.token);
+		}
 
 	return expr;
+}
+
+
+ParseNode* Parser_parse_inclusive_or_expression(Parser* self)
+{
+	static const char* tokens[] = { "|", NULL };
+	return Parser_parse_binop(self, Parser_parse_exclusive_or_expression, tokens);
 }
 
 
 ParseNode* Parser_parse_exclusive_or_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_and_expression(self);
-	if (expr == NULL)
-		return NULL;
-
-	/***/
-
-	return expr;
+	static const char* tokens[] = { "^", NULL };
+	return Parser_parse_binop(self, Parser_parse_and_expression, tokens);
 }
 
 
 ParseNode* Parser_parse_and_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_equality_expression(self);
-	if (expr == NULL)
-		return NULL;
-
-	/***/
-
-	return expr;
+	static const char* tokens[] = { "&", NULL };
+	return Parser_parse_binop(self, Parser_parse_equality_expression, tokens);
 }
 
 
@@ -305,7 +328,20 @@ ParseNode* Parser_parse_equality_expression(Parser* self)
 	if (expr == NULL)
 		return NULL;
 
-	/***/
+	while (true) {
+		Token op = Lexer_peek(self->lexer);
+		if (op.type != Operator || (!String_equals_c(op.token, "!=") && !String_equals_c(op.token, "!=")))
+			return expr;
+		Lexer_next(self->lexer);
+		ParseNode* expr2 = Parser_parse_relational_expression(self);
+		if (expr2 == NULL)
+			Error("Missing expression after \"%s\" in line %d.", op.token, op.line_number);
+
+		// Special-case "== nil" and "!= nil".
+		//*** TODO
+
+		expr = (ParseNode*) new_CallExpr_binop(expr, expr2, op.token);
+		}
 
 	return expr;
 }
@@ -313,55 +349,29 @@ ParseNode* Parser_parse_equality_expression(Parser* self)
 
 ParseNode* Parser_parse_relational_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_shift_expression(self);
-	if (expr == NULL)
-		return NULL;
-
-	/***/
-
-	return expr;
+	static const char* tokens[] = { "<", ">", "<=", ">=", NULL };
+	return Parser_parse_binop(self, Parser_parse_shift_expression, tokens);
 }
 
 
 ParseNode* Parser_parse_shift_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_additive_expression(self);
-	if (expr == NULL)
-		return NULL;
-
-	/***/
-
-	return expr;
+	static const char* tokens[] = { "<<", ">>", NULL };
+	return Parser_parse_binop(self, Parser_parse_additive_expression, tokens);
 }
 
 
 ParseNode* Parser_parse_additive_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_multiplicative_expression(self);
-	if (expr == NULL)
-		return NULL;
-
-	Token op = Lexer_peek(self->lexer);
-	if (op.type != Operator || (!String_equals_c(op.token, "+") && !String_equals_c(op.token, "-")))
-		return expr;
-	Lexer_next(self->lexer);
-	ParseNode* expr2 = Parser_parse_multiplicative_expression(self);
-	if (expr2 == NULL)
-		Error("Missing expression after \"%s\" in line %d.", op.token, op.line_number);
-
-	return (ParseNode*) new_CallExpr_binop(expr, expr2, op.token);
+	static const char* tokens[] = { "+", "-", NULL };
+	return Parser_parse_binop(self, Parser_parse_multiplicative_expression, tokens);
 }
 
 
 ParseNode* Parser_parse_multiplicative_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_unary_expression(self);
-	if (expr == NULL)
-		return NULL;
-
-	/***/
-
-	return expr;
+	static const char* tokens[] = { "*", "/", "%", NULL };
+	return Parser_parse_binop(self, Parser_parse_unary_expression, tokens);
 }
 
 
