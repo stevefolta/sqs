@@ -112,3 +112,13 @@ typedef struct Local {
 	} Local;
 extern Local* new_Local(Block* block, int block_index);
 
+typedef struct CallExpr {
+	ParseNode parse_node;
+	struct ParseNode* receiver;
+	struct String* name;
+	struct Array* arguments;
+	} CallExpr;
+extern CallExpr* new_CallExpr(ParseNode* receiver, struct String* name);
+extern CallExpr* new_CallExpr_binop(ParseNode* receiver, ParseNode* arg, struct String* name);
+extern void CallExpr_add_argument(CallExpr* self, ParseNode* arg);
+

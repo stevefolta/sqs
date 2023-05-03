@@ -27,6 +27,18 @@ enum {
 	BC_CALL_11, BC_CALL_12, BC_CALL_13, BC_CALL_14, BC_CALL_15, 
 	};
 
+/* A call frame on the stack looks like this:
+	frame[-4]: where the return value goes
+	frame[-3]: saved frame pointer
+	frame[-2]: saved instruction pointer
+	frame[-1]: saved literals
+	frame[0]: self
+	frame[1]: first argument
+	...
+	frame[n]: local variables and temporaries
+*/
+#define frame_saved_area_size 4
+
 
 struct Method;
 

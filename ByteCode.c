@@ -7,6 +7,7 @@
 #include "Object.h"
 #include "Boolean.h"
 #include "Memory.h"
+#include "Error.h"
 #include <stdio.h>
 
 static Object** stack = NULL;
@@ -32,7 +33,7 @@ void interpret_bytecode(struct Method* method)
 		uint8_t opcode = *pc++;
 		int8_t src, dest;
 		Object* value;
-		#define DEREF(index) (index >= 0 ? frame[index] : literals[-index + 1])
+		#define DEREF(index) (index >= 0 ? frame[index] : literals[-index - 1])
 		#define IS_TRUTHY(obj) (obj != NULL && obj != &false_obj)
 		switch (opcode) {
 			case BC_NOP:
@@ -42,7 +43,7 @@ void interpret_bytecode(struct Method* method)
 			case BC_SET_LOCAL:
 				src = *pc++;
 				dest = *pc++;
-				frame[dest] = (dest >= 0 ? frame[src] : literals[-src]);
+				frame[dest] = DEREF(src);
 				break;
 			case BC_TRUE:
 				dest = *pc++;
@@ -95,7 +96,10 @@ void interpret_bytecode(struct Method* method)
 				frame[-1] = (Object*) literals;
 
 				// Find the method.
-				Object* method = Object_find_method(frame[0], (String*) DEREF(name));
+				String* name_str = (String*) DEREF(name);
+				Object* method = Object_find_method(frame[0], name_str);
+				if (method == NULL)
+					Error("Unhandled method call: \"%s\".", name_str);
 
 				// If there weren't enough arguments, fill the rest with nil.
 				int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod
@@ -196,7 +200,9 @@ void dump_bytecode(struct Method* method)
 			case BC_CALL_1: case BC_CALL_2: case BC_CALL_3: case BC_CALL_4: case BC_CALL_5:
 			case BC_CALL_6: case BC_CALL_7: case BC_CALL_8: case BC_CALL_9: case BC_CALL_10:
 			case BC_CALL_11: case BC_CALL_12: case BC_CALL_13: case BC_CALL_14: case BC_CALL_15:
-				printf("call_%d\n", opcode - BC_CALL_0);
+				src = bytecode[++i];
+				dest = bytecode[++i];
+				printf("call_%d [%d] stack-adjust: %d\n", opcode - BC_CALL_0, src, (uint8_t) dest);
 				break;
 			default:
 				printf("UNKNOWN %d\n", opcode);

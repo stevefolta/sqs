@@ -23,6 +23,8 @@ extern void MethodBuilder_add_back_offset8(MethodBuilder* self, int patch_point)
 extern void MethodBuilder_patch_offset8(MethodBuilder* self, int patch_point);
 extern int MethodBuilder_get_offset(MethodBuilder* self);
 
+extern void MethodBuilder_add_move(MethodBuilder* self, int src, int dest);
+
 extern int MethodBuilder_reserve_locals(MethodBuilder* self, int num_locals);
 extern void MethodBuilder_release_locals(MethodBuilder* self, int num_locals);
 

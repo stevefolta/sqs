@@ -3,6 +3,7 @@
 #include "Environment.h"
 #include "Array.h"
 #include "ByteArray.h"
+#include "ByteCode.h"
 #include "Memory.h"
 
 
@@ -62,6 +63,14 @@ void MethodBuilder_patch_offset8(MethodBuilder* self, int patch_point)
 int MethodBuilder_get_offset(MethodBuilder* self)
 {
 	return self->method->bytecode->size;
+}
+
+
+void MethodBuilder_add_move(MethodBuilder* self, int src, int dest)
+{
+	MethodBuilder_add_bytecode(self, BC_SET_LOCAL);
+	MethodBuilder_add_bytecode(self, src);
+	MethodBuilder_add_bytecode(self, dest);
 }
 
 

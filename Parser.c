@@ -341,9 +341,15 @@ ParseNode* Parser_parse_additive_expression(Parser* self)
 	if (expr == NULL)
 		return NULL;
 
-	/***/
+	Token op = Lexer_peek(self->lexer);
+	if (op.type != Operator || (!String_equals_c(op.token, "+") && !String_equals_c(op.token, "-")))
+		return expr;
+	Lexer_next(self->lexer);
+	ParseNode* expr2 = Parser_parse_multiplicative_expression(self);
+	if (expr2 == NULL)
+		Error("Missing expression after \"%s\" in line %d.", op.token, op.line_number);
 
-	return expr;
+	return (ParseNode*) new_CallExpr_binop(expr, expr2, op.token);
 }
 
 

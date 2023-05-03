@@ -417,3 +417,73 @@ Local* new_Local(Block* block, int block_index)
 
 
 
+int CallExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	CallExpr* self = (CallExpr*) super;
+
+	int num_args = self->arguments->size;
+	if (num_args > 15)
+		Error("Too many arguments in call to \"%s\".", String_c_str(self->name));
+
+	int orig_locals =
+		MethodBuilder_reserve_locals(
+			method,
+			frame_saved_area_size + 1 /* receiver's "self" */ + num_args);
+	int args_start = orig_locals + frame_saved_area_size;
+
+	// Emit receiver and args, and put them into the new frame's arguments.
+	int receiver_loc = self->receiver->emit(self->receiver, method);
+	MethodBuilder_add_move(method, receiver_loc, args_start);
+	for (int i = 0; i < num_args; ++i) {
+		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
+		int arg_loc = arg->emit(arg, method);
+		MethodBuilder_add_move(method, arg_loc, args_start + i + 1);
+		}
+
+	// Emit the call itself.
+	MethodBuilder_add_bytecode(method, BC_CALL_0 + num_args);
+	int name_literal = MethodBuilder_add_literal(method, (Object*) self->name);
+	MethodBuilder_add_bytecode(method, -name_literal - 1);
+	MethodBuilder_add_bytecode(method, args_start);
+
+	method->cur_num_variables = orig_locals + 1;
+	return orig_locals;
+}
+
+void CallExpr_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	CallExpr* self = (CallExpr*) super;
+	if (self->receiver->resolve_names)
+		self->receiver->resolve_names(self->receiver, method);
+	for (int i = 0; i < self->arguments->size; ++i) {
+		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
+		if (arg->resolve_names)
+			arg->resolve_names(arg, method);
+		}
+}
+
+CallExpr* new_CallExpr(ParseNode* receiver, String* name)
+{
+	CallExpr* self = alloc_obj(CallExpr);
+	self->parse_node.emit = CallExpr_emit;
+	self->parse_node.resolve_names = CallExpr_resolve_names;
+	self->receiver = receiver;
+	self->name = name;
+	self->arguments = new_Array();
+	return self;
+}
+
+CallExpr* new_CallExpr_binop(ParseNode* receiver, ParseNode* arg, String* name)
+{
+	CallExpr* self = new_CallExpr(receiver, name);
+	CallExpr_add_argument(self, arg);
+	return self;
+}
+
+void CallExpr_add_argument(CallExpr* self, ParseNode* arg)
+{
+	Array_append(self->arguments, (Object*) arg);
+}
+
+
+
