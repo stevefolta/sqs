@@ -25,3 +25,9 @@ enum {
 	BC_CALL_11, BC_CALL_12, BC_CALL_13, BC_CALL_14, BC_CALL_15, 
 	};
 
+
+struct Method;
+
+extern void interpret_bytecode(struct Method* method);
+extern void dump_bytecode(struct Method* method);
+

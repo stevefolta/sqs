@@ -9,6 +9,7 @@ SOURCES += Lexer.c Parser.c ParseNode.c Method.c MethodBuilder.c
 SOURCES += BuiltinMethod.c Environment.c
 SOURCES += Class.c Object.c Init.c
 SOURCES += String.c Boolean.c Array.c Dict.c ByteArray.c Nil.c
+SOURCES += ByteCode.c
 SOURCES += Error.c
 LIBRARIES = gc
 

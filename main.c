@@ -4,10 +4,10 @@
 #include "MethodBuilder.h"
 #include "Method.h"
 #include "Environment.h"
-#include "Boolean.h"
 #include "String.h"
 #include "Memory.h"
 #include "Init.h"
+#include "ByteCode.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -76,6 +76,8 @@ static void compile_test(const char* file_path)
 	ParseNode* ast = Parser_parse_block(parser);
 	MethodBuilder* method_builder = new_MethodBuilder();
 	ast->emit(ast, method_builder);
+	MethodBuilder_add_bytecode(method_builder, BC_TERMINATE);
+	MethodBuilder_finish(method_builder);
 	Method_dump(method_builder->method);
 }
 
