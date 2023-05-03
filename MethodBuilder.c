@@ -6,11 +6,12 @@
 #include "Memory.h"
 
 
-MethodBuilder* new_MethodBuilder()
+MethodBuilder* new_MethodBuilder(int num_args)
 {
 	MethodBuilder* self = alloc_obj(MethodBuilder);
-	self->method = new_Method();
-	self->cur_num_variables = self->max_num_variables = 0;
+	self->method = new_Method(num_args);
+	self->cur_num_variables = self->max_num_variables = num_args + 1;
+		// "self" and the arguments count as a variables here.
 	self->environment = &global_environment.environment;
 	return self;
 }

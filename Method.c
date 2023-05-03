@@ -15,12 +15,13 @@ void Method_init_class()
 }
 
 
-Method* new_Method()
+Method* new_Method(int num_args)
 {
 	Method* self = alloc_obj(Method);
 	self->class_ = &Method_class;
 	self->bytecode = new_ByteArray();
 	self->literals = new_Array();
+	self->num_args = num_args;
 	return self;
 }
 

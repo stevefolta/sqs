@@ -13,7 +13,7 @@ typedef struct Method {
 	int stack_size;
 	} Method;
 
-Method* new_Method();
+Method* new_Method(int num_args);
 void Method_dump(Method* self);
 
 extern struct Class Method_class;

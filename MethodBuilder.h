@@ -13,7 +13,7 @@ typedef struct MethodBuilder {
 	struct Environment* environment;
 	} MethodBuilder;
 
-extern MethodBuilder* new_MethodBuilder();
+extern MethodBuilder* new_MethodBuilder(int num_args);
 extern void MethodBuilder_finish(MethodBuilder* self);
 extern int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal);
 

@@ -74,7 +74,7 @@ static void compile_test(const char* file_path)
 
 	Parser* parser = new_Parser(text, bytes_read);
 	ParseNode* ast = Parser_parse_block(parser);
-	MethodBuilder* method_builder = new_MethodBuilder();
+	MethodBuilder* method_builder = new_MethodBuilder(0);
 	ast->emit(ast, method_builder);
 	MethodBuilder_add_bytecode(method_builder, BC_TERMINATE);
 	MethodBuilder_finish(method_builder);
