@@ -4,6 +4,7 @@
 #include "Array.h"
 #include "String.h"
 #include "Object.h"
+#include "Boolean.h"
 #include "Memory.h"
 #include <stdio.h>
 
@@ -29,6 +30,9 @@ void interpret_bytecode(struct Method* method)
 	while (true) {
 		uint8_t opcode = *pc++;
 		int8_t src, dest;
+		Object* value;
+		#define DEREF(index) (index >= 0 ? frame[index] : literals[-index])
+		#define IS_TRUTHY(obj) (obj != NULL && obj != &false_obj)
 		switch (opcode) {
 			case BC_NOP:
 				break;
@@ -38,6 +42,39 @@ void interpret_bytecode(struct Method* method)
 				src = *pc++;
 				dest = *pc++;
 				frame[dest] = (dest >= 0 ? frame[src] : literals[-src]);
+				break;
+			case BC_TRUE:
+				dest = *pc++;
+				frame[dest] = &true_obj;
+				break;
+			case BC_FALSE:
+				dest = *pc++;
+				frame[dest] = &false_obj;
+				break;
+			case BC_NIL:
+				dest = *pc++;
+				frame[dest] = NULL;
+				break;
+			case BC_LOAD_GLOBAL:
+				//*** TODO
+				break;
+			case BC_BRANCH_IF_TRUE:
+				src = *pc++;
+				dest = *pc++;
+				value = DEREF(src);
+				if (IS_TRUTHY(value))
+					pc += dest;
+				break;
+			case BC_BRANCH_IF_FALSE:
+				src = *pc++;
+				dest = *pc++;
+				value = DEREF(src);
+				if (!IS_TRUTHY(value))
+					pc += dest;
+				break;
+			case BC_BRANCH:
+				dest = *pc++;
+				pc += dest;
 				break;
 			}
 		}
