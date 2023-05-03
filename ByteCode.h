@@ -19,6 +19,8 @@ enum {
 	BC_TERMINATE,
 
 	// Method calls.  The low 4 bits specify the number of arguments.
+	// Followed by value for the method name.
+	// Followed by the "frame adjustment".
 	BC_CALL_0 = 16,
 	BC_CALL_1, BC_CALL_2, BC_CALL_3, BC_CALL_4, BC_CALL_5,
 	BC_CALL_6, BC_CALL_7, BC_CALL_8, BC_CALL_9, BC_CALL_10, 

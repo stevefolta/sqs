@@ -1,5 +1,6 @@
 #include "ByteCode.h"
 #include "Method.h"
+#include "BuiltinMethod.h"
 #include "ByteArray.h"
 #include "Array.h"
 #include "String.h"
@@ -31,7 +32,7 @@ void interpret_bytecode(struct Method* method)
 		uint8_t opcode = *pc++;
 		int8_t src, dest;
 		Object* value;
-		#define DEREF(index) (index >= 0 ? frame[index] : literals[-index])
+		#define DEREF(index) (index >= 0 ? frame[index] : literals[-index + 1])
 		#define IS_TRUTHY(obj) (obj != NULL && obj != &false_obj)
 		switch (opcode) {
 			case BC_NOP:
@@ -75,6 +76,60 @@ void interpret_bytecode(struct Method* method)
 			case BC_BRANCH:
 				dest = *pc++;
 				pc += dest;
+				break;
+
+			case BC_CALL_0:
+			case BC_CALL_1: case BC_CALL_2: case BC_CALL_3: case BC_CALL_4: case BC_CALL_5:
+			case BC_CALL_6: case BC_CALL_7: case BC_CALL_8: case BC_CALL_9: case BC_CALL_10:
+			case BC_CALL_11: case BC_CALL_12: case BC_CALL_13: case BC_CALL_14: case BC_CALL_15:
+				{
+				// Parameters.
+				int8_t name = *pc++;
+				uint8_t frame_adjustment = *pc++;
+
+				// Bump the frame and save the state.
+				Object** old_fp = frame;
+				frame += frame_adjustment;
+				frame[-3] = (Object*) old_fp;
+				frame[-2] = (Object*) pc;
+				frame[-1] = (Object*) literals;
+
+				// Find the method.
+				Object* method = Object_find_method(frame[0], (String*) DEREF(name));
+
+				// If there weren't enough arguments, fill the rest with nil.
+				int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod
+				int args_given = opcode - BC_CALL_0;
+				while (args_given < args_needed) {
+					// These arg counts don't include "self".
+					frame[args_given + 1] = NULL;
+					args_given += 1;
+					}
+
+				// Call the method.
+				if (method->class_ == &Method_class) {
+					pc = (int8_t*) ((Method*) method)->bytecode->array;
+					literals = ((Method*) method)->literals->items;
+					}
+				else if (method->class_ == &BuiltinMethod_class) {
+					Object* result = ((BuiltinMethod*) method)->fn(frame[0], frame + 1);
+					frame[-4] = result;
+					goto return_from_method;
+					}
+				}
+				break;
+
+			case BC_RETURN_NIL:
+				frame[-4] = NULL;
+				goto return_from_method;
+			case BC_RETURN:
+				src = *pc++;
+				frame[-4] = DEREF(src);
+				// vv fall through vv
+			return_from_method:
+				pc = (int8_t*) frame[-2];
+				literals = (Object**) frame[-1];
+				frame = (Object**) frame[-3];
 				break;
 			}
 		}

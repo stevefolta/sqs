@@ -79,6 +79,7 @@ static void compile_test(const char* file_path)
 	MethodBuilder_add_bytecode(method_builder, BC_TERMINATE);
 	MethodBuilder_finish(method_builder);
 	Method_dump(method_builder->method);
+	interpret_bytecode(method_builder->method);
 }
 
 
