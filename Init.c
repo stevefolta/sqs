@@ -5,6 +5,9 @@
 #include "Boolean.h"
 #include "Array.h"
 #include "Dict.h"
+#include "Nil.h"
+#include "Method.h"
+#include "BuiltinMethod.h"
 #include "Environment.h"
 
 
@@ -16,6 +19,9 @@ void init_all()
 	Boolean_init_class();
 	Array_init_class();
 	Dict_init_class();
+	Method_init_class();
+	BuiltinMethod_init_class();
+	Nil_init_class();
 
 	GlobalEnvironment_init();
 }

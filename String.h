@@ -19,6 +19,8 @@ extern bool String_equals_c(struct String* self, const char* other);
 extern bool String_less_than(struct String* self, struct String* other);
 extern const char* String_c_str(struct String* self);
 
+extern String* String_add(String* self, String* other);
+
 #define make_string(str) (new_String(str, 0))
 
 extern void String_init_static(String* self, const char* str);

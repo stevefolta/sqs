@@ -1,6 +1,8 @@
 #include "String.h"
 #include "Class.h"
+#include "Object.h"
 #include "Memory.h"
+#include "Error.h"
 #include <string.h>
 
 Class String_class;
@@ -65,6 +67,20 @@ const char* String_c_str(struct String* self)
 }
 
 
+String* String_add(String* self, String* other)
+{
+	String* result = alloc_obj(String);
+	result->class_ = &String_class;
+	int total_size = self->size + other->size;
+	result->size = total_size;
+	char* result_str = alloc_mem(total_size);
+	memcpy(result_str, self->str, self->size);
+	memcpy(result_str + self->size, other->str, other->size);
+	result->str = result_str;
+	return result;
+}
+
+
 void String_init(String* self, const char* str, size_t size)
 {
 	self->class_ = &String_class;
@@ -85,9 +101,24 @@ void String_init_static(String* self, const char* str)
 }
 
 
+static Object* String_add_builtin(Object* self, Object** args)
+{
+	if (self->class_ != &String_class)
+		Error("Attempt to add a non-string to a string.");
+
+	return (Object*) String_add((String*) self, (String*) args[0]);
+}
+
+
 void String_init_class()
 {
 	Class_init_static(&String_class, "String", 2);
+
+	static const BuiltinMethodSpec specs[] = {
+		{ "+", 1, String_add_builtin, },
+		{ NULL, 0, NULL },
+		};
+	Class_add_builtin_methods(&String_class, specs);
 }
 
 
