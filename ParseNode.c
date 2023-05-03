@@ -192,6 +192,31 @@ ForStatement* new_ForStatement()
 }
 
 
+int ExpressionStatement_emit(ParseNode* super, MethodBuilder* method)
+{
+	ExpressionStatement* self = (ExpressionStatement*) super;
+	int orig_locals = method->cur_num_variables;
+	int result = self->expression->emit(self->expression, method);
+	method->cur_num_variables = orig_locals;
+	return result;
+}
+
+void ExpressionStatement_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	ExpressionStatement* self = (ExpressionStatement*) super;
+	self->expression->resolve_names(self->expression, method);
+}
+
+ExpressionStatement* new_ExpressionStatement(ParseNode* expression)
+{
+	ExpressionStatement* self = alloc_obj(ExpressionStatement);
+	self->parse_node.emit = ExpressionStatement_emit;
+	self->parse_node.resolve_names = ExpressionStatement_resolve_names;
+	self->expression = expression;
+	return self;
+}
+
+
 int SetExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	SetExpr* self = (SetExpr*) super;
