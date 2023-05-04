@@ -263,6 +263,16 @@ ParseNode* Parser_parse_not_expression(Parser* self)
 }
 
 
+bool String_is_one_of(String* str, const char** values)
+{
+	for (const char** value = values; *value; ++value) {
+		if (String_equals_c(str, *value))
+			return true;
+		}
+	return false;
+}
+
+
 ParseNode* Parser_parse_binop(
 	Parser* self,
 	ParseNode* (*parse_tighter)(Parser* self),
@@ -275,16 +285,7 @@ ParseNode* Parser_parse_binop(
 	while (true) {
 		// Is the next token one of the ones we're looking for?
 		Token op = Lexer_peek(self->lexer);
-		if (op.type != Operator)
-			return expr;
-		bool matches = false;
-		for (const char** token = tokens; *token; ++token) {
-			if (String_equals_c(op.token, *token)) {
-				matches = true;
-				break;
-				}
-			}
-		if (!matches)
+		if (op.type != Operator || !String_is_one_of(op.token, tokens))
 			break;
 
 		// Parse the argument.
