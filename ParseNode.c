@@ -414,10 +414,25 @@ int CallExpr_emit(ParseNode* super, MethodBuilder* method)
 	return orig_locals;
 }
 
+int CallExpr_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
+{
+	CallExpr* self = (CallExpr*) super;
+
+	// Make a copy, turn it into the setter, and emit from that.
+	CallExpr setter = *self;
+	String equals_string;
+	String_init_static(&equals_string, "=");
+	setter.name = String_add(setter.name, &equals_string);
+	setter.arguments = Array_copy(setter.arguments);
+	CallExpr_add_argument(&setter, value);
+	return CallExpr_emit((ParseNode*) &setter, method);
+}
+
 CallExpr* new_CallExpr(ParseNode* receiver, String* name)
 {
 	CallExpr* self = alloc_obj(CallExpr);
 	self->parse_node.emit = CallExpr_emit;
+	self->parse_node.emit_set = CallExpr_emit_set;
 	self->receiver = receiver;
 	self->name = name;
 	self->arguments = new_Array();

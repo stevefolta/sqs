@@ -62,4 +62,19 @@ Object* Array_append(struct Array* self, Object* value)
 }
 
 
+Array* Array_copy(Array* self)
+{
+	Array* copy = alloc_obj(Array);
+	copy->class_ = &Array_class;
+	copy->size = self->size;
+	copy->capacity = self->capacity;
+	copy->items = NULL;
+	if (self->items) {
+		copy->items = (Object**) alloc_mem(self->capacity);
+		memcpy(copy->items, self->items, self->size * sizeof(Object*));
+		}
+	return copy;
+}
+
+
 
