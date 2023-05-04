@@ -35,7 +35,7 @@ void GlobalEnvironment_add_fn(
 	struct Object* (*fn)(struct Object* self, struct Object** args))
 {
 	BuiltinMethod* method = new_BuiltinMethod(num_args, fn);
-	GlobalEnvironment_add(new_static_String(name), (struct Object*) method);
+	GlobalEnvironment_add(new_c_static_String(name), (struct Object*) method);
 }
 
 

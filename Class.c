@@ -12,7 +12,7 @@ void Class_init_static(Class* self, const char* name, int num_ivars)
 {
 	self->class_ = &Class_class;
 	self->superclass = &Object_class;
-	self->name = new_static_String(name);
+	self->name = new_c_static_String(name);
 	self->num_ivars = num_ivars;
 }
 
@@ -34,7 +34,7 @@ void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* specs)
 		method->class_ = &BuiltinMethod_class;
 		method->num_args = spec->num_args;
 		method->fn = spec->fn;
-		Dict_set_at(self->methods, new_static_String(spec->name), (Object*) method);
+		Dict_set_at(self->methods, new_c_static_String(spec->name), (Object*) method);
 		}
 }
 

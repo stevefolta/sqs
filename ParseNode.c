@@ -422,7 +422,7 @@ int CallExpr_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 	// Make a copy, turn it into the setter, and emit from that.
 	CallExpr setter = *self;
 	String equals_string;
-	String_init_static(&equals_string, "=");
+	String_init_static_c(&equals_string, "=");
 	setter.name = String_add(setter.name, &equals_string);
 	setter.arguments = Array_copy(setter.arguments);
 	CallExpr_add_argument(&setter, value);

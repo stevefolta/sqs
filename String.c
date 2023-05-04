@@ -16,12 +16,20 @@ String* new_String(const char* str, size_t size)
 	return string;
 }
 
-String* new_static_String(const char* str)
+String* new_c_static_String(const char* str)
 {
 	String* string = alloc_obj(String);
-	String_init_static(string, str);
+	String_init_static_c(string, str);
 	return string;
 }
+
+String* new_static_String(const char* str, size_t size)
+{
+	String* string = alloc_obj(String);
+	String_init_static(string, str, size);
+	return string;
+}
+
 
 
 bool String_equals(struct String* self, struct String* other)
@@ -93,7 +101,14 @@ void String_init(String* self, const char* str, size_t size)
 }
 
 
-void String_init_static(String* self, const char* str)
+void String_init_static(String* self, const char* str, size_t size)
+{
+	self->class_ = &String_class;
+	self->str = str;
+	self->size = size;
+}
+
+void String_init_static_c(String* self, const char* str)
 {
 	self->class_ = &String_class;
 	self->str = str;

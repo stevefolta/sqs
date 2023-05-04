@@ -8,19 +8,19 @@
 #include "Memory.h"
 #include "Init.h"
 #include "ByteCode.h"
+#include "Error.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
 
-static void lexer_test(const char* file_path)
+static String* file_contents(const char* file_path)
 {
-	// Read the test file.
 	FILE* file = fopen(file_path, "r");
 	if (file == NULL) {
 		fprintf(stderr, "Couldn't open \"%s\" (%s).", file_path, strerror(errno));
-		return;
+		return NULL;
 		}
 	fseek(file, 0, SEEK_END);
 	size_t size = ftell(file);
@@ -28,8 +28,17 @@ static void lexer_test(const char* file_path)
 	char* text = (char*) alloc_mem(size);
 	size_t bytes_read = fread(text, 1, size, file);
 	fclose(file);
+	return new_static_String(text, bytes_read);
+}
 
-	Lexer* lexer = new_Lexer(text, bytes_read);
+static void lexer_test(const char* file_path)
+{
+	// Read the test file.
+	String* contents = file_contents(file_path);
+	if (contents == NULL)
+		return;
+
+	Lexer* lexer = new_Lexer(contents->str, contents->size);
 	while (true) {
 		Token token = Lexer_next(lexer);
 		if (token.type == EndOfText)
@@ -57,29 +66,20 @@ static void lexer_test(const char* file_path)
 		}
 }
 
-static void compile_test(const char* file_path)
+static Method* compile_script(const char* file_path)
 {
 	// Read the test file.
-	FILE* file = fopen(file_path, "r");
-	if (file == NULL) {
-		fprintf(stderr, "Couldn't open \"%s\" (%s).", file_path, strerror(errno));
-		return;
-		}
-	fseek(file, 0, SEEK_END);
-	size_t size = ftell(file);
-	rewind(file);
-	char* text = (char*) alloc_mem(size);
-	size_t bytes_read = fread(text, 1, size, file);
-	fclose(file);
+	String* contents = file_contents(file_path);
+	if (contents == NULL)
+		return NULL;
 
-	Parser* parser = new_Parser(text, bytes_read);
+	Parser* parser = new_Parser(contents->str, contents->size);
 	ParseNode* ast = Parser_parse_block(parser);
 	MethodBuilder* method_builder = new_MethodBuilder(0);
 	ast->emit(ast, method_builder);
 	MethodBuilder_add_bytecode(method_builder, BC_TERMINATE);
 	MethodBuilder_finish(method_builder);
-	Method_dump(method_builder->method);
-	interpret_bytecode(method_builder->method);
+	return method_builder->method;
 }
 
 
@@ -90,7 +90,30 @@ int main(int argc, char* argv[])
 
 	if (argc < 2)
 		return 1;
-	compile_test(argv[1]);
+
+	// Parse the initial arguments.
+	bool dump = false;
+	int first_arg = 1;
+	while (first_arg < argc) {
+		const char* arg = argv[first_arg];
+		if (arg[0] == '-') {
+			if (arg[1] == 'd')
+				dump = true;
+			else
+				Error("Unknown argument: %s", arg);
+			first_arg += 1;
+			}
+		else
+			break;
+		}
+
+	// Compile and run the script.
+	Method* method = compile_script(argv[first_arg]);
+	if (method) {
+		if (dump)
+			Method_dump(method);
+		interpret_bytecode(method);
+		}
 
 	return 0;
 }
