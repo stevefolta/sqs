@@ -100,9 +100,10 @@ extern GlobalExpr* new_GlobalExpr(struct String* name);
 typedef struct Variable {
 	ParseNode parse_node;
 	struct String* name;
+	int line_number;
 	ParseNode* resolved;
 	} Variable;
-extern Variable* new_Variable(struct String* name);
+extern Variable* new_Variable(struct String* name, int line_number);
 
 typedef struct Local {
 	ParseNode parse_node;

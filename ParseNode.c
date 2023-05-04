@@ -319,7 +319,7 @@ int Variable_emit(ParseNode* super, MethodBuilder* method)
 	if (self->resolved == NULL) {
 		self->resolved = method->environment->find(method->environment, self->name);
 		if (!self->resolved)
-			Error("Couldn't find name: \"%s\".\n", String_c_str(self->name));
+			Error("Couldn't find name \"%s\" on line %d.", String_c_str(self->name), self->line_number);
 		}
 
 	return self->resolved->emit(self->resolved, method);
@@ -333,19 +333,20 @@ int Variable_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 		self->resolved = method->environment->find_autodeclaring(method->environment, self->name);
 		if (!self->resolved) {
 			// Probably won't happen, because of the autodeclaration.
-			Error("Couldn't find name: \"%s\".\n", String_c_str(self->name));
+			Error("Couldn't find name \"%s\" on line %d.", String_c_str(self->name), self->line_number);
 			}
 		}
 
 	return self->resolved->emit_set(self->resolved, value, method);
 }
 
-Variable* new_Variable(struct String* name)
+Variable* new_Variable(struct String* name, int line_number)
 {
 	Variable* self = alloc_obj(Variable);
 	self->parse_node.emit = Variable_emit;
 	self->parse_node.emit_set = Variable_emit_set;
 	self->name = name;
+	self->line_number = line_number;
 	return self;
 }
 
