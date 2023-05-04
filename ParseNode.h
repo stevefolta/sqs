@@ -93,9 +93,9 @@ extern ParseNode* new_NilLiteral();
 
 typedef struct GlobalExpr {
 	ParseNode parse_node;
-	struct String* name;
+	struct Object* object;
 	} GlobalExpr;
-extern GlobalExpr* new_GlobalExpr(struct String* name);
+extern GlobalExpr* new_GlobalExpr(struct Object* object);
 
 typedef struct Variable {
 	ParseNode parse_node;
@@ -121,4 +121,11 @@ typedef struct CallExpr {
 extern CallExpr* new_CallExpr(ParseNode* receiver, struct String* name);
 extern CallExpr* new_CallExpr_binop(ParseNode* receiver, ParseNode* arg, struct String* name);
 extern void CallExpr_add_argument(CallExpr* self, ParseNode* arg);
+
+typedef struct FunctionCallExpr {
+	ParseNode parse_node;
+	ParseNode* fn;
+	struct Array* arguments;
+	} FunctionCallExpr;
+extern FunctionCallExpr* new_FunctionCallExpr(ParseNode* fn, struct Array* arguments);
 

@@ -123,6 +123,46 @@ void interpret_bytecode(struct Method* method)
 				}
 				break;
 
+			case BC_FN_CALL:
+				{
+				// Parameters.
+				int8_t fn_loc = *pc++;
+				uint8_t args_given = *pc++;
+				uint8_t frame_adjustment = *pc++;
+
+				// Bump the frame and save the state.
+				Object** old_fp = frame;
+				frame += frame_adjustment;
+				frame[-3] = (Object*) old_fp;
+				frame[-2] = (Object*) pc;
+				frame[-1] = (Object*) literals;
+
+				// Make sure it's really a function.
+				Object* method = DEREF(fn_loc);
+				if (method == NULL || (method->class_ != &Method_class && method->class_ != &BuiltinMethod_class))
+					Error("Attempt to call a non-function.");
+
+				// If there weren't enough arguments, fill the rest with nil.
+				int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod
+				while (args_given < args_needed) {
+					// These arg counts don't include "self".
+					frame[args_given + 1] = NULL;
+					args_given += 1;
+					}
+
+				// Call the method.
+				if (method->class_ == &Method_class) {
+					pc = (int8_t*) ((Method*) method)->bytecode->array;
+					literals = ((Method*) method)->literals->items;
+					}
+				else if (method->class_ == &BuiltinMethod_class) {
+					Object* result = ((BuiltinMethod*) method)->fn(frame[0], frame + 1);
+					frame[-4] = result;
+					goto return_from_method;
+					}
+				}
+				break;
+
 			case BC_RETURN_NIL:
 				frame[-4] = NULL;
 				goto return_from_method;
@@ -204,6 +244,14 @@ void dump_bytecode(struct Method* method)
 				dest = bytecode[++i];
 				printf("call_%d [%d] stack-adjust: %d\n", opcode - BC_CALL_0, src, (uint8_t) dest);
 				break;
+			case BC_FN_CALL:
+				{
+				int8_t fn_loc = bytecode[++i];
+				uint8_t num_args = bytecode[++i];
+				uint8_t frame_adjustment = bytecode[++i];
+				printf("fn_call [%d](%d args) stack-adjust: %d\n", fn_loc, num_args, frame_adjustment);
+				}
+				break;
 			default:
 				printf("UNKNOWN %d\n", opcode);
 				break;
@@ -213,11 +261,19 @@ void dump_bytecode(struct Method* method)
 	printf("Literals:\n");
 	size = method->literals->size;
 	for (int i = 0; i < size; ++i) {
-		// TODO: Don't assume they're all strings!
-		printf("%6d: \"", -i - 1);
+		printf("%6d: ", -i - 1);
 		String* str = (String*) method->literals->items[i];
-		fwrite(str->str, str->size, 1, stdout);
-		printf("\"\n");
+		if (str->class_ == &String_class) {
+			fwrite("\"", 1, 1, stdout);
+			fwrite(str->str, str->size, 1, stdout);
+			fwrite("\"", 1, 1, stdout);
+			}
+		else {
+			printf("a ");
+			str = str->class_->name;
+			fwrite(str->str, str->size, 1, stdout);
+			}
+		printf("\n");
 		}
 }
 

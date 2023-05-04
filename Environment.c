@@ -1,5 +1,6 @@
 #include "Environment.h"
 #include "ParseNode.h"
+#include "BuiltinMethod.h"
 #include "String.h"
 #include "Dict.h"
 #include "Memory.h"
@@ -10,11 +11,10 @@ GlobalEnvironment global_environment;
 ParseNode* GlobalEnvironment_find(Environment* super, String* name)
 {
 	GlobalEnvironment* self = (GlobalEnvironment*) super;
-	// Replace "name" with the same string the Dict is using, to save memory.
-	name = Dict_key_at(self->dict, name);
-	if (name == NULL)
+	struct Object* value = Dict_at(self->dict, name);
+	if (value == NULL)
 		return NULL;
-	return (ParseNode*) new_GlobalExpr(name);
+	return (ParseNode*) new_GlobalExpr(value);
 }
 
 void GlobalEnvironment_init()
@@ -27,6 +27,15 @@ void GlobalEnvironment_init()
 void GlobalEnvironment_add(struct String* name, struct Object* value)
 {
 	Dict_set_at(global_environment.dict, name, value);
+}
+
+void GlobalEnvironment_add_fn(
+	const char* name,
+	int num_args,
+	struct Object* (*fn)(struct Object* self, struct Object** args))
+{
+	BuiltinMethod* method = new_BuiltinMethod(num_args, fn);
+	GlobalEnvironment_add(new_static_String(name), (struct Object*) method);
 }
 
 

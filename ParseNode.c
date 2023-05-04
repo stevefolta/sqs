@@ -299,15 +299,15 @@ ParseNode* new_NilLiteral()
 int GlobalExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	GlobalExpr* self = (GlobalExpr*) super;
-	int name_literal = MethodBuilder_add_literal(method, (Object*) self->name);
-	return name_literal;
+	int name_literal = MethodBuilder_add_literal(method, self->object);
+	return -name_literal - 1;
 }
 
-GlobalExpr* new_GlobalExpr(struct String* name)
+GlobalExpr* new_GlobalExpr(struct Object* object)
 {
 	GlobalExpr* self = alloc_obj(GlobalExpr);
 	self->parse_node.emit = GlobalExpr_emit;
-	self->name = name;
+	self->object = object;
 	return self;
 }
 
@@ -389,6 +389,7 @@ int CallExpr_emit(ParseNode* super, MethodBuilder* method)
 	if (num_args > 15)
 		Error("Too many arguments in call to \"%s\".", String_c_str(self->name));
 
+	// Allocate stack space for the new frame.
 	int orig_locals =
 		MethodBuilder_reserve_locals(
 			method,
@@ -449,6 +450,51 @@ CallExpr* new_CallExpr_binop(ParseNode* receiver, ParseNode* arg, String* name)
 void CallExpr_add_argument(CallExpr* self, ParseNode* arg)
 {
 	Array_append(self->arguments, (Object*) arg);
+}
+
+
+int FunctionCallExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	FunctionCallExpr* self = (FunctionCallExpr*) super;
+
+	// Allocate stack space for the new frame.
+	int num_args = self->arguments->size;
+	int orig_locals =
+		MethodBuilder_reserve_locals(
+			method,
+			frame_saved_area_size + 1 /* receiver's "self" */ + num_args);
+	int args_start = orig_locals + frame_saved_area_size;
+
+	// Emit the function.
+	int fn_loc = self->fn->emit(self->fn, method);
+
+	// Set up the new frame's arguments.
+	// "receiver" is nil.
+	MethodBuilder_add_bytecode(method, BC_NIL);
+	MethodBuilder_add_bytecode(method, args_start);
+	for (int i = 0; i < num_args; ++i) {
+		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
+		int arg_loc = arg->emit(arg, method);
+		MethodBuilder_add_move(method, arg_loc, args_start + i + 1);
+		}
+
+	// Emit the function call itself.
+	MethodBuilder_add_bytecode(method, BC_FN_CALL);
+	MethodBuilder_add_bytecode(method, fn_loc);
+	MethodBuilder_add_bytecode(method, num_args);
+	MethodBuilder_add_bytecode(method, args_start);
+
+	method->cur_num_variables = orig_locals + 1;
+	return orig_locals;
+}
+
+FunctionCallExpr* new_FunctionCallExpr(ParseNode* fn, struct Array* arguments)
+{
+	FunctionCallExpr* self = alloc_obj(FunctionCallExpr);
+	self->parse_node.emit = FunctionCallExpr_emit;
+	self->fn = fn;
+	self->arguments = arguments;
+	return self;
 }
 
 

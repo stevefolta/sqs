@@ -27,3 +27,5 @@ extern void String_init_static(String* self, const char* str);
 
 extern void String_init_class();
 
+extern struct Class String_class;
+

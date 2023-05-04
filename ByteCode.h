@@ -25,6 +25,11 @@ enum {
 	BC_CALL_1, BC_CALL_2, BC_CALL_3, BC_CALL_4, BC_CALL_5,
 	BC_CALL_6, BC_CALL_7, BC_CALL_8, BC_CALL_9, BC_CALL_10, 
 	BC_CALL_11, BC_CALL_12, BC_CALL_13, BC_CALL_14, BC_CALL_15, 
+
+	BC_FN_CALL,
+	// Followed by location of the function.
+	// Followed by number of arguments.
+	// Followed by the "frame adjustment".
 	};
 
 /* A call frame on the stack looks like this:

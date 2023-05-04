@@ -2,6 +2,8 @@
 #include "Lexer.h"
 #include "ParseNode.h"
 #include "String.h"
+#include "Array.h"
+#include "Object.h"
 #include "Memory.h"
 #include "Error.h"
 #include <stdbool.h>
@@ -388,6 +390,38 @@ ParseNode* Parser_parse_unary_expression(Parser* self)
 }
 
 
+Array* Parser_parse_arguments(Parser* self)
+{
+	Lexer_next(self->lexer); 	// Consume "(".
+
+	Array* args = new_Array();
+
+	bool need_comma = false;
+	while (true) {
+		// Next ")" or ",".
+		Token next_token = Lexer_peek(self->lexer);
+		if (next_token.type == Operator && String_equals_c(next_token.token, ")")) {
+			Lexer_next(self->lexer);
+			break;
+			}
+		if (need_comma) {
+			if (next_token.type != Operator || !String_equals_c(next_token.token, ","))
+				Error("Comma expected between argument in line %d.", next_token.line_number);
+			Lexer_next(self->lexer);
+			need_comma = false;
+			}
+
+		ParseNode* arg = Parser_parse_expression(self);
+		if (arg == NULL)
+			Error("Expected expression in argument list in line %d.", next_token.line_number);
+		Array_append(args, (Object*) arg);
+		need_comma = true;
+		}
+
+	return args;
+}
+
+
 ParseNode* Parser_parse_dot_call(Parser* self, ParseNode* receiver)
 {
 	Lexer_next(self->lexer); 	// Consume the ".".
@@ -402,31 +436,18 @@ ParseNode* Parser_parse_dot_call(Parser* self, ParseNode* receiver)
 	// Parse the arguments (if there are any).
 	Token next_token = Lexer_peek(self->lexer);
 	if (next_token.type == Operator && String_equals_c(next_token.token, "(")) {
-		Lexer_next(self->lexer);
-		bool need_comma = false;
-		while (true) {
-			// Next ")" or ",".
-			next_token = Lexer_peek(self->lexer);
-			if (next_token.type == Operator && String_equals_c(next_token.token, ")")) {
-				Lexer_next(self->lexer);
-				break;
-				}
-			if (need_comma) {
-				if (next_token.type != Operator || !String_equals_c(next_token.token, ","))
-					Error("Comma expected between argument in line %d.", next_token.line_number);
-				Lexer_next(self->lexer);
-				need_comma = false;
-				}
-
-			ParseNode* arg = Parser_parse_expression(self);
-			if (arg == NULL)
-				Error("Expected expression in argument list in line %d.", next_token.line_number);
-			CallExpr_add_argument(call, arg);
-			need_comma = true;
-			}
+		Array* args = Parser_parse_arguments(self);
+		call->arguments = args;
 		}
 
 	return (ParseNode*) call;
+}
+
+
+ParseNode* Parser_parse_fn_call(Parser* self, ParseNode* fn)
+{
+	Array* arguments = Parser_parse_arguments(self);
+	return (ParseNode*) new_FunctionCallExpr(fn, arguments);
 }
 
 
@@ -446,6 +467,9 @@ ParseNode* Parser_parse_postfix_expression(Parser* self)
 			expr = Parser_parse_dot_call(self, expr);
 
 		/*** TODO: [], (), etc. ***/
+
+		else if (String_equals_c(next_token.token, "("))
+			expr = Parser_parse_fn_call(self, expr);
 
 		else
 			break;

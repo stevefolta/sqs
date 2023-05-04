@@ -9,6 +9,7 @@
 #include "Method.h"
 #include "BuiltinMethod.h"
 #include "Environment.h"
+#include "Print.h"
 
 
 void init_all()
@@ -24,6 +25,7 @@ void init_all()
 	Nil_init_class();
 
 	GlobalEnvironment_init();
+	GlobalEnvironment_add_fn("print", 2, Print);
 }
 
 
