@@ -13,6 +13,8 @@ typedef struct ParseNode {
 		// Returns register containing the result (if an expression).
 	int (*emit_set)(struct ParseNode* self, struct ParseNode* value, struct MethodBuilder* method);
 		// Emits setting an lvalue.  Won't exist for non-lvalue nodes.
+	void (*resolve_names)(struct ParseNode* self, struct MethodBuilder* method);
+	void (*resolve_names_autodeclaring)(struct ParseNode* self, struct MethodBuilder* method);
 	} ParseNode;
 
 

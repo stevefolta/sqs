@@ -18,12 +18,23 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 	BlockContext_init(&context, self, method->environment);
 	method->environment = &context.environment;
 
+	// First, resolve names, so our locals get autodeclared.
+	// This is a per-block operation.  The ParseNodes don't need to descend into
+	// their subblocks, if they have them.
+	size_t size = self->statements->size;
+	for (int i = 0; i < size; ++i) {
+		ParseNode* statement = (ParseNode*) Array_at(self->statements, i);
+		if (statement->resolve_names)
+			statement->resolve_names(statement, method);
+		}
+
+	// Allocate locals on the stack.
 	if (self->locals)
 		self->locals_base = MethodBuilder_reserve_locals(method, self->locals->size);
 	else
 		self->locals_base = method->cur_num_variables;
 
-	size_t size = self->statements->size;
+	// Emit.
 	for (int i = 0; i < size; ++i) {
 		ParseNode* statement = (ParseNode*) Array_at(self->statements, i);
 		statement->emit(statement, method);
@@ -115,10 +126,18 @@ int IfStatement_emit(ParseNode* super, MethodBuilder* method)
 	return 0;
 }
 
+void IfStatement_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	IfStatement* self = (IfStatement*) super;
+	if (self->condition->resolve_names)
+		self->condition->resolve_names(self->condition, method);
+}
+
 IfStatement* new_IfStatement()
 {
 	IfStatement* if_statement = alloc_obj(IfStatement);
 	if_statement->parse_node.emit = IfStatement_emit;
+	if_statement->parse_node.resolve_names = IfStatement_resolve_names;
 	return if_statement;
 }
 
@@ -151,10 +170,18 @@ int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 	return 0;
 }
 
+void WhileStatement_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	WhileStatement* self = (WhileStatement*) super;
+	if (self->condition->resolve_names)
+		self->condition->resolve_names(self->condition, method);
+}
+
 WhileStatement* new_WhileStatement()
 {
 	WhileStatement* self = alloc_obj(WhileStatement);
 	self->parse_node.emit = WhileStatement_emit;
+	self->parse_node.resolve_names = WhileStatement_resolve_names;
 	return self;
 }
 
@@ -165,10 +192,18 @@ int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 	/*** TODO ***/
 }
 
+void ForStatement_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	ForStatement* self = (ForStatement*) super;
+	if (self->collection->resolve_names)
+		self->collection->resolve_names(self->collection, method);
+}
+
 ForStatement* new_ForStatement()
 {
 	ForStatement* self = alloc_obj(ForStatement);
 	self->parse_node.emit = ForStatement_emit;
+	self->parse_node.resolve_names = ForStatement_resolve_names;
 	return self;
 }
 
@@ -182,10 +217,18 @@ int ExpressionStatement_emit(ParseNode* super, MethodBuilder* method)
 	return result;
 }
 
+void ExpressionStatement_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	ExpressionStatement* self = (ExpressionStatement*) super;
+	if (self->expression->resolve_names)
+		self->expression->resolve_names(self->expression, method);
+}
+
 ExpressionStatement* new_ExpressionStatement(ParseNode* expression)
 {
 	ExpressionStatement* self = alloc_obj(ExpressionStatement);
 	self->parse_node.emit = ExpressionStatement_emit;
+	self->parse_node.resolve_names = ExpressionStatement_resolve_names;
 	self->expression = expression;
 	return self;
 }
@@ -197,10 +240,22 @@ int SetExpr_emit(ParseNode* super, MethodBuilder* method)
 	return self->left->emit_set(self->left, self->right, method);
 }
 
+void SetExpr_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	SetExpr* self = (SetExpr*) super;
+	if (self->left->resolve_names_autodeclaring)
+		self->left->resolve_names_autodeclaring(self->left, method);
+	else if (self->left->resolve_names)
+		self->left->resolve_names(self->left, method);
+	if (self->right->resolve_names)
+		self->right->resolve_names(self->right, method);
+}
+
 SetExpr* new_SetExpr()
 {
 	SetExpr* self = alloc_obj(SetExpr);
 	self->parse_node.emit = SetExpr_emit;
+	self->parse_node.resolve_names = SetExpr_resolve_names;
 	return self;
 }
 
@@ -236,10 +291,20 @@ int ShortCircuitExpr_emit(ParseNode* super, MethodBuilder* method)
 	return 0;
 }
 
+void ShortCircuitExpr_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	ShortCircuitExpr* self = (ShortCircuitExpr*) super;
+	if (self->expr1->resolve_names)
+		self->expr1->resolve_names(self->expr1, method);
+	if (self->expr2->resolve_names)
+		self->expr2->resolve_names(self->expr2, method);
+}
+
 ShortCircuitExpr* new_ShortCircuitExpr(ParseNode* expr1, ParseNode* expr2, bool is_and)
 {
 	ShortCircuitExpr* self = alloc_obj(ShortCircuitExpr);
 	self->parse_node.emit = ShortCircuitExpr_emit;
+	self->parse_node.resolve_names = ShortCircuitExpr_resolve_names;
 	self->expr1 = expr1;
 	self->expr2 = expr2;
 	self->is_and = is_and;
@@ -312,23 +377,19 @@ GlobalExpr* new_GlobalExpr(struct Object* object)
 }
 
 
-int Variable_emit(ParseNode* super, MethodBuilder* method)
+void Variable_resolve_names(ParseNode* super, MethodBuilder* method)
 {
 	Variable* self = (Variable*) super;
-
 	if (self->resolved == NULL) {
 		self->resolved = method->environment->find(method->environment, self->name);
 		if (!self->resolved)
 			Error("Couldn't find name \"%s\" on line %d.", String_c_str(self->name), self->line_number);
 		}
-
-	return self->resolved->emit(self->resolved, method);
 }
 
-int Variable_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
+void Variable_resolve_names_autodeclaring(ParseNode* super, MethodBuilder* method)
 {
 	Variable* self = (Variable*) super;
-
 	if (self->resolved == NULL) {
 		self->resolved = method->environment->find_autodeclaring(method->environment, self->name);
 		if (!self->resolved) {
@@ -336,7 +397,17 @@ int Variable_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 			Error("Couldn't find name \"%s\" on line %d.", String_c_str(self->name), self->line_number);
 			}
 		}
+}
 
+int Variable_emit(ParseNode* super, MethodBuilder* method)
+{
+	Variable* self = (Variable*) super;
+	return self->resolved->emit(self->resolved, method);
+}
+
+int Variable_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
+{
+	Variable* self = (Variable*) super;
 	return self->resolved->emit_set(self->resolved, value, method);
 }
 
@@ -345,6 +416,8 @@ Variable* new_Variable(struct String* name, int line_number)
 	Variable* self = alloc_obj(Variable);
 	self->parse_node.emit = Variable_emit;
 	self->parse_node.emit_set = Variable_emit_set;
+	self->parse_node.resolve_names = Variable_resolve_names;
+	self->parse_node.resolve_names_autodeclaring = Variable_resolve_names_autodeclaring;
 	self->name = name;
 	self->line_number = line_number;
 	return self;
@@ -429,11 +502,25 @@ int CallExpr_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 	return CallExpr_emit((ParseNode*) &setter, method);
 }
 
+void CallExpr_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	CallExpr* self = (CallExpr*) super;
+	if (self->receiver->resolve_names)
+		self->receiver->resolve_names(self->receiver, method);
+	int num_args = self->arguments->size;
+	for (int i = 0; i < num_args; ++i) {
+		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
+		if (arg->resolve_names)
+			arg->resolve_names(arg, method);
+		}
+}
+
 CallExpr* new_CallExpr(ParseNode* receiver, String* name)
 {
 	CallExpr* self = alloc_obj(CallExpr);
 	self->parse_node.emit = CallExpr_emit;
 	self->parse_node.emit_set = CallExpr_emit_set;
+	self->parse_node.resolve_names = CallExpr_resolve_names;
 	self->receiver = receiver;
 	self->name = name;
 	self->arguments = new_Array();
@@ -488,10 +575,24 @@ int FunctionCallExpr_emit(ParseNode* super, MethodBuilder* method)
 	return orig_locals;
 }
 
+void FunctionCallExpr_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	FunctionCallExpr* self = (FunctionCallExpr*) super;
+	if (self->fn->resolve_names)
+		self->fn->resolve_names(self->fn, method);
+	int num_args = self->arguments->size;
+	for (int i = 0; i < num_args; ++i) {
+		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
+		if (arg->resolve_names)
+			arg->resolve_names(arg, method);
+		}
+}
+
 FunctionCallExpr* new_FunctionCallExpr(ParseNode* fn, struct Array* arguments)
 {
 	FunctionCallExpr* self = alloc_obj(FunctionCallExpr);
 	self->parse_node.emit = FunctionCallExpr_emit;
+	self->parse_node.resolve_names = FunctionCallExpr_resolve_names;
 	self->fn = fn;
 	self->arguments = arguments;
 	return self;
