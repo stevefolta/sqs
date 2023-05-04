@@ -387,13 +387,68 @@ ParseNode* Parser_parse_unary_expression(Parser* self)
 }
 
 
+ParseNode* Parser_parse_dot_call(Parser* self, ParseNode* receiver)
+{
+	Lexer_next(self->lexer); 	// Consume the ".".
+
+	// Get the name.
+	Token token = Lexer_next(self->lexer);
+	if (token.type != Identifier)
+		Error("Expected a name after \".\" in line %d.", token.line_number);
+	String* name = token.token;
+	CallExpr* call = new_CallExpr(receiver, name);
+
+	// Parse the arguments (if there are any).
+	Token next_token = Lexer_peek(self->lexer);
+	if (next_token.type == Operator && String_equals_c(next_token.token, "(")) {
+		Lexer_next(self->lexer);
+		bool need_comma = false;
+		while (true) {
+			// Next ")" or ",".
+			next_token = Lexer_peek(self->lexer);
+			if (next_token.type == Operator && String_equals_c(next_token.token, ")")) {
+				Lexer_next(self->lexer);
+				break;
+				}
+			if (need_comma) {
+				if (next_token.type != Operator || !String_equals_c(next_token.token, ","))
+					Error("Comma expected between argument in line %d.", next_token.line_number);
+				Lexer_next(self->lexer);
+				need_comma = false;
+				}
+
+			ParseNode* arg = Parser_parse_expression(self);
+			if (arg == NULL)
+				Error("Expected expression in argument list in line %d.", next_token.line_number);
+			CallExpr_add_argument(call, arg);
+			need_comma = true;
+			}
+		}
+
+	return (ParseNode*) call;
+}
+
+
 ParseNode* Parser_parse_postfix_expression(Parser* self)
 {
 	ParseNode* expr = Parser_parse_primary_expression(self);
 	if (expr == NULL)
 		return NULL;
 
-	/***/
+	while (true) {
+		Token next_token = Lexer_peek(self->lexer);
+		if (next_token.type != Operator)
+			break;
+
+		// Method call.
+		if (String_equals_c(next_token.token, "."))
+			expr = Parser_parse_dot_call(self, expr);
+
+		/*** TODO: [], (), etc. ***/
+
+		else
+			break;
+		}
 
 	return expr;
 }
