@@ -11,7 +11,7 @@ static Class Array_class;
 
 void Array_init_class()
 {
-	Class_init_static(&Array_class, "Array", 3);
+	init_static_class(Array);
 }
 
 

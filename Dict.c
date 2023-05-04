@@ -26,7 +26,7 @@ static Class Dict_class;
 
 void Dict_init_class()
 {
-	Class_init_static(&Dict_class, "Dict", 3);
+	init_static_class(Dict);
 }
 
 

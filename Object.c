@@ -26,7 +26,7 @@ Object* Object_find_method(Object* self, struct String* name)
 Class Object_class;
 void Object_init_class()
 {
-	Class_init_static(&Object_class, "Object", 0);
+	init_static_class(Object);
 	Object_class.superclass = NULL;
 }
 

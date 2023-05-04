@@ -112,7 +112,7 @@ static Object* String_add_builtin(Object* self, Object** args)
 
 void String_init_class()
 {
-	Class_init_static(&String_class, "String", 2);
+	init_static_class(String);
 
 	static const BuiltinMethodSpec specs[] = {
 		{ "+", 1, String_add_builtin, },

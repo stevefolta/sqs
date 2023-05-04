@@ -11,7 +11,7 @@ struct Class Method_class;
 
 void Method_init_class()
 {
-	Class_init_static(&Method_class, "Method", NumSlotsFor(Method));
+	init_static_class(Method);
 }
 
 
