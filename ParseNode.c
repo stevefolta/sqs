@@ -312,27 +312,31 @@ GlobalExpr* new_GlobalExpr(struct String* name)
 }
 
 
-void Variable_resolve_names(ParseNode* super, MethodBuilder* method)
-{
-	Variable* self = (Variable*) super;
-	self->resolved = method->environment->find_autodeclaring(method->environment, self->name);
-	if (!self->resolved)
-		Error("Couldn't find name: \"%s\".\n", self->name);
-}
-
 int Variable_emit(ParseNode* super, MethodBuilder* method)
 {
 	Variable* self = (Variable*) super;
-	if (self->resolved == NULL)
-		Variable_resolve_names(super, method);
+
+	if (self->resolved == NULL) {
+		self->resolved = method->environment->find(method->environment, self->name);
+		if (!self->resolved)
+			Error("Couldn't find name: \"%s\".\n", String_c_str(self->name));
+		}
+
 	return self->resolved->emit(self->resolved, method);
 }
 
 int Variable_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 {
 	Variable* self = (Variable*) super;
-	if (self->resolved == NULL)
-		Variable_resolve_names(super, method);
+
+	if (self->resolved == NULL) {
+		self->resolved = method->environment->find_autodeclaring(method->environment, self->name);
+		if (!self->resolved) {
+			// Probably won't happen, because of the autodeclaration.
+			Error("Couldn't find name: \"%s\".\n", String_c_str(self->name));
+			}
+		}
+
 	return self->resolved->emit_set(self->resolved, value, method);
 }
 
