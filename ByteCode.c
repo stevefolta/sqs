@@ -99,7 +99,7 @@ void interpret_bytecode(struct Method* method)
 				String* name_str = (String*) DEREF(name);
 				Object* method = Object_find_method(frame[0], name_str);
 				if (method == NULL)
-					Error("Unhandled method call: \"%s\".", name_str);
+					Error("Unhandled method call: \"%s\".", String_c_str(name_str));
 
 				// If there weren't enough arguments, fill the rest with nil.
 				int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod
