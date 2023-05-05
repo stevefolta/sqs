@@ -8,7 +8,16 @@ struct Dict;
 struct String;
 
 
+// Types.
+enum {
+	// We only care about a few of the types; most ParseNodes will just keep
+	// their type as PN_Undefined.
+	PN_Undefined,
+	PN_IfStatement,
+	};
+
 typedef struct ParseNode {
+	int type;
 	int (*emit)(struct ParseNode* self, struct MethodBuilder* method);
 		// Returns register containing the result (if an expression).
 	int (*emit_set)(struct ParseNode* self, struct ParseNode* value, struct MethodBuilder* method);

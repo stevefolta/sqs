@@ -133,11 +133,15 @@ void IfStatement_resolve_names(ParseNode* super, MethodBuilder* method)
 	IfStatement* self = (IfStatement*) super;
 	if (self->condition->resolve_names)
 		self->condition->resolve_names(self->condition, method);
+	// The "else_block" could also be an IfStatement.
+	if (self->else_block && self->else_block->type == PN_IfStatement)
+		self->else_block->resolve_names(self->else_block, method);
 }
 
 IfStatement* new_IfStatement()
 {
 	IfStatement* if_statement = alloc_obj(IfStatement);
+	if_statement->parse_node.type = PN_IfStatement;
 	if_statement->parse_node.emit = IfStatement_emit;
 	if_statement->parse_node.resolve_names = IfStatement_resolve_names;
 	return if_statement;

@@ -131,6 +131,9 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 		if (next_token.type == Identifier && String_equals_c(next_token.token, "if"))
 			statement->else_block = Parser_parse_if_statement(self);
 		else {
+			if (next_token.type != EOL)
+				Error("Extra tokens at end of \"else\" in line %d.", next_token.line_number);
+			Lexer_next(self->lexer);
 			if (Lexer_peek(self->lexer).type == Indent) {
 				Lexer_next(self->lexer);
 				statement->else_block = Parser_parse_block(self);
