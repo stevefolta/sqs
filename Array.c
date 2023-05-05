@@ -11,11 +11,6 @@
 
 static Class Array_class;
 
-void Array_init_class()
-{
-	init_static_class(Array);
-}
-
 
 Array* new_Array()
 {
@@ -124,6 +119,52 @@ String* Array_join(Array* self, String* joiner)
 
 	// Return the string.
 	return new_static_String(joined, total_size);
+}
+
+
+static Object* Array_size_builtin(Object* super, Object** args)
+{
+	// Array* self = (Array*) super;
+	Error("Array.size coming soon!");
+	return NULL;
+}
+
+static Object* Array_at_builtin(Object* super, Object** args)
+{
+	// Array* self = (Array*) super;
+	Error("Array.[] coming soon!");
+	return NULL;
+}
+
+static Object* Array_at_set_builtin(Object* super, Object** args)
+{
+	// Array* self = (Array*) super;
+	Error("Array.[]= coming soon!");
+	return NULL;
+}
+
+static Object* Array_join_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	String* joiner = (String*) args[0];
+	if (joiner && joiner->class_ != &String_class)
+		Error("Argument to Array.join() must be a String.");
+	return (Object*) Array_join(self, joiner);
+}
+
+
+void Array_init_class()
+{
+	init_static_class(Array);
+
+	static BuiltinMethodSpec builtin_methods[] = {
+		{ "size", 0, Array_size_builtin },
+		{ "[]", 1, Array_at_builtin },
+		{ "[]=", 2, Array_at_set_builtin },
+		{ "join", 1, Array_join_builtin },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Array_class, builtin_methods);
 }
 
 
