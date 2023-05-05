@@ -488,6 +488,8 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 
 	if (next_token.type == StringLiteral)
 		return Parser_parse_string_literal(self);
+	else if (next_token.type == IntLiteral)
+		return (ParseNode*) new_IntLiteralExpr(next_token.token);
 
 	else if (next_token.type == Identifier) {
 		Lexer_next(self->lexer);

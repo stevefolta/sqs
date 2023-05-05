@@ -6,8 +6,10 @@
 #include "String.h"
 #include "Dict.h"
 #include "Object.h"
+#include "Int.h"
 #include "ByteCode.h"
 #include "Error.h"
+#include <stdlib.h>
 
 
 int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
@@ -373,6 +375,21 @@ InterpolatedStringLiteral* new_InterpolatedStringLiteral(struct Array* component
 	self->parse_node.emit = InterpolatedStringLiteral_emit;
 	self->parse_node.resolve_names = InterpolatedStringLiteral_resolve_names;
 	self->components = components;
+	return self;
+}
+
+
+int IntLiteralExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	IntLiteralExpr* self = (IntLiteralExpr*) super;
+	return -MethodBuilder_add_literal(method, (Object*) new_Int(self->value)) - 1;
+}
+
+IntLiteralExpr* new_IntLiteralExpr(String* value_str)
+{
+	IntLiteralExpr* self = alloc_obj(IntLiteralExpr);
+	self->parse_node.emit = IntLiteralExpr_emit;
+	self->value = strtol(String_c_str(value_str), NULL, 0);
 	return self;
 }
 

@@ -13,6 +13,7 @@ typedef struct String {
 
 
 extern String* new_String(const char* str, size_t size);
+extern String* new_c_String(const char* str);
 extern String* new_c_static_String(const char* str);
 extern String* new_static_String(const char* str, size_t size);
 extern bool String_equals(struct String* self, struct String* other);

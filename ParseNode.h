@@ -92,6 +92,12 @@ typedef struct InterpolatedStringLiteral {
 	} InterpolatedStringLiteral;
 extern InterpolatedStringLiteral* new_InterpolatedStringLiteral(struct Array* components);
 
+typedef struct IntLiteralExpr {
+	ParseNode parse_node;
+	int value;
+	} IntLiteralExpr;
+extern IntLiteralExpr* new_IntLiteralExpr(struct String* value_str);
+
 typedef struct BooleanLiteral {
 	ParseNode parse_node;
 	bool value;

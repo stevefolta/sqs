@@ -16,6 +16,13 @@ String* new_String(const char* str, size_t size)
 	return string;
 }
 
+String* new_c_String(const char* str)
+{
+	String* string = alloc_obj(String);
+	String_init(string, str, strlen(str));
+	return string;
+}
+
 String* new_c_static_String(const char* str)
 {
 	String* string = alloc_obj(String);

@@ -2,6 +2,7 @@
 #include "Class.h"
 #include "Object.h"
 #include "String.h"
+#include "Int.h"
 #include "ByteCode.h"
 #include "Memory.h"
 #include "Error.h"
@@ -124,23 +125,29 @@ String* Array_join(Array* self, String* joiner)
 
 static Object* Array_size_builtin(Object* super, Object** args)
 {
-	// Array* self = (Array*) super;
-	Error("Array.size coming soon!");
-	return NULL;
+	Array* self = (Array*) super;
+	return (Object*) new_Int(self->size);
 }
 
 static Object* Array_at_builtin(Object* super, Object** args)
 {
-	// Array* self = (Array*) super;
-	Error("Array.[] coming soon!");
-	return NULL;
+	Array* self = (Array*) super;
+	Int_enforce(args[0], "Array.[]");
+	return Array_at(self, ((Int*) args[0])->value);
 }
 
 static Object* Array_at_set_builtin(Object* super, Object** args)
 {
-	// Array* self = (Array*) super;
-	Error("Array.[]= coming soon!");
-	return NULL;
+	Array* self = (Array*) super;
+	Int_enforce(args[0], "Array.[]=");
+	return Array_set_at(self, ((Int*) args[0])->value, args[1]);
+}
+
+static Object* Array_append_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	Array_append(self, args[0]);
+	return args[0];
 }
 
 static Object* Array_join_builtin(Object* super, Object** args)
@@ -161,6 +168,7 @@ void Array_init_class()
 		{ "size", 0, Array_size_builtin },
 		{ "[]", 1, Array_at_builtin },
 		{ "[]=", 2, Array_at_set_builtin },
+		{ "append", 1, Array_append_builtin },
 		{ "join", 1, Array_join_builtin },
 		{ NULL },
 		};
