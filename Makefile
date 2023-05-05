@@ -1,4 +1,4 @@
-PROGRAM := qqs
+PROGRAM := sqs
 OBJECTS_DIR := objects
 CFLAGS += -Wall
 
