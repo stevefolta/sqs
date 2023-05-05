@@ -30,7 +30,7 @@ void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* specs)
 	// We'll make them as one big chunk with all the objects in it.
 	BuiltinMethod* methods = (BuiltinMethod*) alloc_mem(num_specs * sizeof(BuiltinMethod));
 	BuiltinMethod* method = methods;
-	for (const BuiltinMethodSpec* spec = specs; spec->name; ++spec) {
+	for (const BuiltinMethodSpec* spec = specs; spec->name; ++spec, ++method) {
 		method->class_ = &BuiltinMethod_class;
 		method->num_args = spec->num_args;
 		method->fn = spec->fn;
