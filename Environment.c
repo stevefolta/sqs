@@ -78,3 +78,22 @@ void BlockContext_init(BlockContext* self, struct Block* block, Environment* par
 
 
 
+ParseNode* ForStatementContext_find(Environment* super, String* name)
+{
+	ForStatementContext* self = (ForStatementContext*) super;
+
+	if (String_equals(name, self->variable_name))
+		return new_RawLoc(self->variable_loc);
+
+	return self->environment.parent->find(self->environment.parent, name);
+}
+
+void ForStatementContext_init(ForStatementContext* self, struct String* variable_name, int variable_loc)
+{
+	self->environment.find = ForStatementContext_find;
+	self->variable_name = variable_name;
+	self->variable_loc = variable_loc;
+}
+
+
+

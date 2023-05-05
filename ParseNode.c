@@ -192,10 +192,68 @@ WhileStatement* new_WhileStatement()
 }
 
 
+int emit_call(int receiver_loc, char* name, int num_args, int* args_locs, MethodBuilder* method)
+{
+	// Allocate stack space for the new frame.
+	int orig_locals =
+		MethodBuilder_reserve_locals(
+			method,
+			frame_saved_area_size + 1 /* receiver's "self" */ + num_args);
+	int args_start = orig_locals + frame_saved_area_size;
+
+	// Emit receiver and args, and put them into the new frame's arguments.
+	MethodBuilder_add_move(method, receiver_loc, args_start);
+	for (int i = 0; i < num_args; ++i)
+		MethodBuilder_add_move(method, args_locs[i], args_start + i + 1);
+
+	// Emit the call itself.
+	MethodBuilder_add_bytecode(method, BC_CALL_0 + num_args);
+	int name_literal = MethodBuilder_add_literal(method, (Object*) new_c_String(name));
+	MethodBuilder_add_bytecode(method, -name_literal - 1);
+	MethodBuilder_add_bytecode(method, args_start);
+
+	method->cur_num_variables = orig_locals + 1;
+	return orig_locals;
+}
+
 int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	ForStatement* self = (ForStatement*) super;
-	/*** TODO ***/
+
+	int result_loc = MethodBuilder_reserve_locals(method, 1);
+
+	int collection_loc = self->collection->emit(self->collection, method);
+
+	// "iterator" call.
+	int iterator_loc = emit_call(collection_loc, "iterator", 0, NULL, method);
+
+	// "next" call.
+	int loop_point = MethodBuilder_get_offset(method);
+	int value_loc = emit_call(iterator_loc, "next", 0, NULL, method);
+
+	// Context.
+	ForStatementContext context;
+	ForStatementContext_init(&context, self->variable_name, value_loc);
+	MethodBuilder_push_environment(method, &context.environment);
+
+	// Test.
+	MethodBuilder_add_bytecode(method, BC_BRANCH_IF_NIL);
+	MethodBuilder_add_bytecode(method, value_loc);
+	int end_patch_point = MethodBuilder_add_offset8(method);
+	method->cur_num_variables = value_loc + 1;
+
+	// Body.
+	if (self->body)
+		self->body->emit(self->body, method);
+
+	// Loop back.
+	MethodBuilder_add_bytecode(method, BC_BRANCH);
+	MethodBuilder_add_back_offset8(method, loop_point);
+
+	MethodBuilder_patch_offset8(method, end_patch_point);
+	MethodBuilder_pop_environment(method);
+	method->cur_num_variables = result_loc + 1;
+	return result_loc;
 }
 
 void ForStatement_resolve_names(ParseNode* super, MethodBuilder* method)
@@ -520,6 +578,21 @@ Local* new_Local(Block* block, int block_index)
 	self->parse_node.emit_set = Local_emit_set;
 	self->block = block;
 	self->block_index = block_index;
+	return self;
+}
+
+
+int RawLoc_emit(ParseNode* super, MethodBuilder* method)
+{
+	RawLoc* self = (RawLoc*) super;
+	return self->loc;
+}
+
+RawLoc* new_RawLoc(int loc)
+{
+	RawLoc* self = alloc_obj(RawLoc);
+	self->parse_node.emit = RawLoc_emit;
+	self->loc = loc;
 	return self;
 }
 

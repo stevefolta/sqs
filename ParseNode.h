@@ -135,6 +135,12 @@ typedef struct Local {
 	} Local;
 extern Local* new_Local(Block* block, int block_index);
 
+typedef struct RawLoc {
+	ParseNode parse_node;
+	int loc;
+	} RawLoc;
+extern RawLoc* new_RawLoc(int loc);
+
 typedef struct ArrayLiteral {
 	ParseNode parse_node;
 	struct Array* items;

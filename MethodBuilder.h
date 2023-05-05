@@ -28,3 +28,6 @@ extern void MethodBuilder_add_move(MethodBuilder* self, int src, int dest);
 extern int MethodBuilder_reserve_locals(MethodBuilder* self, int num_locals);
 extern void MethodBuilder_release_locals(MethodBuilder* self, int num_locals);
 
+extern void MethodBuilder_push_environment(MethodBuilder* self, struct Environment* environment);
+extern void MethodBuilder_pop_environment(MethodBuilder* self);
+

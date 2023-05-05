@@ -90,4 +90,17 @@ void MethodBuilder_release_locals(MethodBuilder* self, int num_locals)
 }
 
 
+void MethodBuilder_push_environment(MethodBuilder* self, Environment* environment)
+{
+	environment->parent = self->environment;
+	self->environment = environment;
+}
+
+
+void MethodBuilder_pop_environment(MethodBuilder* self)
+{
+	self->environment = self->environment->parent;
+}
+
+
 

@@ -86,6 +86,20 @@ void interpret_bytecode(struct Method* method)
 				if (!IS_TRUTHY(value))
 					pc += dest;
 				break;
+			case BC_BRANCH_IF_NIL:
+				src = *pc++;
+				dest = *pc++;
+				value = DEREF(src);
+				if (value == NULL)
+					pc += dest;
+				break;
+			case BC_BRANCH_IF_NOT_NIL:
+				src = *pc++;
+				dest = *pc++;
+				value = DEREF(src);
+				if (value)
+					pc += dest;
+				break;
 			case BC_BRANCH:
 				dest = *pc++;
 				pc += dest;
@@ -308,6 +322,16 @@ void dump_bytecode(struct Method* method)
 				src = bytecode[++i];
 				dest = bytecode[++i];
 				printf("branch_if_false [%d], %d\n", src, i + dest + 1);
+				break;
+			case BC_BRANCH_IF_NIL:
+				src = bytecode[++i];
+				dest = bytecode[++i];
+				printf("branch_if_nil [%d], %d\n", src, i + dest + 1);
+				break;
+			case BC_BRANCH_IF_NOT_NIL:
+				src = bytecode[++i];
+				dest = bytecode[++i];
+				printf("branch_if_not_nil [%d], %d\n", src, i + dest + 1);
 				break;
 			case BC_BRANCH:
 				dest = bytecode[++i];

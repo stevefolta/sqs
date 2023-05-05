@@ -31,3 +31,11 @@ typedef struct BlockContext {
 	} BlockContext;
 extern void BlockContext_init(BlockContext* self, struct Block* block, Environment* parent);
 
+typedef struct ForStatementContext {
+	Environment environment;
+	struct String* variable_name;
+	int variable_loc;
+	} ForStatementContext;
+extern void ForStatementContext_init(ForStatementContext* self, struct String* variable_name, int variable_loc);
+
+
