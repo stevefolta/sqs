@@ -14,7 +14,7 @@ extern void ArrayIterator_init_class();
 
 #define capacity_increment 16
 
-static Class Array_class;
+Class Array_class;
 
 
 Array* new_Array()

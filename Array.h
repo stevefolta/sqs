@@ -23,5 +23,6 @@ extern Array* Array_copy(Array* self);
 extern struct String* Array_join(Array* self, struct String* joiner);
 
 
+extern struct Class Array_class;
 extern void Array_init_class();
 

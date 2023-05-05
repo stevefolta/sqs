@@ -11,6 +11,7 @@
 #include "BuiltinMethod.h"
 #include "Environment.h"
 #include "Print.h"
+#include "Run.h"
 
 
 void init_all()
@@ -28,6 +29,7 @@ void init_all()
 
 	GlobalEnvironment_init();
 	GlobalEnvironment_add_fn("print", 2, Print);
+	GlobalEnvironment_add_fn("run", 2, Run);
 }
 
 

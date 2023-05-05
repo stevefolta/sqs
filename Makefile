@@ -11,7 +11,7 @@ SOURCES += BuiltinMethod.c Environment.c
 SOURCES += Class.c Object.c Init.c
 SOURCES += String.c Boolean.c Array.c Dict.c ByteArray.c Nil.c
 SOURCES += Int.c
-SOURCES += Print.c
+SOURCES += Print.c Run.c
 SOURCES += Error.c
 LIBRARIES = gc
 
