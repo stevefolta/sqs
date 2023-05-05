@@ -8,6 +8,10 @@
 #include "Error.h"
 #include <string.h>
 
+struct ArrayIterator;
+extern struct ArrayIterator* new_ArrayIterator(Array* array);
+extern void ArrayIterator_init_class();
+
 #define capacity_increment 16
 
 static Class Array_class;
@@ -150,6 +154,12 @@ static Object* Array_append_builtin(Object* super, Object** args)
 	return args[0];
 }
 
+static Object* Array_iterator_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	return (Object*) new_ArrayIterator(self);
+}
+
 static Object* Array_join_builtin(Object* super, Object** args)
 {
 	Array* self = (Array*) super;
@@ -169,10 +179,52 @@ void Array_init_class()
 		{ "[]", 1, Array_at_builtin },
 		{ "[]=", 2, Array_at_set_builtin },
 		{ "append", 1, Array_append_builtin },
+		{ "iterator", 0, Array_iterator_builtin },
 		{ "join", 1, Array_join_builtin },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Array_class, builtin_methods);
+
+	ArrayIterator_init_class();
+}
+
+
+
+
+typedef struct ArrayIterator {
+	Class* class_;
+	Array* array;
+	int index;
+	} ArrayIterator;
+Class ArrayIterator_class;
+
+ArrayIterator* new_ArrayIterator(Array* array)
+{
+	ArrayIterator* self = alloc_obj(ArrayIterator);
+	self->class_ = &ArrayIterator_class;
+	self->array = array;
+	self->index = 0;
+	return self;
+}
+
+
+Object* ArrayIterator_next(Object* super, Object** args)
+{
+	ArrayIterator* self = (ArrayIterator*) super;
+	if (self->index >= self->array->size)
+		return NULL;
+	return self->array->items[self->index++];
+}
+
+void ArrayIterator_init_class()
+{
+	init_static_class(ArrayIterator);
+
+	static BuiltinMethodSpec builtin_methods[] = {
+		{ "next", 0, ArrayIterator_next },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&ArrayIterator_class, builtin_methods);
 }
 
 
