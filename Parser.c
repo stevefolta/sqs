@@ -474,6 +474,24 @@ ParseNode* Parser_parse_fn_call(Parser* self, ParseNode* fn)
 }
 
 
+ParseNode* Parser_parse_index_call(Parser* self, ParseNode* receiver)
+{
+	Lexer_next(self->lexer); 	// Consume the ".".
+
+	CallExpr* call = new_CallExpr(receiver, new_c_static_String("[]"));
+
+	// Get the argument.
+	ParseNode* index_expr = Parser_parse_expression(self);
+	CallExpr_add_argument(call, index_expr);
+
+	// Finish.
+	Token token = Lexer_next(self->lexer);
+	if (token.type != Operator || !String_equals_c(token.token, "]"))
+		Error("Expected \"]\" in line %d.", token.line_number);
+	return (ParseNode*) call;
+}
+
+
 ParseNode* Parser_parse_postfix_expression(Parser* self)
 {
 	ParseNode* expr = Parser_parse_primary_expression(self);
@@ -489,10 +507,12 @@ ParseNode* Parser_parse_postfix_expression(Parser* self)
 		if (String_equals_c(next_token.token, "."))
 			expr = Parser_parse_dot_call(self, expr);
 
-		/*** TODO: [], (), etc. ***/
-
+		// Function call.
 		else if (String_equals_c(next_token.token, "("))
 			expr = Parser_parse_fn_call(self, expr);
+
+		else if (String_equals_c(next_token.token, "["))
+			expr = Parser_parse_index_call(self, expr);
 
 		else
 			break;
