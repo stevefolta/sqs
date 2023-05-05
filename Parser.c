@@ -488,8 +488,10 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 
 	if (next_token.type == StringLiteral)
 		return Parser_parse_string_literal(self);
-	else if (next_token.type == IntLiteral)
+	else if (next_token.type == IntLiteral) {
+		Lexer_next(self->lexer);
 		return (ParseNode*) new_IntLiteralExpr(next_token.token);
+		}
 
 	else if (next_token.type == Identifier) {
 		Lexer_next(self->lexer);
@@ -670,9 +672,11 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 
 				// Parse the expression.
 				Parser* parser = new_Parser(expression_start, p - expression_start - 1);
+				Lexer_set_for_expression(parser->lexer);
 				parser->lexer->line_number = token.line_number;
 				ParseNode* expr = Parser_parse_expression(parser);
-				Array_append(segments, (Object*) expr);
+				if (expr)
+					Array_append(segments, (Object*) expr);
 
 				segment_start = p;
 				}

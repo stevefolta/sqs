@@ -345,4 +345,10 @@ bool Lexer_skip_comment(struct Lexer* self)
 }
 
 
+void Lexer_set_for_expression(Lexer* self)
+{
+	self->at_line_start = false;
+}
+
+
 

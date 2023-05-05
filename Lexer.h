@@ -29,4 +29,5 @@ extern Lexer* new_Lexer(const char* text, size_t size);
 extern Token Lexer_peek(Lexer* self);
 extern Token Lexer_next(Lexer* self);
 extern Token Lexer_next_token(Lexer* self);
+extern void Lexer_set_for_expression(Lexer* self);
 
