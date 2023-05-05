@@ -9,6 +9,8 @@ typedef struct Int {
 	} Int;
 extern Int* new_Int(int value);
 
+#define Int_value(object) (((Int*) object)->value)
+
 extern void Int_enforce(struct Object* object, const char* name);
 
 extern struct Class Int_class;
