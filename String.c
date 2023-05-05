@@ -1,6 +1,7 @@
 #include "String.h"
 #include "Class.h"
 #include "Object.h"
+#include "Boolean.h"
 #include "Memory.h"
 #include "Error.h"
 #include <string.h>
@@ -125,7 +126,7 @@ void String_init_static_c(String* self, const char* str)
 
 static Object* String_add_builtin(Object* self, Object** args)
 {
-	if (self->class_ != &String_class)
+	if (args[0] == NULL || args[0]->class_ != &String_class)
 		Error("Attempt to add a non-string to a string.");
 
 	return (Object*) String_add((String*) self, (String*) args[0]);
@@ -136,6 +137,20 @@ static Object* String_string(Object* self, Object** args)
 	return (Object*) self;
 }
 
+static Object* String_equals_builtin(Object* self, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &String_class)
+		return &false_obj;
+	return make_bool(String_equals((String*) self, (String*) args[0]));
+}
+
+static Object* String_not_equals_builtin(Object* self, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &String_class)
+		return &false_obj;
+	return make_bool(!String_equals((String*) self, (String*) args[0]));
+}
+
 
 void String_init_class()
 {
@@ -144,6 +159,8 @@ void String_init_class()
 	static const BuiltinMethodSpec specs[] = {
 		{ "+", 1, String_add_builtin, },
 		{ "string", 0, String_string },
+		{ "==", 1, String_equals_builtin },
+		{ "!=", 1, String_not_equals_builtin },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);
