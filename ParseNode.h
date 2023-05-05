@@ -65,6 +65,10 @@ typedef struct ForStatement {
 extern ForStatement* new_ForStatement();
 
 
+extern ParseNode* new_ContinueStatement();
+extern ParseNode* new_BreakStatement();
+
+
 typedef struct ExpressionStatement {
 	ParseNode parse_node;
 	ParseNode* expression;

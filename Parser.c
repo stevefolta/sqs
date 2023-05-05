@@ -14,6 +14,8 @@ extern ParseNode* Parser_parse_statement(Parser* self);
 extern ParseNode* Parser_parse_if_statement(Parser* self);
 extern ParseNode* Parser_parse_while_statement(Parser* self);
 extern ParseNode* Parser_parse_for_statement(Parser* self);
+extern ParseNode* Parser_parse_continue_statement(Parser* self);
+extern ParseNode* Parser_parse_break_statement(Parser* self);
 extern ParseNode* Parser_parse_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_or_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_and_expression(Parser* self);
@@ -82,6 +84,8 @@ static StatementParser statement_parsers[] = {
 	{ "if", &Parser_parse_if_statement },
 	{ "while", &Parser_parse_while_statement },
 	{ "for", &Parser_parse_for_statement },
+	{ "continue", &Parser_parse_continue_statement },
+	{ "break", &Parser_parse_break_statement },
 	};
 
 ParseNode* Parser_parse_statement(Parser* self)
@@ -186,6 +190,19 @@ ParseNode* Parser_parse_for_statement(Parser* self)
 		}
 
 	return (ParseNode*) statement;
+}
+
+
+ParseNode* Parser_parse_continue_statement(Parser* self)
+{
+	Lexer_next(self->lexer);
+	return new_ContinueStatement();
+}
+
+ParseNode* Parser_parse_break_statement(Parser* self)
+{
+	Lexer_next(self->lexer);
+	return new_BreakStatement();
 }
 
 
@@ -339,7 +356,7 @@ ParseNode* Parser_parse_equality_expression(Parser* self)
 
 	while (true) {
 		Token op = Lexer_peek(self->lexer);
-		if (op.type != Operator || (!String_equals_c(op.token, "!=") && !String_equals_c(op.token, "!=")))
+		if (op.type != Operator || (!String_equals_c(op.token, "==") && !String_equals_c(op.token, "!=")))
 			return expr;
 		Lexer_next(self->lexer);
 		ParseNode* expr2 = Parser_parse_relational_expression(self);

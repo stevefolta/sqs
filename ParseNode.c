@@ -152,9 +152,12 @@ int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	WhileStatement* self = (WhileStatement*) super;
 
+	// Start the loop.
+	int loop_point = MethodBuilder_get_offset(method);
+	MethodBuilder_push_loop_points(method);
+
 	// Condition.
 	int orig_locals = method->cur_num_variables;
-	int loop_point = MethodBuilder_get_offset(method);
 	int condition_loc = self->condition->emit(self->condition, method);
 
 	// Branch out if false.
@@ -173,6 +176,7 @@ int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	// Finish.
 	MethodBuilder_patch_offset8(method, end_patch_point);
+	MethodBuilder_pop_loop_points(method, loop_point, MethodBuilder_get_offset(method));
 	return 0;
 }
 
@@ -222,13 +226,17 @@ int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	int result_loc = MethodBuilder_reserve_locals(method, 1);
 
+	// Collection.
 	int collection_loc = self->collection->emit(self->collection, method);
 
 	// "iterator" call.
 	int iterator_loc = emit_call(collection_loc, "iterator", 0, NULL, method);
 
-	// "next" call.
+	// Start the loop.
+	MethodBuilder_push_loop_points(method);
 	int loop_point = MethodBuilder_get_offset(method);
+
+	// "next" call.
 	int value_loc = emit_call(iterator_loc, "next", 0, NULL, method);
 
 	// Context.
@@ -251,6 +259,7 @@ int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 	MethodBuilder_add_back_offset8(method, loop_point);
 
 	MethodBuilder_patch_offset8(method, end_patch_point);
+	MethodBuilder_pop_loop_points(method, loop_point, MethodBuilder_get_offset(method));
 	MethodBuilder_pop_environment(method);
 	method->cur_num_variables = result_loc + 1;
 	return result_loc;
@@ -268,6 +277,36 @@ ForStatement* new_ForStatement()
 	ForStatement* self = alloc_obj(ForStatement);
 	self->parse_node.emit = ForStatement_emit;
 	self->parse_node.resolve_names = ForStatement_resolve_names;
+	return self;
+}
+
+
+int ContinueStatement_emit(ParseNode* self, MethodBuilder* method)
+{
+	MethodBuilder_add_bytecode(method, BC_BRANCH);
+	MethodBuilder_add_continue_offset8(method);
+	return 0;
+}
+
+ParseNode* new_ContinueStatement()
+{
+	ParseNode* self = alloc_obj(ParseNode);
+	self->emit = ContinueStatement_emit;
+	return self;
+}
+
+
+int BreakStatement_emit(ParseNode* self, MethodBuilder* method)
+{
+	MethodBuilder_add_bytecode(method, BC_BRANCH);
+	MethodBuilder_add_break_offset8(method);
+	return 0;
+}
+
+ParseNode* new_BreakStatement()
+{
+	ParseNode* self = alloc_obj(ParseNode);
+	self->emit = BreakStatement_emit;
 	return self;
 }
 

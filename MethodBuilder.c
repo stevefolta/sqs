@@ -103,4 +103,60 @@ void MethodBuilder_pop_environment(MethodBuilder* self)
 }
 
 
+typedef struct LoopPoints {
+	struct LoopPoints* parent;
+	Array* continue_patch_points;
+	Array* break_patch_points;
+	} LoopPoints;
+
+void MethodBuilder_push_loop_points(MethodBuilder* self)
+{
+	LoopPoints* loop_points = alloc_obj(LoopPoints);
+	loop_points->parent = self->loop_points;
+	loop_points->continue_patch_points = new_Array();
+	loop_points->break_patch_points = new_Array();
+	self->loop_points = loop_points;
+}
+
+
+void MethodBuilder_pop_loop_points(MethodBuilder* self, int continue_point, int break_point)
+{
+	if (self->loop_points == NULL) {
+		// Error("Internal error: unmatched loop points.");
+		return;
+		}
+
+	ByteArray* bytecode = self->method->bytecode;
+	LoopPoints* loop_points = self->loop_points;
+	for (int i = 0; i < loop_points->continue_patch_points->size; ++i) {
+		size_t patch_point = (size_t) Array_at(loop_points->continue_patch_points, i);
+		int offset = continue_point - patch_point - 1;
+		ByteArray_set_at(bytecode, patch_point, offset);
+		}
+	for (int i = 0; i < loop_points->break_patch_points->size; ++i) {
+		size_t patch_point = (size_t) Array_at(loop_points->break_patch_points, i);
+		int offset = break_point - patch_point - 1;
+		ByteArray_set_at(bytecode, patch_point, offset);
+		}
+
+	self->loop_points = loop_points->parent;
+}
+
+
+void MethodBuilder_add_continue_offset8(MethodBuilder* self)
+{
+	Array_append(
+		self->loop_points->continue_patch_points,
+		(Object*) (size_t) MethodBuilder_add_offset8(self));
+}
+
+
+void MethodBuilder_add_break_offset8(MethodBuilder* self)
+{
+	Array_append(
+		self->loop_points->break_patch_points,
+		(Object*) (size_t) MethodBuilder_add_offset8(self));
+}
+
+
 

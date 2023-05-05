@@ -11,6 +11,7 @@ typedef struct MethodBuilder {
 	struct Method* method;
 	int cur_num_variables, max_num_variables;
 	struct Environment* environment;
+	struct LoopPoints* loop_points;
 	} MethodBuilder;
 
 extern MethodBuilder* new_MethodBuilder(int num_args);
@@ -30,4 +31,9 @@ extern void MethodBuilder_release_locals(MethodBuilder* self, int num_locals);
 
 extern void MethodBuilder_push_environment(MethodBuilder* self, struct Environment* environment);
 extern void MethodBuilder_pop_environment(MethodBuilder* self);
+
+extern void MethodBuilder_push_loop_points(MethodBuilder* self);
+extern void MethodBuilder_pop_loop_points(MethodBuilder* self, int continue_point, int break_point);
+extern void MethodBuilder_add_continue_offset8(MethodBuilder* self);
+extern void MethodBuilder_add_break_offset8(MethodBuilder* self);
 
