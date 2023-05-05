@@ -503,6 +503,52 @@ Local* new_Local(Block* block, int block_index)
 }
 
 
+int ArrayLiteral_emit(ParseNode* super, MethodBuilder* method)
+{
+	ArrayLiteral* self = (ArrayLiteral*) super;
+
+	int array_loc = MethodBuilder_reserve_locals(method, 1);
+	MethodBuilder_add_bytecode(method, BC_NEW_ARRAY);
+	MethodBuilder_add_bytecode(method, array_loc);
+
+	for (int i = 0; i < self->items->size; ++i) {
+		ParseNode* item = (ParseNode*) Array_at(self->items, i);
+		int item_loc = item->emit(item, method);
+		MethodBuilder_add_bytecode(method, BC_ARRAY_APPEND);
+		MethodBuilder_add_bytecode(method, array_loc);
+		MethodBuilder_add_bytecode(method, item_loc);
+		method->cur_num_variables = array_loc + 1;
+		}
+
+	return array_loc;
+}
+
+void ArrayLiteral_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	ArrayLiteral* self = (ArrayLiteral*) super;
+
+	for (int i = 0; i < self->items->size; ++i) {
+		ParseNode* item = (ParseNode*) Array_at(self->items, i);
+		if (item->resolve_names)
+			item->resolve_names(item, method);
+		}
+}
+
+ArrayLiteral* new_ArrayLiteral()
+{
+	ArrayLiteral* self = alloc_obj(ArrayLiteral);
+	self->parse_node.emit = ArrayLiteral_emit;
+	self->parse_node.resolve_names = ArrayLiteral_resolve_names;
+	self->items = new_Array();
+	return self;
+}
+
+void ArrayLiteral_add_item(ArrayLiteral* self, ParseNode* item)
+{
+	Array_append(self->items, (Object*) item);
+}
+
+
 
 int CallExpr_emit(ParseNode* super, MethodBuilder* method)
 {

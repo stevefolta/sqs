@@ -30,6 +30,7 @@ extern ParseNode* Parser_parse_unary_expression(Parser* self);
 extern ParseNode* Parser_parse_postfix_expression(Parser* self);
 extern ParseNode* Parser_parse_primary_expression(Parser* self);
 extern ParseNode* Parser_parse_string_literal(Parser* self);
+extern ParseNode* Parser_parse_array_literal(Parser* self);
 
 
 extern Parser* new_Parser(const char* text, size_t size)
@@ -499,7 +500,13 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 		return (ParseNode*) new_Variable(next_token.token, next_token.line_number);
 		}
 
-	/***/
+	else if (next_token.type == Operator) {
+		// Array literal.
+		if (String_equals_c(next_token.token, "["))
+			return Parser_parse_array_literal(self);
+
+		//*** TODO: Dict literals, etc.
+		}
 
 	return NULL;
 }
@@ -694,6 +701,34 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 	if (last_segment->size > 0)
 		Array_append(segments, (Object*) new_StringLiteralExpr(last_segment));
 	return (ParseNode*) new_InterpolatedStringLiteral(segments);
+}
+
+
+ParseNode* Parser_parse_array_literal(Parser* self)
+{
+	Lexer_next(self->lexer);
+	ArrayLiteral* array_literal = new_ArrayLiteral();
+
+	while (true) {
+		Token next_token = Lexer_peek(self->lexer);
+		if (next_token.type == Operator) {
+			if (String_equals_c(next_token.token, "]")) {
+				Lexer_next(self->lexer);
+				break;
+				}
+			else if (String_equals_c(next_token.token, ",")) {
+				Lexer_next(self->lexer);
+				continue;
+				}
+			}
+
+		ParseNode* item = Parser_parse_expression(self);
+		if (item == NULL)
+			Error("Expected expression in array literal in line %d.", next_token.line_number);
+		ArrayLiteral_add_item(array_literal, item);
+		}
+
+	return (ParseNode*) array_literal;
 }
 
 

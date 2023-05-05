@@ -120,6 +120,14 @@ typedef struct Local {
 	} Local;
 extern Local* new_Local(Block* block, int block_index);
 
+typedef struct ArrayLiteral {
+	ParseNode parse_node;
+	struct Array* items;
+	} ArrayLiteral;
+extern ArrayLiteral* new_ArrayLiteral();
+extern void ArrayLiteral_add_item(ArrayLiteral* self, ParseNode* item);
+
+
 typedef struct CallExpr {
 	ParseNode parse_node;
 	struct ParseNode* receiver;
