@@ -3,6 +3,9 @@
 // A "location", if non-negative, is an offset in the current stack frame.  If
 // negative, it's the offset in the current method's literals minus one.
 
+struct Object;
+struct Array;
+struct String;
 
 enum {
 	BC_NOP,
@@ -52,5 +55,6 @@ enum {
 struct Method;
 
 extern void interpret_bytecode(struct Method* method);
+extern struct Object* call_method(struct Object* receiver, struct String* name, struct Array* arguments);
 extern void dump_bytecode(struct Method* method);
 

@@ -12,21 +12,33 @@
 
 static Object** stack = NULL;
 static Object** stack_limit;
+static Object** suspended_fp;
 #define stack_size 1024
+
+
+void init_bytecode_interpreter()
+{
+	if (stack)
+		return;
+
+	stack = (Object**) alloc_mem(stack_size * sizeof(Object*));
+	stack_limit = stack + stack_size;
+	suspended_fp = stack;
+
+	// Start with "self" == nil.
+	// This is for the initial "script" method, which doesn't have a receiver or
+	// arguments.
+	stack[0] = NULL;
+}
 
 
 void interpret_bytecode(struct Method* method)
 {
-	if (stack == NULL) {
-		stack = (Object**) alloc_mem(stack_size * sizeof(Object*));
-		stack_limit = stack + stack_size;
-		}
-
-	// Start with "self" == nil.
-	stack[0] = NULL;
+	if (stack == NULL)
+		init_bytecode_interpreter();
 
 	// Interpret.
-	Object** frame = stack;
+	Object** frame = suspended_fp;
 	Object** literals = method->literals->items;
 	int8_t* pc = (int8_t*) method->bytecode->array;
 	while (true) {
@@ -116,6 +128,11 @@ void interpret_bytecode(struct Method* method)
 					literals = ((Method*) method)->literals->items;
 					}
 				else if (method->class_ == &BuiltinMethod_class) {
+					// Set "suspended_fp" to the end of our stack frame, so this can be
+					// called re-entrantly.
+					suspended_fp = frame + args_needed + 1;
+
+					// Call.
 					Object* result = ((BuiltinMethod*) method)->fn(frame[0], frame + 1);
 					frame[-4] = result;
 					goto return_from_method;
@@ -156,6 +173,11 @@ void interpret_bytecode(struct Method* method)
 					literals = ((Method*) method)->literals->items;
 					}
 				else if (method->class_ == &BuiltinMethod_class) {
+					// Set "suspended_fp" to the end of our stack frame, so this can be
+					// called re-entrantly.
+					suspended_fp = frame + args_needed + 1;
+
+					// Call.
 					Object* result = ((BuiltinMethod*) method)->fn(frame[0], frame + 1);
 					frame[-4] = result;
 					goto return_from_method;
@@ -193,6 +215,56 @@ void interpret_bytecode(struct Method* method)
 			}
 		}
 	exit: ;
+}
+
+
+Object* call_method(Object* receiver, String* name, Array* arguments)
+{
+	static uint8_t terminator[] = { BC_TERMINATE };
+
+	// Find the method.
+	Object* method = Object_find_method(receiver, name);
+	if (method == NULL)
+		Error("Unhandled method call: \"%s\".", String_c_str(name));
+
+	// If it's a BuiltinMethod, we can just call it.
+	if (method->class_ == &BuiltinMethod_class)
+		return ((BuiltinMethod*) method)->fn(receiver, (arguments ? arguments->items: NULL));
+	else if (method->class_ != &Method_class)
+		Error("Internal error: attempt to call a non-method.");
+
+	// Set up the stack frame for the call.
+	Object** orig_fp = suspended_fp;
+	suspended_fp += frame_saved_area_size;
+	Object** frame = suspended_fp;
+	frame[-3] = (Object*) orig_fp;
+	frame[-2] = (Object*) terminator;
+	frame[-1] = NULL; 	// No literals in the terminator.
+	frame[0] = receiver;
+
+	// Copy the arguments to the frame.
+	int args_given = 0;
+	if (arguments) {
+		args_given = arguments->size;
+		for (int i = 0; i < args_given; ++i)
+			frame[i + 1] = arguments->items[i];
+		}
+
+	// If there weren't enough arguments, fill the rest with nil.
+	int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod
+	while (args_given < args_needed) {
+		// These arg counts don't include "self".
+		frame[args_given + 1] = NULL;
+		args_given += 1;
+		}
+
+	// Call the method.
+	interpret_bytecode((Method*) method);
+	Object* result = frame[-4];
+
+	// Clean up and return.
+	suspended_fp = orig_fp;
+	return result;
 }
 
 

@@ -124,6 +124,11 @@ static Object* String_add_builtin(Object* self, Object** args)
 	return (Object*) String_add((String*) self, (String*) args[0]);
 }
 
+static Object* String_string(Object* self, Object** args)
+{
+	return (Object*) self;
+}
+
 
 void String_init_class()
 {
@@ -131,6 +136,7 @@ void String_init_class()
 
 	static const BuiltinMethodSpec specs[] = {
 		{ "+", 1, String_add_builtin, },
+		{ "string", 0, String_string },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);

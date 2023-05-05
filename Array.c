@@ -2,6 +2,7 @@
 #include "Class.h"
 #include "Object.h"
 #include "String.h"
+#include "ByteCode.h"
 #include "Memory.h"
 #include "Error.h"
 #include <string.h>
@@ -80,12 +81,22 @@ Array* Array_copy(Array* self)
 
 String* Array_join(Array* self, String* joiner)
 {
+	Array* stringized_items = new_Array();
+
 	// Get the total size.
 	size_t total_size = 0;
 	for (int i = 0; i < self->size; ++i) {
-		if (self->items[i]->class_ != &String_class)
-			Error("Array.join() can't join non-strings... yet.");
-		total_size += ((String*) self->items[i])->size;
+		Object* item = self->items[i];
+		String* str;
+		if (item == NULL || item->class_ != &String_class) {
+			String name_str;
+			String_init_static_c(&name_str, "string");
+			str = (String*) call_method(item, &name_str, NULL);
+			Array_append(stringized_items, (Object*) str);
+			}
+		else
+			str = (String*) item;
+		total_size += str->size;
 		}
 	if (joiner && self->size > 0)
 		total_size += (self->size - 1) * joiner->size;
@@ -94,6 +105,7 @@ String* Array_join(Array* self, String* joiner)
 	char* joined = alloc_mem(total_size);
 	char* out = joined;
 	bool need_joiner = false;
+	Object** next_stringized_item = stringized_items->items;
 	for (int i = 0; i < self->size; ++i) {
 		if (need_joiner && joiner) {
 			memcpy(out, joiner->str, joiner->size);
@@ -102,7 +114,10 @@ String* Array_join(Array* self, String* joiner)
 		else
 			need_joiner = true;
 
-		String* str = (String*) self->items[i];
+		Object* item = self->items[i];
+		if (item == NULL || item->class_ != &String_class)
+			item = *next_stringized_item++;
+		String* str = (String*) item;
 		memcpy(out, str->str, str->size);
 		out += str->size;
 		}
