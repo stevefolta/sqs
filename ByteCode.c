@@ -175,6 +175,21 @@ void interpret_bytecode(struct Method* method)
 				literals = (Object**) frame[-1];
 				frame = (Object**) frame[-3];
 				break;
+
+			case BC_NEW_ARRAY:
+				dest = *pc++;
+				frame[dest] = (Object*) new_Array();
+				break;
+			case BC_ARRAY_APPEND:
+				dest = *pc++;
+				src = *pc++;
+				Array_append((Array*) DEREF(dest), DEREF(src));
+				break;
+			case BC_ARRAY_JOIN:
+				src = *pc++;
+				dest = *pc++;
+				frame[dest] = (Object*) Array_join((Array*) DEREF(src), NULL);
+				break;
 			}
 		}
 	exit: ;
@@ -251,6 +266,20 @@ void dump_bytecode(struct Method* method)
 				uint8_t frame_adjustment = bytecode[++i];
 				printf("fn_call [%d](%d args) stack-adjust: %d\n", fn_loc, num_args, frame_adjustment);
 				}
+				break;
+			case BC_NEW_ARRAY:
+				dest = bytecode[++i];
+				printf("new_array -> [%d]\n", dest);
+				break;
+			case BC_ARRAY_APPEND:
+				dest = bytecode[++i];
+				src = bytecode[++i];
+				printf("array_append [%d] into [%d]\n", src, dest);
+				break;
+			case BC_ARRAY_JOIN:
+				src = bytecode[++i];
+				dest = bytecode[++i];
+				printf("array_join [%d] -> [%d]\n", src, dest);
 				break;
 			default:
 				printf("UNKNOWN %d\n", opcode);

@@ -30,6 +30,10 @@ enum {
 	// Followed by location of the function.
 	// Followed by number of arguments.
 	// Followed by the "frame adjustment".
+
+	BC_NEW_ARRAY, 	// dest
+	BC_ARRAY_APPEND,	// array, item
+	BC_ARRAY_JOIN,	// array, dest
 	};
 
 /* A call frame on the stack looks like this:

@@ -7,6 +7,8 @@
 #include "Memory.h"
 #include "Error.h"
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
 extern ParseNode* Parser_parse_statement(Parser* self);
 extern ParseNode* Parser_parse_if_statement(Parser* self);
@@ -503,14 +505,195 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 }
 
 
+static uint32_t parse_hex(const char** p_in_out, const char* end, int num_digits, int line_number)
+{
+	const char* p = *p_in_out;
+	uint32_t value = 0;
+	for (int i = 0; i < num_digits && p < end; ++i) {
+		value <<= 4;
+		uint8_t c = *p++;
+		if (c >= '0' && c <= '9')
+			value += c - '0';
+		else if (c >= 'A' && c <= 'F')
+			value += c - 'A' + 0x0A;
+		else if (c >= 'a' && c <= 'f')
+			value += c - 'a' + 0x0A;
+		else
+			Error("Bad \\x escape in line %d.", line_number);
+		}
+	*p_in_out = p;
+	return value;
+}
+
 ParseNode* Parser_parse_string_literal(Parser* self)
 {
+	// Process interpolations and unescapes.
+
 	Token token = Lexer_next(self->lexer);
+	const char* p = token.token->str;
+	const char* end = p + token.token->size;
+	Array* segments = NULL;
+	char* unescaped_segment = NULL;
 
-	/*** TODO: process interpolations and escapes ***/
-	/***/
+	const char* segment_start = p;
+	char* unescaped_out = NULL;
+	while (true) {
+		if (p >= end)
+			break;
 
-	return (ParseNode*) new_StringLiteralExpr(token.token);
+		else if (*p == '\\') {
+			p += 1;
+			if (unescaped_out == NULL) {
+				if (unescaped_segment == NULL)
+					unescaped_segment = alloc_mem(token.token->size);
+				size_t size_so_far = p - segment_start - 1;
+				memcpy(unescaped_segment, segment_start, size_so_far);
+				unescaped_out = unescaped_segment + size_so_far;
+				}
+			char c = *p++;
+			switch (c) {
+				case 'n':
+					*unescaped_out++ = '\n';
+					break;
+				case 't':
+					*unescaped_out++ = '\t';
+					break;
+				case 'r':
+					*unescaped_out++ = '\r';
+					break;
+				case 'e':
+					*unescaped_out++ = 0x1B;
+					break;
+				case 'b':
+					*unescaped_out++ = '\b';
+					break;
+				case 'a':
+					*unescaped_out++ = '\a';
+					break;
+				case 'v':
+					*unescaped_out++ = '\v';
+					break;
+				case 'f':
+					*unescaped_out++ = '\f';
+					break;
+				case 'x':
+					{
+					const char* p_copy = p; 	// Let "p" stay in a register.
+					uint32_t value = parse_hex(&p_copy, end, 2, token.line_number);
+					p = p_copy;
+					*unescaped_out++ = value;
+					}
+					break;
+				case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7':
+					{
+					int value = c - '0';
+					for (int i = 0; i < 2 && p < end; ++i) {
+						value <<= 3;
+						char c = *p++;
+						if (c >= '0' && c <= '9')
+							value += c - '0';
+						else
+							Error("Bad \\x escape in line %d.", token.line_number);
+						}
+					}
+					break;
+				case 'u':
+				case 'U':
+					{
+					const char* p_copy = p; 	// Let "p" stay in a register.
+					uint32_t value = parse_hex(&p_copy, end, (c == 'u' ? 4 : 8), token.line_number);
+					p = p_copy;
+					//*** TODO: add the UTF-8 character.
+					Error("Unicode escapes aren't (yet) supported (0x%X in line %d).", value, token.line_number);
+					}
+					break;
+				default:
+					*unescaped_out++ = c;
+					break;
+				}
+			}
+
+		else if (*p == '{') {
+			p += 1;
+			if (p >= end)
+				Error("Unterminated interpolated string in line %d.", token.line_number);
+			else if (*p == '{') {
+				// Escaping via "{{".
+				p += 1;
+				if (unescaped_out == NULL) {
+					if (unescaped_segment == NULL)
+						unescaped_segment = alloc_mem(token.token->size);
+					size_t size_so_far = p - segment_start - 2;
+					memcpy(unescaped_segment, segment_start, size_so_far);
+					unescaped_out = unescaped_segment + size_so_far;
+					}
+				*unescaped_out++ = '{';
+				}
+			else {
+				// Starting an interpolation.
+
+				// Finish the current segment.
+				if (segments == NULL)
+					segments = new_Array();
+				String* last_segment =
+					(unescaped_out ?
+					 new_String(unescaped_segment, unescaped_out - unescaped_segment) :
+					 new_static_String(segment_start, p - segment_start - 1));
+				if (last_segment->size > 0)
+					Array_append(segments, (Object*) new_StringLiteralExpr(last_segment));
+				unescaped_out = NULL;
+
+				// Get the expression.
+				const char* expression_start = p;
+				int brace_level = 0;
+				while (p < end) {
+					char c = *p++;
+					if (c == '{')
+						brace_level += 1;
+					else if (c == '}') {
+						brace_level -= 1;
+						if (brace_level <= 0)
+							break;
+						}
+					}
+				if (brace_level > 0)
+					Error("Unterminated string interpolation in line %d.", token.line_number);
+
+				// Parse the expression.
+				Parser* parser = new_Parser(expression_start, p - expression_start - 1);
+				parser->lexer->line_number = token.line_number;
+				ParseNode* expr = Parser_parse_expression(parser);
+				Array_append(segments, (Object*) expr);
+
+				segment_start = p;
+				}
+			}
+
+		else if (*p == '}' && unescaped_out) {
+			p += 1;
+			if (p < end && *p == '}')
+				p += 1;
+			*unescaped_out++ = '}';
+			}
+
+		else if (unescaped_out)
+			*unescaped_out++ = *p++;
+		else
+			p += 1;
+		}
+
+	// Finish the last segment.
+	String* last_segment =
+		(unescaped_out ?
+		 new_String(unescaped_segment, unescaped_out - unescaped_segment) :
+		 new_static_String(segment_start, p - segment_start));
+
+	if (segments == NULL)
+		return (ParseNode*) new_StringLiteralExpr(last_segment);
+
+	if (last_segment->size > 0)
+		Array_append(segments, (Object*) new_StringLiteralExpr(last_segment));
+	return (ParseNode*) new_InterpolatedStringLiteral(segments);
 }
 
 

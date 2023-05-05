@@ -327,6 +327,56 @@ StringLiteralExpr* new_StringLiteralExpr(struct String* str)
 }
 
 
+int InterpolatedStringLiteral_emit(ParseNode* super, MethodBuilder* method)
+{
+	InterpolatedStringLiteral* self = (InterpolatedStringLiteral*) super;
+
+	int result_loc = MethodBuilder_reserve_locals(method, 2);
+	int array_loc = result_loc + 1;
+
+	// Create array.
+	MethodBuilder_add_bytecode(method, BC_NEW_ARRAY);
+	MethodBuilder_add_bytecode(method, array_loc);
+
+	// Add components.
+	for (int i = 0; i < self->components->size; ++i) {
+		ParseNode* component = (ParseNode*) Array_at(self->components, i);
+		int component_loc = component->emit(component, method);
+		MethodBuilder_add_bytecode(method, BC_ARRAY_APPEND);
+		MethodBuilder_add_bytecode(method, array_loc);
+		MethodBuilder_add_bytecode(method, component_loc);
+		method->cur_num_variables = array_loc + 1;
+		}
+
+	// Join.
+	MethodBuilder_add_bytecode(method, BC_ARRAY_JOIN);
+	MethodBuilder_add_bytecode(method, array_loc);
+	MethodBuilder_add_bytecode(method, result_loc);
+
+	method->cur_num_variables = result_loc + 1;
+	return result_loc;
+}
+
+void InterpolatedStringLiteral_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	InterpolatedStringLiteral* self = (InterpolatedStringLiteral*) super;
+	for (int i = 0; i < self->components->size; ++i) {
+		ParseNode* component = (ParseNode*) Array_at(self->components, i);
+		if (component->resolve_names)
+			component->resolve_names(component, method);
+		}
+}
+
+InterpolatedStringLiteral* new_InterpolatedStringLiteral(struct Array* components)
+{
+	InterpolatedStringLiteral* self = alloc_obj(InterpolatedStringLiteral);
+	self->parse_node.emit = InterpolatedStringLiteral_emit;
+	self->parse_node.resolve_names = InterpolatedStringLiteral_resolve_names;
+	self->components = components;
+	return self;
+}
+
+
 int BooleanLiteral_emit(ParseNode* super, MethodBuilder* method)
 {
 	BooleanLiteral* self = (BooleanLiteral*) super;
