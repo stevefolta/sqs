@@ -83,7 +83,7 @@ ParseNode* ForStatementContext_find(Environment* super, String* name)
 	ForStatementContext* self = (ForStatementContext*) super;
 
 	if (String_equals(name, self->variable_name))
-		return new_RawLoc(self->variable_loc);
+		return (ParseNode*) new_RawLoc(self->variable_loc);
 
 	return self->environment.parent->find(self->environment.parent, name);
 }
