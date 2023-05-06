@@ -47,6 +47,9 @@ ParseNode* BlockContext_find(Environment* super, String* name)
 	ParseNode* expr = Block_get_local(self->block, name);
 	if (expr)
 		return expr;
+	expr = Block_get_function(self->block, name);
+	if (expr)
+		return expr;
 
 	return self->environment.parent->find(self->environment.parent, name);
 }

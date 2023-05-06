@@ -4,9 +4,11 @@
 
 struct Lexer;
 struct ParseNode;
+struct Block;
 
 typedef struct Parser {
 	struct Lexer* lexer;
+	struct Block* inner_block;
 	} Parser;
 
 

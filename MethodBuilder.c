@@ -20,6 +20,7 @@ MethodBuilder* new_MethodBuilder(int num_args)
 
 void MethodBuilder_finish(MethodBuilder* self)
 {
+	MethodBuilder_add_bytecode(self, BC_RETURN_NIL);
 	self->method->stack_size = self->max_num_variables;
 }
 

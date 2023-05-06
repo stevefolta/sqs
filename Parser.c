@@ -16,6 +16,7 @@ extern ParseNode* Parser_parse_while_statement(Parser* self);
 extern ParseNode* Parser_parse_for_statement(Parser* self);
 extern ParseNode* Parser_parse_continue_statement(Parser* self);
 extern ParseNode* Parser_parse_break_statement(Parser* self);
+extern ParseNode* Parser_parse_fn_statement(Parser* self);
 extern ParseNode* Parser_parse_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_or_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_and_expression(Parser* self);
@@ -51,6 +52,11 @@ ParseNode* Parser_parse_block(Parser* self)
 
 	Block* block = NULL;
 
+	// Give access to the innermost block during parsing, so functions and
+	// classes can be defined in the block during the parse phase.  That's so
+	// forward references will work during the later emit/resolve phase.
+	Block* prev_inner_block = self->inner_block;
+
 	while (true) {
 		Token next_token = Lexer_peek(self->lexer);
 		if (next_token.type == Unindent || next_token.type == EndOfText) {
@@ -63,16 +69,22 @@ ParseNode* Parser_parse_block(Parser* self)
 			continue;
 			}
 
+		// We're lazily making the block object, in case there were nothing but
+		// empty lines.
+		if (block == NULL) {
+			block = new_Block();
+			self->inner_block = block;
+			}
+
 		ParseNode* statement = Parser_parse_statement(self);
 		if (statement == NULL) {
 			Error("Statement expected at line %d.", next_token.line_number);
 			return NULL;
 			}
-		if (block == NULL)
-			block = new_Block();
 		Block_append(block, statement);
 		}
 
+	self->inner_block = prev_inner_block;
 	return (ParseNode*) block;
 }
 
@@ -87,6 +99,7 @@ static StatementParser statement_parsers[] = {
 	{ "for", &Parser_parse_for_statement },
 	{ "continue", &Parser_parse_continue_statement },
 	{ "break", &Parser_parse_break_statement },
+	{ "fn", &Parser_parse_fn_statement },
 	};
 
 ParseNode* Parser_parse_statement(Parser* self)
@@ -204,6 +217,53 @@ ParseNode* Parser_parse_break_statement(Parser* self)
 {
 	Lexer_next(self->lexer);
 	return new_BreakStatement();
+}
+
+
+ParseNode* Parser_parse_fn_statement(Parser* self)
+{
+	Lexer_next(self->lexer); 	// Consume the "fn".
+
+	// Name.
+	Token token = Lexer_next(self->lexer);
+	//*** TODO: also accept operators, eg. "[]".
+	if (token.type != Identifier)
+		Error("Expected a name for the function defined in line %d.", token.line_number);
+	String* name = token.token;
+
+	FunctionStatement* function = new_FunctionStatement(name);
+
+	// Arguments.
+	token = Lexer_peek(self->lexer);
+	if (token.type == Operator && String_equals_c(token.token, "(")) {
+		Lexer_next(self->lexer); 	// Consume "(".
+		while (true) {
+			token = Lexer_next(self->lexer);
+			if (token.type == Operator) {
+				if (String_equals_c(token.token, ")"))
+					break;
+				else if (String_equals_c(token.token, ","))
+					continue;
+				}
+			if (token.type != Identifier)
+				Error("Expected argument name in line %d.", token.line_number);
+			FunctionStatement_add_argument(function, token.token);
+			}
+		}
+
+	token = Lexer_next(self->lexer);
+	if (token.type != EOL)
+		Error("Extra characters at the end of a \"fn\" definition on line %d.", token.line_number);
+
+	// Body.
+	if (Lexer_peek(self->lexer).type == Indent) {
+		Lexer_next(self->lexer);
+		function->body = Parser_parse_block(self);
+		}
+
+	if (self->inner_block)
+		Block_add_function(self->inner_block, function);
+	return (ParseNode*) function;
 }
 
 

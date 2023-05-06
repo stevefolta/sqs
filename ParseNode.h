@@ -6,6 +6,7 @@ struct MethodBuilder;
 struct Array;
 struct Dict;
 struct String;
+struct FunctionStatement;
 
 
 // Types.
@@ -32,11 +33,14 @@ typedef struct Block {
 	struct Array* statements;
 	struct Dict* locals;
 	int locals_base;
+	struct Dict* functions;
 	} Block;
 extern Block* new_Block();
 extern void Block_append(Block* self, ParseNode* statement);
 extern ParseNode* Block_get_local(Block* self, struct String* name);
+extern ParseNode* Block_get_function(Block* self, struct String* name);
 extern ParseNode* Block_autodeclare(Block* self, struct String* name);
+extern void Block_add_function(Block* self, struct FunctionStatement* function);
 
 
 typedef struct IfStatement {
@@ -67,6 +71,18 @@ extern ForStatement* new_ForStatement();
 
 extern ParseNode* new_ContinueStatement();
 extern ParseNode* new_BreakStatement();
+
+
+typedef struct FunctionStatement {
+	ParseNode parse_node;
+	struct String* name;
+	struct Array* arguments;
+	ParseNode* body;
+	int loc;
+	} FunctionStatement;
+extern FunctionStatement* new_FunctionStatement(struct String* name);
+extern void FunctionStatement_add_argument(FunctionStatement* self, struct String* name);
+extern struct Object* FunctionStatement_compile(FunctionStatement* self);
 
 
 typedef struct ExpressionStatement {
