@@ -97,12 +97,13 @@ static Dict_index_t Dict_insert(Dict* self, struct String* key, struct Object* v
 		return Dict_create_node(self, key, value);
 	DictNode* t = &Node(node);
 	// Note: "t" can be invalidated by Dict_insert().
-	if (String_less_than(key, t->key)) {
+	int cmp = String_cmp(key, t->key);
+	if (cmp < 0) {
 		// Stupid GCC caches the address of self->tree[node], even at -O0!
 		Dict_index_t new_left = Dict_insert(self, key, value, t->left);
 		self->tree[node].left = new_left;
 		}
-	else if (String_less_than(t->key, key)) {
+	else if (cmp > 0) {
 		Dict_index_t new_right = Dict_insert(self, key, value, t->right);
 		self->tree[node].right = new_right;
 		}
@@ -147,9 +148,10 @@ struct Object* Dict_at(Dict* self, String* key)
 	int node = Node(0).left;
 	while (node != 0) {
 		DictNode* t = &Node(node);
-		if (String_less_than(key, t->key))
+		int cmp = String_cmp(key, t->key);
+		if (cmp < 0)
 			node = t->left;
-		else if (String_less_than(t->key, key))
+		else if (cmp > 0)
 			node = t->right;
 		else
 			return t->value;
@@ -167,9 +169,10 @@ struct String* Dict_key_at(Dict* self, struct String* key)
 	int node = Node(0).left;
 	while (node != 0) {
 		DictNode* t = &Node(node);
-		if (String_less_than(key, t->key))
+		int cmp = String_cmp(key, t->key);
+		if (cmp < 0)
 			node = t->left;
-		else if (String_less_than(t->key, key))
+		else if (cmp > 0)
 			node = t->right;
 		else
 			return t->key;

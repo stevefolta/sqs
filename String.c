@@ -72,6 +72,18 @@ bool String_less_than(struct String* self, struct String* other)
 		}
 }
 
+int String_cmp(String* self, String* other)
+{
+	int size = self->size;
+	if (other->size < size)
+		size = other->size;
+	int cmp = memcmp(self->str, other->str, size);
+	if (cmp == 0)
+		cmp = self->size - other->size;
+	return cmp;
+}
+
+
 
 const char* String_c_str(struct String* self)
 {

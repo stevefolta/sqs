@@ -20,6 +20,7 @@ extern String* new_static_String(const char* str, size_t size);
 extern bool String_equals(struct String* self, struct String* other);
 extern bool String_equals_c(struct String* self, const char* other);
 extern bool String_less_than(struct String* self, struct String* other);
+extern int String_cmp(struct String* self, struct String* other);
 extern const char* String_c_str(struct String* self);
 extern String* String_enforce(struct Object* object, const char* name);
 
