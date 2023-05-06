@@ -683,6 +683,67 @@ void ArrayLiteral_add_item(ArrayLiteral* self, ParseNode* item)
 
 
 
+int DictLiteral_emit(ParseNode* super, MethodBuilder* method)
+{
+	DictLiteral* self = (DictLiteral*) super;
+
+	// Create the dict.
+	int dict_loc = MethodBuilder_reserve_locals(method, 1);
+	MethodBuilder_add_bytecode(method, BC_NEW_DICT);
+	MethodBuilder_add_bytecode(method, dict_loc);
+
+	// Add the values.
+	DictIterator* it = new_DictIterator(self->items);
+	while (true) {
+		DictIteratorResult item = DictIterator_next(it);
+		if (item.key == NULL)
+			break;
+		ParseNode* value = (ParseNode*) item.value;
+
+		int value_loc = value->emit(value, method);
+
+		MethodBuilder_add_bytecode(method, BC_DICT_ADD);
+		MethodBuilder_add_bytecode(method, dict_loc);
+		int name_literal = MethodBuilder_add_literal(method, (Object*) item.key);
+		MethodBuilder_add_bytecode(method, -name_literal - 1);
+		MethodBuilder_add_bytecode(method, value_loc);
+		}
+
+	return dict_loc;
+}
+
+void DictLiteral_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	DictLiteral* self = (DictLiteral*) super;
+
+	DictIterator* it = new_DictIterator(self->items);
+	while (true) {
+		DictIteratorResult item = DictIterator_next(it);
+		if (item.key == NULL)
+			break;
+		ParseNode* value = (ParseNode*) item.value;
+		if (value->resolve_names)
+			value->resolve_names(value, method);
+		}
+}
+
+DictLiteral* new_DictLiteral()
+{
+	DictLiteral* self = alloc_obj(DictLiteral);
+	self->parse_node.emit = DictLiteral_emit;
+	self->parse_node.resolve_names = DictLiteral_resolve_names;
+	self->items = new_Dict();
+	return self;
+}
+
+
+void DictLiteral_add_item(DictLiteral* self, String* key, ParseNode* value)
+{
+	Dict_set_at(self->items, key, (Object*) value);
+}
+
+
+
 int CallExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	CallExpr* self = (CallExpr*) super;

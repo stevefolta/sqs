@@ -33,6 +33,7 @@ extern ParseNode* Parser_parse_postfix_expression(Parser* self);
 extern ParseNode* Parser_parse_primary_expression(Parser* self);
 extern ParseNode* Parser_parse_string_literal(Parser* self);
 extern ParseNode* Parser_parse_array_literal(Parser* self);
+extern ParseNode* Parser_parse_dict_literal(Parser* self);
 
 
 extern Parser* new_Parser(const char* text, size_t size)
@@ -545,11 +546,10 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 		}
 
 	else if (next_token.type == Operator) {
-		// Array literal.
 		if (String_equals_c(next_token.token, "["))
 			return Parser_parse_array_literal(self);
-
-		//*** TODO: Dict literals, etc.
+		else if (String_equals_c(next_token.token, "{"))
+			return Parser_parse_dict_literal(self);
 		}
 
 	return NULL;
@@ -775,6 +775,44 @@ ParseNode* Parser_parse_array_literal(Parser* self)
 		}
 
 	return (ParseNode*) array_literal;
+}
+
+
+ParseNode* Parser_parse_dict_literal(Parser* self)
+{
+	Lexer_next(self->lexer);
+	DictLiteral* dict_literal = new_DictLiteral();
+
+	while (true) {
+		// Name.
+		Token token = Lexer_next(self->lexer);
+		if (token.type == Operator) {
+			if (String_equals_c(token.token, "}"))
+				break;
+			else if (String_equals_c(token.token, ","))
+				continue;
+			else
+				Error("Expected name in Dict literal in line %d.", token.line_number);
+			}
+		else if (token.type != Identifier)
+			Error("Expected name in Dict literal in line %d.", token.line_number);
+		String* name = token.token;
+
+		// ":" or "=".
+		token = Lexer_next(self->lexer);
+		if (token.type != Operator || !(String_equals_c(token.token, ":") || String_equals_c(token.token, "=")))
+			Error("Expected \":\" or \"=\" in Dict literal in line %d.", token.line_number);
+
+		// Value.
+		ParseNode* value = Parser_parse_expression(self);
+		if (value == NULL)
+			Error("Expected value expression in Dict literal in line %d.", token.line_number);
+
+		// Add it.
+		DictLiteral_add_item(dict_literal, name, value);
+		}
+
+	return (ParseNode*) dict_literal;
 }
 
 

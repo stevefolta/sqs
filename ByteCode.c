@@ -6,6 +6,7 @@
 #include "String.h"
 #include "Object.h"
 #include "Boolean.h"
+#include "Dict.h"
 #include "Memory.h"
 #include "Error.h"
 #include <stdio.h>
@@ -226,6 +227,18 @@ void interpret_bytecode(struct Method* method)
 				dest = *pc++;
 				frame[dest] = (Object*) Array_join((Array*) DEREF(src), NULL);
 				break;
+
+			case BC_NEW_DICT:
+				dest = *pc++;
+				frame[dest] = (Object*) new_Dict();
+				break;
+			case BC_DICT_ADD:
+				dest = *pc++;
+				src = *pc++; 	// key
+				value = DEREF(src);
+				src = *pc++; 	// value
+				Dict_set_at((Dict*) DEREF(dest), (String*) value, DEREF(src));
+				break;
 			}
 		}
 	exit: ;
@@ -376,6 +389,18 @@ void dump_bytecode(struct Method* method)
 				src = bytecode[++i];
 				dest = bytecode[++i];
 				printf("array_join [%d] -> [%d]\n", src, dest);
+				break;
+			case BC_NEW_DICT:
+				dest = bytecode[++i];
+				printf("new_dict -> [%d]\n", dest);
+				break;
+			case BC_DICT_ADD:
+				{
+				dest = bytecode[++i];
+				int8_t key = bytecode[++i];
+				src = bytecode[++i];
+				printf("dict_add ([%d] => [%d]) to [%d]\n", key, src, dest);
+				}
 				break;
 			default:
 				printf("UNKNOWN %d\n", opcode);

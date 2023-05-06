@@ -152,6 +152,13 @@ typedef struct ArrayLiteral {
 extern ArrayLiteral* new_ArrayLiteral();
 extern void ArrayLiteral_add_item(ArrayLiteral* self, ParseNode* item);
 
+typedef struct DictLiteral {
+	ParseNode parse_node;
+	struct Dict* items;
+	} DictLiteral;
+extern DictLiteral* new_DictLiteral();
+extern void DictLiteral_add_item(DictLiteral* self, struct String* key, ParseNode* value);
+
 
 typedef struct CallExpr {
 	ParseNode parse_node;
