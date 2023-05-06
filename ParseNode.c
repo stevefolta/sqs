@@ -19,15 +19,21 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 	// Before we do anything, compile our functions and classes and get them into
 	// the literals.
 	if (self->functions) {
+		BlockUpvalueContext context;
+		BlockUpvalueContext_init(&context, self, method->environment);
+		method->environment = &context.environment;
+
 		DictIterator* it = new_DictIterator(self->functions);
 		while (true) {
 			DictIteratorResult kv = DictIterator_next(it);
 			if (kv.key == NULL)
 				break;
 			FunctionStatement* function = (FunctionStatement*) kv.value;
-			Object* compiled_method = FunctionStatement_compile(function);
+			Object* compiled_method = FunctionStatement_compile(function, method->environment);
 			function->loc = -MethodBuilder_add_literal(method, compiled_method) - 1;
 			}
+
+		method->environment = context.environment.parent;
 		}
 
 	// Push our context.
@@ -86,15 +92,12 @@ ParseNode* Block_get_local(Block* self, String* name)
 	return (ParseNode*) local;
 }
 
-ParseNode* Block_get_function(Block* self, struct String* name)
+FunctionStatement* Block_get_function(Block* self, struct String* name)
 {
 	if (self->functions == NULL)
 		return NULL;
 	
-	FunctionStatement* function = (FunctionStatement*) Dict_at(self->functions, name);
-	if (function)
-		return (ParseNode*) new_RawLoc(function->loc);
-	return NULL;
+	return (FunctionStatement*) Dict_at(self->functions, name);
 }
 
 ParseNode* Block_autodeclare(Block* self, String* name)
@@ -357,16 +360,64 @@ FunctionStatement* new_FunctionStatement(struct String* name)
 	self->parse_node.emit = FunctionStatement_emit;
 	self->name = name;
 	self->arguments = new_Array();
+	self->pending_references = NULL;
 	return self;
 }
 
-Object* FunctionStatement_compile(FunctionStatement* self)
+Object* FunctionStatement_compile(FunctionStatement* self, Environment* environment)
 {
-	MethodBuilder* builder = new_MethodBuilder(self->arguments);
+	// Compile.
+	MethodBuilder* builder = new_MethodBuilder(self->arguments, environment);
 	if (self->body)
 		self->body->emit(self->body, builder);
 	MethodBuilder_finish(builder);
-	return (Object*) builder->method;
+	self->compiled_method = (Object*) builder->method;
+
+	// Patch up previous references.
+	UpvalueFunction* reference = self->pending_references;
+	while (reference) {
+		UpvalueFunction_patch(reference, self->compiled_method);
+		reference = reference->next_pending_reference;
+		}
+	self->pending_references = NULL;
+
+	return self->compiled_method;
+}
+
+void FunctionStatement_add_reference(FunctionStatement* self, struct UpvalueFunction* reference)
+{
+	reference->next_pending_reference = self->pending_references;
+	self->pending_references = reference;
+}
+
+
+
+int UpvalueFunction_emit(ParseNode* super, MethodBuilder* method)
+{
+	UpvalueFunction* self = (UpvalueFunction*) super;
+
+	if (self->function->compiled_method)
+		self->literal = MethodBuilder_add_literal(method, self->function->compiled_method);
+	else {
+		self->method_builder = method;
+		self->literal = MethodBuilder_reserve_literal(method);
+		FunctionStatement_add_reference(self->function, self);
+		}
+
+	return -self->literal - 1;
+}
+
+UpvalueFunction* new_UpvalueFunction(FunctionStatement* function)
+{
+	UpvalueFunction* self = alloc_obj(UpvalueFunction);
+	self->parse_node.emit = UpvalueFunction_emit;
+	self->function = function;
+	return self;
+}
+
+void UpvalueFunction_patch(UpvalueFunction* self, Object* compiled_function)
+{
+	MethodBuilder_set_literal(self->method_builder, self->literal, compiled_function);
 }
 
 

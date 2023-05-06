@@ -70,9 +70,9 @@ ParseNode* BlockContext_find(Environment* super, String* name)
 	ParseNode* expr = Block_get_local(self->block, name);
 	if (expr)
 		return expr;
-	expr = Block_get_function(self->block, name);
-	if (expr)
-		return expr;
+	FunctionStatement* function = Block_get_function(self->block, name);
+	if (function)
+		return (ParseNode*) new_RawLoc(function->loc);
 
 	return self->environment.parent->find(self->environment.parent, name);
 }
@@ -99,6 +99,26 @@ void BlockContext_init(BlockContext* self, struct Block* block, Environment* par
 	self->environment.parent = parent;
 	self->environment.find = BlockContext_find;
 	self->environment.find_autodeclaring = BlockContext_find_autodeclaring;
+	self->block = block;
+}
+
+
+
+ParseNode* BlockUpvalueContext_find(Environment* super, String* name)
+{
+	BlockContext* self = (BlockContext*) super;
+
+	FunctionStatement* function = Block_get_function(self->block, name);
+	if (function)
+		return (ParseNode*) new_UpvalueFunction(function);
+
+	return self->environment.parent->find(self->environment.parent, name);
+}
+
+void BlockUpvalueContext_init(BlockUpvalueContext* self, struct Block* block, Environment* parent)
+{
+	self->environment.parent = parent;
+	self->environment.find = BlockUpvalueContext_find;
 	self->block = block;
 }
 

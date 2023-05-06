@@ -76,7 +76,7 @@ static Method* compile_script(const char* file_path)
 
 	Parser* parser = new_Parser(contents->str, contents->size);
 	ParseNode* ast = Parser_parse_block(parser);
-	MethodBuilder* method_builder = new_MethodBuilder(new_Array());
+	MethodBuilder* method_builder = new_MethodBuilder(new_Array(), NULL);
 	ast->emit(ast, method_builder);
 	MethodBuilder_add_bytecode(method_builder, BC_TERMINATE);
 	MethodBuilder_finish(method_builder);

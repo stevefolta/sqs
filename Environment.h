@@ -38,6 +38,12 @@ typedef struct BlockContext {
 	} BlockContext;
 extern void BlockContext_init(BlockContext* self, struct Block* block, Environment* parent);
 
+typedef struct BlockUpvalueContext {
+	Environment environment;
+	struct Block* block;
+	} BlockUpvalueContext;
+extern void BlockUpvalueContext_init(BlockUpvalueContext* self, struct Block* block, Environment* parent);
+
 typedef struct ForStatementContext {
 	Environment environment;
 	struct String* variable_name;

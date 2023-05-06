@@ -8,7 +8,7 @@
 #include "Memory.h"
 
 
-MethodBuilder* new_MethodBuilder(Array* arguments)
+MethodBuilder* new_MethodBuilder(Array* arguments, Environment* environment)
 {
 	MethodBuilder* self = alloc_obj(MethodBuilder);
 	int num_args = arguments->size;
@@ -16,7 +16,9 @@ MethodBuilder* new_MethodBuilder(Array* arguments)
 	self->arguments = arguments;
 	self->cur_num_variables = self->max_num_variables = num_args + 1;
 		// "self" and the arguments count as a variables here.
-	self->environment = (Environment*) new_MethodEnvironment(self, &global_environment.environment);
+	if (environment == NULL)
+		environment = &global_environment.environment;
+	self->environment = (Environment*) new_MethodEnvironment(self, environment);
 	return self;
 }
 
@@ -33,6 +35,18 @@ int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
 	Array_append(self->method->literals, literal);
 	return self->method->literals->size - 1;
 }
+
+int MethodBuilder_reserve_literal(MethodBuilder* self)
+{
+	Array_append(self->method->literals, NULL);
+	return self->method->literals->size - 1;
+}
+
+void MethodBuilder_set_literal(MethodBuilder* self, int literal, struct Object* value)
+{
+	Array_set_at(self->method->literals, literal, value);
+}
+
 
 
 void MethodBuilder_add_bytecode(MethodBuilder* self, uint8_t bytecode)

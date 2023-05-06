@@ -7,6 +7,7 @@ struct Array;
 struct Dict;
 struct String;
 struct FunctionStatement;
+struct Environment;
 
 
 // Types.
@@ -38,7 +39,7 @@ typedef struct Block {
 extern Block* new_Block();
 extern void Block_append(Block* self, ParseNode* statement);
 extern ParseNode* Block_get_local(Block* self, struct String* name);
-extern ParseNode* Block_get_function(Block* self, struct String* name);
+extern struct FunctionStatement* Block_get_function(Block* self, struct String* name);
 extern ParseNode* Block_autodeclare(Block* self, struct String* name);
 extern void Block_add_function(Block* self, struct FunctionStatement* function);
 
@@ -73,15 +74,29 @@ extern ParseNode* new_ContinueStatement();
 extern ParseNode* new_BreakStatement();
 
 
+struct UpvalueFunction;
 typedef struct FunctionStatement {
 	ParseNode parse_node;
 	struct String* name;
 	struct Array* arguments;
 	ParseNode* body;
 	int loc;
+	struct Object* compiled_method;
+	struct UpvalueFunction* pending_references;
 	} FunctionStatement;
 extern FunctionStatement* new_FunctionStatement(struct String* name);
-extern struct Object* FunctionStatement_compile(FunctionStatement* self);
+extern struct Object* FunctionStatement_compile(FunctionStatement* self, struct Environment* environment);
+extern void FunctionStatement_add_reference(FunctionStatement* self, struct UpvalueFunction* reference);
+
+typedef struct UpvalueFunction {
+	ParseNode parse_node;
+	FunctionStatement* function;
+	int literal;
+	struct MethodBuilder* method_builder;
+	struct UpvalueFunction* next_pending_reference;
+	} UpvalueFunction;
+extern UpvalueFunction* new_UpvalueFunction(FunctionStatement* function);
+extern void UpvalueFunction_patch(UpvalueFunction* self, struct Object* compiled_function);
 
 
 typedef struct ExpressionStatement {

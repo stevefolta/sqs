@@ -17,9 +17,12 @@ typedef struct MethodBuilder {
 	struct LoopPoints* loop_points;
 	} MethodBuilder;
 
-extern MethodBuilder* new_MethodBuilder(struct Array* arguments);
+extern MethodBuilder* new_MethodBuilder(struct Array* arguments, struct Environment* environment);
 extern void MethodBuilder_finish(MethodBuilder* self);
+
 extern int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal);
+extern int MethodBuilder_reserve_literal(MethodBuilder* self);
+extern void MethodBuilder_set_literal(MethodBuilder* self, int literal, struct Object* value);
 
 extern void MethodBuilder_add_bytecode(MethodBuilder* self, uint8_t bytecode);
 extern int MethodBuilder_add_offset8(MethodBuilder* self);
