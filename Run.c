@@ -13,8 +13,17 @@
 Object* Run(Object* self, Object** args)
 {
 	Array* args_array = (Array*) args[0];
-	if (args_array == NULL || args_array->class_ != &Array_class)
-		Error("run() needs an Array as its first argument.");
+	if (args_array == NULL || args_array->class_ != &Array_class) {
+		if (args_array != NULL && args_array->class_ == &String_class) {
+			// Following the example of the system(3) man page.
+			args_array = new_Array();
+			Array_append(args_array, (Object*) new_c_static_String("/bin/sh"));
+			Array_append(args_array, (Object*) new_c_static_String("-c"));
+			Array_append(args_array, args[0]);
+			}
+		else
+			Error("run() needs an Array or String as its first argument.");
+		}
 
 	// Make the argv.
 	char* argv[args_array->size + 1];
