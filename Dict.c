@@ -26,33 +26,7 @@ typedef struct DictNode {
 
 static Class Dict_class;
 static Class DictIterator_class;
-
-static Object* Dict_at_builtin(Object* super, Object** args)
-{
-	String* key = String_enforce(args[0], "Dict.[]");
-	return (Object*) Dict_at((Dict*) super, key);
-}
-
-static Object* Dict_set_at_builtin(Object* super, Object** args)
-{
-	String* key = String_enforce(args[0], "Dict.[]=");
-	Dict_set_at((Dict*) super, key, args[1]);
-	return args[1];
-}
-
-void Dict_init_class()
-{
-	init_static_class(Dict);
-	static const BuiltinMethodSpec builtin_methods[] = {
-		{ "[]", 1, Dict_at_builtin },
-		{ "[]=", 1, Dict_set_at_builtin },
-		{ NULL },
-		};
-	Class_add_builtin_methods(&Dict_class, builtin_methods);
-
-	init_static_class(DictIterator);
-}
-
+static Class DictIteratorKeyValue_class;
 
 
 
@@ -270,5 +244,80 @@ DictIteratorResult DictIterator_next(DictIterator* self)
 	return result;
 }
 
+
+typedef struct DictIteratorKeyValue {
+	Class* class_;
+	DictIteratorResult result;
+	} DictIteratorKeyValue;
+
+
+static Object* Dict_at_builtin(Object* super, Object** args)
+{
+	String* key = String_enforce(args[0], "Dict.[]");
+	return (Object*) Dict_at((Dict*) super, key);
+}
+
+static Object* Dict_set_at_builtin(Object* super, Object** args)
+{
+	String* key = String_enforce(args[0], "Dict.[]=");
+	Dict_set_at((Dict*) super, key, args[1]);
+	return args[1];
+}
+
+static Object* Dict_iterator_builtin(Object* super, Object** args)
+{
+	return (Object*) new_DictIterator((Dict*) super);
+}
+
+
+static Object* DictIterator_next_builtin(Object* super, Object** args)
+{
+	DictIteratorResult result = DictIterator_next((DictIterator*) super);
+	if (result.key == NULL)
+		return NULL;
+
+	DictIteratorKeyValue* kv = alloc_obj(DictIteratorKeyValue);
+	kv->class_ = &DictIteratorKeyValue_class;
+	kv->result = result;
+	return (Object*) kv;
+}
+
+static Object* DictIteratorKeyValue_key(Object* super, Object** args)
+{
+	return (Object*) ((DictIteratorKeyValue*) super)->result.key;
+}
+
+static Object* DictIteratorKeyValue_value(Object* super, Object** args)
+{
+	return ((DictIteratorKeyValue*) super)->result.value;
+}
+
+
+void Dict_init_class()
+{
+	init_static_class(Dict);
+	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "[]", 1, Dict_at_builtin },
+		{ "[]=", 1, Dict_set_at_builtin },
+		{ "iterator", 0, Dict_iterator_builtin },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Dict_class, builtin_methods);
+
+	init_static_class(DictIterator);
+	static const BuiltinMethodSpec builtin_iterator_methods[] = {
+		{ "next", 0, DictIterator_next_builtin },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&DictIterator_class, builtin_iterator_methods);
+
+	init_static_class(DictIteratorKeyValue);
+	static const BuiltinMethodSpec builtin_kv_methods[] = {
+		{ "key", 0, DictIteratorKeyValue_key },
+		{ "value", 0, DictIteratorKeyValue_value },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&DictIteratorKeyValue_class, builtin_kv_methods);
+}
 
 
