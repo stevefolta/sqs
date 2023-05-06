@@ -93,18 +93,26 @@ int main(int argc, char* argv[])
 
 	// Parse the initial arguments.
 	bool dump = false;
+	bool test_lexer = false;
 	int first_arg = 1;
 	while (first_arg < argc) {
 		const char* arg = argv[first_arg];
 		if (arg[0] == '-') {
 			if (arg[1] == 'd')
 				dump = true;
+			else if (arg[1] == 'l')
+				test_lexer = true;
 			else
 				Error("Unknown argument: %s", arg);
 			first_arg += 1;
 			}
 		else
 			break;
+		}
+
+	if (test_lexer) {
+		lexer_test(argv[first_arg]);
+		return 0;
 		}
 
 	// Compile and run the script.
