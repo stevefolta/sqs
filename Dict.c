@@ -1,6 +1,8 @@
 #include "Dict.h"
 #include "String.h"
 #include "Class.h"
+#include "Array.h"
+#include "Object.h"
 #include "Memory.h"
 #include <string.h>
 #include <stdio.h>
@@ -23,10 +25,32 @@ typedef struct DictNode {
 
 
 static Class Dict_class;
+static Class DictIterator_class;
+
+static Object* Dict_at_builtin(Object* super, Object** args)
+{
+	String* key = String_enforce(args[0], "Dict.[]");
+	return (Object*) Dict_at((Dict*) super, key);
+}
+
+static Object* Dict_set_at_builtin(Object* super, Object** args)
+{
+	String* key = String_enforce(args[0], "Dict.[]=");
+	Dict_set_at((Dict*) super, key, args[1]);
+	return args[1];
+}
 
 void Dict_init_class()
 {
 	init_static_class(Dict);
+	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "[]", 1, Dict_at_builtin },
+		{ "[]=", 1, Dict_set_at_builtin },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Dict_class, builtin_methods);
+
+	init_static_class(DictIterator);
 }
 
 
@@ -126,6 +150,7 @@ Dict* new_Dict()
 
 void Dict_init(Dict* self)
 {
+	self->class_ = &Dict_class;
 	self->capacity = capacity_increment;
 	self->size = 0;
 	self->tree = (DictNode*) alloc_mem(self->capacity * sizeof(DictNode));
@@ -198,6 +223,51 @@ void Dict_dump(Dict* self)
 		printf("Empty Dict.\n");
 	else
 		Dict_dump_node(self, Node(0).left, 0);
+}
+
+
+
+
+static void DictIterator_push_tree(DictIterator* self, size_t node)
+{
+	while (node) {
+		Array_append(self->stack, (Object*) node);
+		node = self->dict->tree[node].left;
+		}
+}
+
+
+DictIterator* new_DictIterator(Dict* dict)
+{
+	DictIterator* self = alloc_obj(DictIterator);
+	self->class_ = &DictIterator_class;
+	self->dict = dict;
+	self->stack = new_Array();
+
+	DictIterator_push_tree(self, dict->tree[0].left);
+
+	return self;
+}
+
+
+DictIteratorResult DictIterator_next(DictIterator* self)
+{
+	DictIteratorResult result = { NULL, NULL };
+
+	if (self->stack->size == 0)
+		return result;
+
+	// Get the result.
+	DictNode* node = &self->dict->tree[(size_t) Array_back(self->stack)];
+	result.key = node->key;
+	result.value = node->value;
+
+	// Go forward.
+	int right = node->right;
+	Array_pop_back(self->stack);
+	DictIterator_push_tree(self, right);
+
+	return result;
 }
 
 

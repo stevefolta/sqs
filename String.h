@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 struct Class;
+struct Object;
 
 typedef struct String {
 	struct Class* class_;
@@ -20,6 +21,7 @@ extern bool String_equals(struct String* self, struct String* other);
 extern bool String_equals_c(struct String* self, const char* other);
 extern bool String_less_than(struct String* self, struct String* other);
 extern const char* String_c_str(struct String* self);
+extern String* String_enforce(struct Object* object, const char* name);
 
 extern String* String_add(String* self, String* other);
 

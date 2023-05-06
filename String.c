@@ -2,6 +2,7 @@
 #include "Class.h"
 #include "Object.h"
 #include "Boolean.h"
+#include "Nil.h"
 #include "Memory.h"
 #include "Error.h"
 #include <string.h>
@@ -80,6 +81,16 @@ const char* String_c_str(struct String* self)
 	memcpy(str, self->str, self->size);
 	str[self->size] = 0;
 	return str;
+}
+
+
+String* String_enforce(Object* object, const char* name)
+{
+	if (object == NULL || object->class_ != &String_class) {
+		Class* class_ = (object ? object->class_ : &Nil_class);
+		Error("String required, but got a %s, in \"%s\".", String_c_str(class_->name), name);
+		}
+	return (String*) object;
 }
 
 

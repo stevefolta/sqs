@@ -64,6 +64,26 @@ Object* Array_append(struct Array* self, Object* value)
 }
 
 
+Object* Array_pop_back(Array* self)
+{
+	if (self->size == 0)
+		return NULL;
+
+	Object* item = self->items[self->size - 1];
+	self->size -= 1;
+	return item;
+}
+
+
+Object* Array_back(Array* self)
+{
+	if (self->size == 0)
+		return NULL;
+
+	return self->items[self->size - 1];
+}
+
+
 Array* Array_copy(Array* self)
 {
 	Array* copy = alloc_obj(Array);
@@ -169,6 +189,16 @@ static Object* Array_join_builtin(Object* super, Object** args)
 	return (Object*) Array_join(self, joiner);
 }
 
+static Object* Array_pop_back_builtin(Object* super, Object** args)
+{
+	return Array_pop_back((Array*) super);
+}
+
+static Object* Array_back_builtin(Object* super, Object** args)
+{
+	return Array_back((Array*) super);
+}
+
 
 void Array_init_class()
 {
@@ -181,6 +211,9 @@ void Array_init_class()
 		{ "append", 1, Array_append_builtin },
 		{ "iterator", 0, Array_iterator_builtin },
 		{ "join", 1, Array_join_builtin },
+		{ "pop", 0, Array_pop_back_builtin },
+		{ "pop-back", 0, Array_pop_back_builtin },
+		{ "back", 0, Array_back_builtin },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Array_class, builtin_methods);
