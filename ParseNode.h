@@ -81,7 +81,6 @@ typedef struct FunctionStatement {
 	int loc;
 	} FunctionStatement;
 extern FunctionStatement* new_FunctionStatement(struct String* name);
-extern void FunctionStatement_add_argument(FunctionStatement* self, struct String* name);
 extern struct Object* FunctionStatement_compile(FunctionStatement* self);
 
 

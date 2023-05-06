@@ -35,6 +35,7 @@ extern ParseNode* Parser_parse_primary_expression(Parser* self);
 extern ParseNode* Parser_parse_string_literal(Parser* self);
 extern ParseNode* Parser_parse_array_literal(Parser* self);
 extern ParseNode* Parser_parse_dict_literal(Parser* self);
+extern Array* Parser_parse_names_list(Parser* self, const char* type);
 
 
 extern Parser* new_Parser(const char* text, size_t size)
@@ -234,22 +235,7 @@ ParseNode* Parser_parse_fn_statement(Parser* self)
 	FunctionStatement* function = new_FunctionStatement(name);
 
 	// Arguments.
-	token = Lexer_peek(self->lexer);
-	if (token.type == Operator && String_equals_c(token.token, "(")) {
-		Lexer_next(self->lexer); 	// Consume "(".
-		while (true) {
-			token = Lexer_next(self->lexer);
-			if (token.type == Operator) {
-				if (String_equals_c(token.token, ")"))
-					break;
-				else if (String_equals_c(token.token, ","))
-					continue;
-				}
-			if (token.type != Identifier)
-				Error("Expected argument name in line %d.", token.line_number);
-			FunctionStatement_add_argument(function, token.token);
-			}
-		}
+	function->arguments = Parser_parse_names_list(self, "argument");
 
 	token = Lexer_next(self->lexer);
 	if (token.type != EOL)
@@ -873,6 +859,32 @@ ParseNode* Parser_parse_dict_literal(Parser* self)
 		}
 
 	return (ParseNode*) dict_literal;
+}
+
+
+Array* Parser_parse_names_list(Parser* self, const char* type)
+{
+	Array* arguments = new_Array();
+
+	Token token = Lexer_peek(self->lexer);
+	if (token.type != Operator || !String_equals_c(token.token, "("))
+		return arguments;
+
+	Lexer_next(self->lexer); 	// Consume "(".
+	while (true) {
+		token = Lexer_next(self->lexer);
+		if (token.type == Operator) {
+			if (String_equals_c(token.token, ")"))
+				break;
+			else if (String_equals_c(token.token, ","))
+				continue;
+			}
+		if (token.type != Identifier)
+			Error("Expected %s name in line %d.", type, token.line_number);
+		Array_append(arguments, (Object*) token.token);
+		}
+
+	return arguments;
 }
 
 

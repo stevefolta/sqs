@@ -5,6 +5,7 @@ struct ParseNode;
 struct Dict;
 struct Object;
 struct Block;
+struct MethodBulder;
 
 
 typedef struct Environment {
@@ -24,6 +25,12 @@ extern void GlobalEnvironment_add_fn(
 	const char* name,
 	int num_args,
 	struct Object* (*fn)(struct Object* self, struct Object** args));
+
+typedef struct MethodEnvironment {
+	Environment environment;
+	struct MethodBuilder* method;
+	} MethodEnvironment;
+extern MethodEnvironment* new_MethodEnvironment(struct MethodBuilder* method, Environment* parent);
 
 typedef struct BlockContext {
 	Environment environment;

@@ -1,6 +1,7 @@
 #include "Environment.h"
 #include "ParseNode.h"
 #include "BuiltinMethod.h"
+#include "MethodBuilder.h"
 #include "String.h"
 #include "Dict.h"
 #include "Memory.h"
@@ -36,6 +37,28 @@ void GlobalEnvironment_add_fn(
 {
 	BuiltinMethod* method = new_BuiltinMethod(num_args, fn);
 	GlobalEnvironment_add(new_c_static_String(name), (struct Object*) method);
+}
+
+
+
+ParseNode* MethodEnvironment_find(Environment* super, String* name)
+{
+	MethodEnvironment* self = (MethodEnvironment*) super;
+
+	int loc = MethodBuilder_find_argument(self->method, name);
+	if (loc != 0)
+		return (ParseNode*) new_RawLoc(loc);
+	return self->environment.parent->find(self->environment.parent, name);
+}
+
+MethodEnvironment* new_MethodEnvironment(struct MethodBuilder* method, Environment* parent)
+{
+	MethodEnvironment* self = alloc_obj(MethodEnvironment);
+	self->environment.parent = parent;
+	self->environment.find = MethodEnvironment_find;
+	self->environment.find_autodeclaring = MethodEnvironment_find;
+	self->method = method;
+	return self;
 }
 
 

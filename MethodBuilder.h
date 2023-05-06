@@ -4,17 +4,20 @@
 
 struct Method;
 struct Environment;
+struct Array;
 struct Object;
+struct String;
 
 
 typedef struct MethodBuilder {
 	struct Method* method;
+	struct Array* arguments;
 	int cur_num_variables, max_num_variables;
 	struct Environment* environment;
 	struct LoopPoints* loop_points;
 	} MethodBuilder;
 
-extern MethodBuilder* new_MethodBuilder(int num_args);
+extern MethodBuilder* new_MethodBuilder(struct Array* arguments);
 extern void MethodBuilder_finish(MethodBuilder* self);
 extern int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal);
 
@@ -28,6 +31,7 @@ extern void MethodBuilder_add_move(MethodBuilder* self, int src, int dest);
 
 extern int MethodBuilder_reserve_locals(MethodBuilder* self, int num_locals);
 extern void MethodBuilder_release_locals(MethodBuilder* self, int num_locals);
+extern int MethodBuilder_find_argument(MethodBuilder* self, struct String* name);
 
 extern void MethodBuilder_push_environment(MethodBuilder* self, struct Environment* environment);
 extern void MethodBuilder_pop_environment(MethodBuilder* self);

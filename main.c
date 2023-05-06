@@ -4,10 +4,11 @@
 #include "MethodBuilder.h"
 #include "Method.h"
 #include "Environment.h"
-#include "String.h"
-#include "Memory.h"
 #include "Init.h"
 #include "ByteCode.h"
+#include "String.h"
+#include "Array.h"
+#include "Memory.h"
 #include "Error.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -75,7 +76,7 @@ static Method* compile_script(const char* file_path)
 
 	Parser* parser = new_Parser(contents->str, contents->size);
 	ParseNode* ast = Parser_parse_block(parser);
-	MethodBuilder* method_builder = new_MethodBuilder(0);
+	MethodBuilder* method_builder = new_MethodBuilder(new_Array());
 	ast->emit(ast, method_builder);
 	MethodBuilder_add_bytecode(method_builder, BC_TERMINATE);
 	MethodBuilder_finish(method_builder);

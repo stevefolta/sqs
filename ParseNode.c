@@ -360,14 +360,9 @@ FunctionStatement* new_FunctionStatement(struct String* name)
 	return self;
 }
 
-void FunctionStatement_add_argument(FunctionStatement* self, String* name)
-{
-	Array_append(self->arguments, (Object*) name);
-}
-
 Object* FunctionStatement_compile(FunctionStatement* self)
 {
-	MethodBuilder* builder = new_MethodBuilder(self->arguments->size);
+	MethodBuilder* builder = new_MethodBuilder(self->arguments);
 	if (self->body)
 		self->body->emit(self->body, builder);
 	MethodBuilder_finish(builder);

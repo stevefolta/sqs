@@ -2,18 +2,21 @@
 #include "Method.h"
 #include "Environment.h"
 #include "Array.h"
+#include "String.h"
 #include "ByteArray.h"
 #include "ByteCode.h"
 #include "Memory.h"
 
 
-MethodBuilder* new_MethodBuilder(int num_args)
+MethodBuilder* new_MethodBuilder(Array* arguments)
 {
 	MethodBuilder* self = alloc_obj(MethodBuilder);
+	int num_args = arguments->size;
 	self->method = new_Method(num_args);
+	self->arguments = arguments;
 	self->cur_num_variables = self->max_num_variables = num_args + 1;
 		// "self" and the arguments count as a variables here.
-	self->environment = &global_environment.environment;
+	self->environment = (Environment*) new_MethodEnvironment(self, &global_environment.environment);
 	return self;
 }
 
@@ -88,6 +91,17 @@ int MethodBuilder_reserve_locals(MethodBuilder* self, int num_locals)
 void MethodBuilder_release_locals(MethodBuilder* self, int num_locals)
 {
 	self->cur_num_variables -= num_locals;
+}
+
+
+int MethodBuilder_find_argument(MethodBuilder* self, String* name)
+{
+	for (int i = 0; i < self->arguments->size; ++i) {
+		String* arg_name = (String*) Array_at(self->arguments, i);
+		if (String_equals(arg_name, name))
+			return i + 1;
+		}
+	return 0;
 }
 
 
