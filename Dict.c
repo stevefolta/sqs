@@ -3,6 +3,7 @@
 #include "Class.h"
 #include "Array.h"
 #include "Object.h"
+#include "Int.h"
 #include "Memory.h"
 #include <string.h>
 #include <stdio.h>
@@ -269,6 +270,11 @@ static Object* Dict_iterator_builtin(Object* super, Object** args)
 	return (Object*) new_DictIterator((Dict*) super);
 }
 
+static Object* Dict_size_builtin(Object* super, Object** args)
+{
+	return (Object*) new_Int(((Dict*) super)->size);
+}
+
 
 static Object* DictIterator_next_builtin(Object* super, Object** args)
 {
@@ -300,6 +306,7 @@ void Dict_init_class()
 		{ "[]", 1, Dict_at_builtin },
 		{ "[]=", 1, Dict_set_at_builtin },
 		{ "iterator", 0, Dict_iterator_builtin },
+		{ "size", 0, Dict_size_builtin },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Dict_class, builtin_methods);
