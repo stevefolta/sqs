@@ -25,7 +25,7 @@ typedef struct DictNode {
 #define Node(index) (self->tree[index])
 
 
-static Class Dict_class;
+Class Dict_class;
 static Class DictIterator_class;
 static Class DictIteratorKeyValue_class;
 

@@ -38,6 +38,7 @@ struct DictIterator* new_DictIterator(Dict* dict);
 DictIteratorResult DictIterator_next(DictIterator* self);
 
 
+extern struct Class Dict_class;
 extern void Dict_init_class();
 
 
