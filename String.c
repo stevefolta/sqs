@@ -112,8 +112,6 @@ void String_init(String* self, const char* str, size_t size)
 {
 	self->class_ = &String_class;
 
-	if (size == 0)
-		size = strlen(str);
 	self->size = size;
 	self->str = alloc_mem(size);
 	memcpy((char*) self->str, str, size);
