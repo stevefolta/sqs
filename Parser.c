@@ -37,6 +37,7 @@ extern ParseNode* Parser_parse_primary_expression(Parser* self);
 extern ParseNode* Parser_parse_string_literal(Parser* self);
 extern ParseNode* Parser_parse_array_literal(Parser* self);
 extern ParseNode* Parser_parse_dict_literal(Parser* self);
+extern bool String_is_one_of(String* str, const char** values);
 
 
 extern Parser* new_Parser(const char* text, size_t size)
@@ -283,25 +284,51 @@ ParseNode* Parser_parse_fn_statement(Parser* self)
 
 ParseNode* Parser_parse_expression(Parser* self)
 {
+	static const char* modify_tokens[] = {
+		"+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "|=", "&=", "^=",
+		NULL
+		};
+
 	ParseNode* expr = Parser_parse_logical_or_expression(self);
 	if (expr == NULL)
 		return NULL;
 
 	Token next_token = Lexer_peek(self->lexer);
-	if (next_token.type == Operator && String_equals_c(next_token.token, "=")) {
-		Lexer_next(self->lexer);
-		if (!expr->emit_set)
-			Error("Attempt to set something that isn't settable (line %d).", next_token.line_number);
-		ParseNode* right = Parser_parse_expression(self);
-		if (right == NULL)
-			Error("Missing expression after \"=\" (line %d).", next_token.line_number);
-		SetExpr* setter = new_SetExpr();
-		setter->left = expr;
-		setter->right = right;
-		expr = (ParseNode*) setter;
-		}
+	if (next_token.type == Operator) {
+		// "="
+		if (String_equals_c(next_token.token, "=")) {
+			Lexer_next(self->lexer);
+			if (!expr->emit_set)
+				Error("Attempt to set something that isn't settable (line %d).", next_token.line_number);
+			ParseNode* right = Parser_parse_expression(self);
+			if (right == NULL)
+				Error("Missing expression after \"=\" (line %d).", next_token.line_number);
+			SetExpr* setter = new_SetExpr();
+			setter->left = expr;
+			setter->right = right;
+			expr = (ParseNode*) setter;
+			}
 
-	// TODO: +=, etc.
+		// "+=", etc.
+		else if (String_is_one_of(next_token.token, modify_tokens)) {
+			Lexer_next(self->lexer);
+			if (!expr->emit_set)
+				Error("Attempt to set something that isn't settable (line %d).", next_token.line_number);
+			ParseNode* right = Parser_parse_expression(self);
+			if (right == NULL)
+				Error("Missing expression after \"=\" (line %d).", next_token.line_number);
+
+			// Make the operation.
+			String* op_name = new_String(next_token.token->str, next_token.token->size - 1);
+			CallExpr* call = new_CallExpr_binop(expr, right, op_name);
+
+			// Make the set.
+			SetExpr* setter = new_SetExpr();
+			setter->left = expr;
+			setter->right = (ParseNode*) call;
+			expr = (ParseNode*) setter;
+			}
+		}
 
 	return expr;
 }
