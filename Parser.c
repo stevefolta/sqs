@@ -1,6 +1,7 @@
 #include "Parser.h"
 #include "Lexer.h"
 #include "ParseNode.h"
+#include "ClassStatement.h"
 #include "String.h"
 #include "Array.h"
 #include "Object.h"
@@ -35,7 +36,6 @@ extern ParseNode* Parser_parse_primary_expression(Parser* self);
 extern ParseNode* Parser_parse_string_literal(Parser* self);
 extern ParseNode* Parser_parse_array_literal(Parser* self);
 extern ParseNode* Parser_parse_dict_literal(Parser* self);
-extern Array* Parser_parse_names_list(Parser* self, const char* type);
 
 
 extern Parser* new_Parser(const char* text, size_t size)
@@ -101,6 +101,7 @@ static StatementParser statement_parsers[] = {
 	{ "continue", &Parser_parse_continue_statement },
 	{ "break", &Parser_parse_break_statement },
 	{ "fn", &Parser_parse_fn_statement },
+	{ "class", &Parser_parse_class_statement },
 	};
 
 ParseNode* Parser_parse_statement(Parser* self)
@@ -221,23 +222,19 @@ ParseNode* Parser_parse_break_statement(Parser* self)
 }
 
 
-ParseNode* Parser_parse_fn_statement(Parser* self)
+ParseNode* Parser_parse_fn_statement_raw(Parser* self)
 {
-	Lexer_next(self->lexer); 	// Consume the "fn".
+	// This could be in either a Block or a ClassStatement.
 
 	// Name.
-	Token token = Lexer_next(self->lexer);
-	//*** TODO: also accept operators, eg. "[]".
-	if (token.type != Identifier)
-		Error("Expected a name for the function defined in line %d.", token.line_number);
-	String* name = token.token;
+	String* name = Parser_parse_fn_name(self);
 
 	FunctionStatement* function = new_FunctionStatement(name);
 
 	// Arguments.
 	function->arguments = Parser_parse_names_list(self, "argument");
 
-	token = Lexer_next(self->lexer);
+	Token token = Lexer_next(self->lexer);
 	if (token.type != EOL)
 		Error("Extra characters at the end of a \"fn\" definition on line %d.", token.line_number);
 
@@ -247,9 +244,20 @@ ParseNode* Parser_parse_fn_statement(Parser* self)
 		function->body = Parser_parse_block(self);
 		}
 
-	if (self->inner_block)
-		Block_add_function(self->inner_block, function);
 	return (ParseNode*) function;
+}
+
+ParseNode* Parser_parse_fn_statement(Parser* self)
+{
+	// This one is only used in a Block.
+
+	Lexer_next(self->lexer); 	// Consume the "fn".
+	ParseNode* function = Parser_parse_fn_statement_raw(self);
+
+	if (self->inner_block)
+		Block_add_function(self->inner_block, (FunctionStatement*) function);
+
+	return function;
 }
 
 
@@ -859,6 +867,35 @@ ParseNode* Parser_parse_dict_literal(Parser* self)
 		}
 
 	return (ParseNode*) dict_literal;
+}
+
+
+String* Parser_parse_fn_name(Parser* self)
+{
+	Token token = Lexer_next(self->lexer);
+	String* name = token.token;
+	bool can_be_set = true;
+	if (token.type == Operator) {
+		if (String_equals_c(token.token, "[")) {
+			token = Lexer_next(self->lexer);
+			if (token.type != Operator || !String_equals_c(token.token, "]"))
+				Error("Expected \"[]\" as a function name, not just \"[\", on line %d.", token.line_number);
+			name = new_c_static_String("[]");
+			}
+		else
+			can_be_set = false;
+		}
+	else if (token.type != Identifier)
+		Error("Expected a function name on line %d.", token.line_number);
+
+	// Add "="?
+	if (can_be_set) {
+		token = Lexer_peek(self->lexer);
+		if (token.type == Operator && String_equals_c(token.token, "="))
+			name = String_add(name, token.token);
+		}
+
+	return name;
 }
 
 

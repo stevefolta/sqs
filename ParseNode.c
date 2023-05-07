@@ -1,4 +1,5 @@
 #include "ParseNode.h"
+#include "ClassStatement.h"
 #include "MethodBuilder.h"
 #include "Environment.h"
 #include "ByteArray.h"
@@ -16,8 +17,9 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 {
 	Block* self = (Block*) super;
 
-	// Before we do anything, compile our functions and classes and get them into
-	// the literals.
+	// Before we do anything, compile our functions to get them into the
+	// literals.  (Classes are treated more like globals, so they don't need such
+	// special treatment.)
 	if (self->functions) {
 		BlockUpvalueContext context;
 		BlockUpvalueContext_init(&context, self, method->environment);
@@ -100,6 +102,13 @@ FunctionStatement* Block_get_function(Block* self, struct String* name)
 	return (FunctionStatement*) Dict_at(self->functions, name);
 }
 
+ClassStatement* Block_get_class(Block* self, struct String* name)
+{
+	if (self->classes == NULL)
+		return NULL;
+	return (ClassStatement*) Dict_at(self->classes, name);
+}
+
 ParseNode* Block_autodeclare(Block* self, String* name)
 {
 	if (self->locals == NULL)
@@ -116,6 +125,14 @@ void Block_add_function(Block* self, struct FunctionStatement* function)
 		self->functions = new_Dict();
 	Dict_set_at(self->functions, function->name, (Object*) function);
 }
+
+void Block_add_class(Block* self, struct ClassStatement* class_statement)
+{
+	if (self->classes == NULL)
+		self->classes = new_Dict();
+	Dict_set_at(self->classes, ClassStatement_get_name(class_statement), (Object*) class_statement);
+}
+
 
 
 int IfStatement_emit(ParseNode* super, MethodBuilder* method)

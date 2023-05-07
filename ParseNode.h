@@ -7,6 +7,7 @@ struct Array;
 struct Dict;
 struct String;
 struct FunctionStatement;
+struct ClassStatement;
 struct Environment;
 
 
@@ -35,13 +36,16 @@ typedef struct Block {
 	struct Dict* locals;
 	int locals_base;
 	struct Dict* functions;
+	struct Dict* classes;
 	} Block;
 extern Block* new_Block();
 extern void Block_append(Block* self, ParseNode* statement);
 extern ParseNode* Block_get_local(Block* self, struct String* name);
 extern struct FunctionStatement* Block_get_function(Block* self, struct String* name);
+extern struct ClassStatement* Block_get_class(Block* self, struct String* name);
 extern ParseNode* Block_autodeclare(Block* self, struct String* name);
 extern void Block_add_function(Block* self, struct FunctionStatement* function);
+extern void Block_add_class(Block* self, struct ClassStatement* class_statement);
 
 
 typedef struct IfStatement {

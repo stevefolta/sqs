@@ -1,5 +1,6 @@
 #include "Environment.h"
 #include "ParseNode.h"
+#include "ClassStatement.h"
 #include "BuiltinMethod.h"
 #include "MethodBuilder.h"
 #include "String.h"
@@ -73,6 +74,9 @@ ParseNode* BlockContext_find(Environment* super, String* name)
 	FunctionStatement* function = Block_get_function(self->block, name);
 	if (function)
 		return (ParseNode*) new_RawLoc(function->loc);
+	ClassStatement* class_statement = Block_get_class(self->block, name);
+	if (class_statement)
+		return ClassStatement_make_reference(class_statement);
 
 	return self->environment.parent->find(self->environment.parent, name);
 }
@@ -111,6 +115,9 @@ ParseNode* BlockUpvalueContext_find(Environment* super, String* name)
 	FunctionStatement* function = Block_get_function(self->block, name);
 	if (function)
 		return (ParseNode*) new_UpvalueFunction(function);
+	ClassStatement* class_statement = Block_get_class(self->block, name);
+	if (class_statement)
+		return ClassStatement_make_reference(class_statement);
 
 	return self->environment.parent->find(self->environment.parent, name);
 }

@@ -24,6 +24,7 @@ typedef struct BuiltinMethodSpec {
 extern void Class_init_static(Class* self, const char* name, int num_ivars);
 extern void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* specs);
 	// "specs" is a list, terminated by a NULL entry.
+extern Class* new_Class(struct String* name);
 
 extern void Class_init_class();
 

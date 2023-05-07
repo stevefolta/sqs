@@ -17,6 +17,16 @@ void Class_init_static(Class* self, const char* name, int num_ivars)
 }
 
 
+Class* new_Class(struct String* name)
+{
+	Class* self = alloc_obj(Class);
+	self->class_ = &Class_class;
+	self->superclass = &Object_class;
+	self->name = name;
+	return self;
+}
+
+
 void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* specs)
 {
 	if (self->methods == NULL)
