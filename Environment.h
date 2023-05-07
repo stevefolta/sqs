@@ -24,6 +24,7 @@ typedef struct GlobalEnvironment {
 extern GlobalEnvironment global_environment;
 extern void GlobalEnvironment_init();
 extern void GlobalEnvironment_add(struct String* name, struct Object* value);
+extern void GlobalEnvironment_add_c(const char* name, struct Object* value);
 extern void GlobalEnvironment_add_fn(
 	const char* name,
 	int num_args,

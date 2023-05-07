@@ -6,6 +6,7 @@
 #include "Environment.h"
 #include "Init.h"
 #include "ByteCode.h"
+#include "Object.h"
 #include "String.h"
 #include "Array.h"
 #include "Memory.h"
@@ -115,6 +116,12 @@ int main(int argc, char* argv[])
 		lexer_test(argv[first_arg]);
 		return 0;
 		}
+
+	// Set up argv.
+	Array* argv_array = new_Array();
+	for (int i = first_arg; i < argc; ++i)
+		Array_append(argv_array, (Object*) new_c_static_String(argv[i]));
+	GlobalEnvironment_add_c("argv", (Object*) argv_array);
 
 	// Compile and run the script.
 	Method* method = compile_script(argv[first_arg]);

@@ -58,6 +58,11 @@ void GlobalEnvironment_add(struct String* name, struct Object* value)
 	Dict_set_at(global_environment.dict, name, value);
 }
 
+void GlobalEnvironment_add_c(const char* name, struct Object* value)
+{
+	Dict_set_at(global_environment.dict, new_c_static_String(name), value);
+}
+
 void GlobalEnvironment_add_fn(
 	const char* name,
 	int num_args,
