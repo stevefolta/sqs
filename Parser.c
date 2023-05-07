@@ -625,6 +625,14 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 			return Parser_parse_array_literal(self);
 		else if (String_equals_c(next_token.token, "{"))
 			return Parser_parse_dict_literal(self);
+		else if (String_equals_c(next_token.token, "(")) {
+			Lexer_next(self->lexer);
+			ParseNode* expr = Parser_parse_expression(self);
+			next_token = Lexer_next(self->lexer);
+			if (next_token.type != Operator || !String_equals_c(next_token.token, ")"))
+				Error("Missing \")\" on line %d.", next_token.line_number);
+			return expr;
+			}
 		}
 
 	return NULL;
