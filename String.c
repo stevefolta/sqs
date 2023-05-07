@@ -85,6 +85,19 @@ int String_cmp(String* self, String* other)
 	return cmp;
 }
 
+bool String_starts_with(String* self, String* other)
+{
+	if (self->size < other->size)
+		return false;
+	return memcmp(self->str, other->str, other->size) == 0;
+}
+
+bool String_ends_with(String* self, String* other)
+{
+	if (self->size < other->size)
+		return false;
+	return memcmp(self->str + self->size - other->size, other->str, other->size) == 0;
+}
 
 
 const char* String_c_str(struct String* self)
@@ -277,7 +290,7 @@ static Object* String_split_builtin(Object* super, Object** args)
 			const char* delimiter_start = NULL;
 			const char* search_p = p;
 			while (search_p < end) {
-				if (bcmp(search_p, delimiter->str, delimiter_size) == 0) {
+				if (memcmp(search_p, delimiter->str, delimiter_size) == 0) {
 					delimiter_start = search_p;
 					break;
 					}
@@ -298,6 +311,19 @@ static Object* String_split_builtin(Object* super, Object** args)
 	return (Object*) result;
 }
 
+Object* String_starts_with_builtin(Object* super, Object** args)
+{
+	String* other = String_enforce(args[0], "String.starts-with");
+	return make_bool(String_starts_with((String*) super, other));
+}
+
+Object* String_ends_with_builtin(Object* super, Object** args)
+{
+	String* other = String_enforce(args[0], "String.ends-with");
+	return make_bool(String_ends_with((String*) super, other));
+}
+
+
 void String_init_class()
 {
 	init_static_class(String);
@@ -314,6 +340,8 @@ void String_init_class()
 		{ "ltrim", 0, String_lstrip_builtin },
 		{ "rtrim", 0, String_rstrip_builtin },
 		{ "split", 1, String_split_builtin },
+		{ "starts-with", 1, String_starts_with_builtin },
+		{ "ends-with", 1, String_ends_with_builtin },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);

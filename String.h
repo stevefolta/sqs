@@ -17,11 +17,13 @@ extern String* new_String(const char* str, size_t size);
 extern String* new_c_String(const char* str);
 extern String* new_c_static_String(const char* str);
 extern String* new_static_String(const char* str, size_t size);
-extern bool String_equals(struct String* self, struct String* other);
-extern bool String_equals_c(struct String* self, const char* other);
-extern bool String_less_than(struct String* self, struct String* other);
-extern int String_cmp(struct String* self, struct String* other);
-extern const char* String_c_str(struct String* self);
+extern bool String_equals(String* self, String* other);
+extern bool String_equals_c(String* self, const char* other);
+extern bool String_less_than(String* self, String* other);
+extern int String_cmp(String* self, String* other);
+extern bool String_starts_with(String* self, String* other);
+extern bool String_ends_with(String* self, String* other);
+extern const char* String_c_str(String* self);
 extern String* String_enforce(struct Object* object, const char* name);
 
 extern String* String_add(String* self, String* other);
