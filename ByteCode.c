@@ -7,6 +7,7 @@
 #include "Object.h"
 #include "Boolean.h"
 #include "Dict.h"
+#include "Class.h"
 #include "Memory.h"
 #include "Error.h"
 #include <stdio.h>
@@ -171,8 +172,25 @@ void interpret_bytecode(struct Method* method)
 
 				// Make sure it's really a function.
 				Object* method = DEREF(fn_loc);
-				if (method == NULL || (method->class_ != &Method_class && method->class_ != &BuiltinMethod_class))
+				if (method == NULL || (method->class_ != &Method_class && method->class_ != &BuiltinMethod_class && method->class_ != &Class_class))
 					Error("Attempt to call a non-function.");
+
+				// Turn calling a class into object instantiation.
+				if (method->class_ == &Class_class) {
+					// Create the object.
+					frame[0] = Class_instantiate((Class*) method);
+
+					// Turn this into an "init()" call.
+					String init_str;
+					String_init_static_c(&init_str, "init");
+					method = Object_find_method(frame[0], &init_str);
+					if (method == NULL) {
+						// No init(), just quit.
+						frame[-4] = frame[0];
+						frame -= frame_adjustment;
+						continue;
+						}
+					}
 
 				// If there weren't enough arguments, fill the rest with nil.
 				int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod

@@ -5,7 +5,7 @@
 #include "Object.h"
 #include "Memory.h"
 
-static Class Class_class;
+Class Class_class;
 
 
 void Class_init_static(Class* self, const char* name, int num_ivars)
@@ -24,6 +24,14 @@ Class* new_Class(struct String* name)
 	self->superclass = &Object_class;
 	self->name = name;
 	return self;
+}
+
+
+Object* Class_instantiate(Class* self)
+{
+	Object* object = alloc_mem(self->num_ivars * sizeof(Object*));
+	object->class_ = self;
+	return object;
 }
 
 
