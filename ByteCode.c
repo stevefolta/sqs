@@ -8,6 +8,7 @@
 #include "Boolean.h"
 #include "Dict.h"
 #include "Class.h"
+#include "Nil.h"
 #include "Memory.h"
 #include "Error.h"
 #include <stdio.h>
@@ -126,8 +127,10 @@ void interpret_bytecode(struct Method* method)
 				// Find the method.
 				String* name_str = (String*) DEREF(name);
 				Object* method = Object_find_method(frame[0], name_str);
-				if (method == NULL)
-					Error("Unhandled method call: \"%s\".", String_c_str(name_str));
+				if (method == NULL) {
+					Class* receiver_class = (frame[0] ? frame[0]->class_ : &Nil_class);
+					Error("Unhandled method call: \"%s\" on %s.", String_c_str(name_str), String_c_str(receiver_class->name));
+					}
 
 				// If there weren't enough arguments, fill the rest with nil.
 				int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod
@@ -269,8 +272,10 @@ Object* call_method(Object* receiver, String* name, Array* arguments)
 
 	// Find the method.
 	Object* method = Object_find_method(receiver, name);
-	if (method == NULL)
-		Error("Unhandled method call: \"%s\".", String_c_str(name));
+	if (method == NULL) {
+		Class* receiver_class = (receiver ? receiver->class_ : &Nil_class);
+		Error("Unhandled method call: \"%s\" on %s.", String_c_str(name), String_c_str(receiver_class->name));
+		}
 
 	// If it's a BuiltinMethod, we can just call it.
 	if (method->class_ == &BuiltinMethod_class)
