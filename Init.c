@@ -30,6 +30,8 @@ void init_all()
 	GlobalEnvironment_init();
 	GlobalEnvironment_add_fn("print", 2, Print);
 	GlobalEnvironment_add_fn("run", 2, Run);
+	GlobalEnvironment_add_class(&Array_class);
+	GlobalEnvironment_add_class(&Dict_class);
 }
 
 

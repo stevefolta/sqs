@@ -28,6 +28,7 @@ extern void GlobalEnvironment_add_fn(
 	const char* name,
 	int num_args,
 	struct Object* (*fn)(struct Object* self, struct Object** args));
+extern void GlobalEnvironment_add_class(struct Class* the_class);
 
 typedef struct MethodEnvironment {
 	Environment environment;

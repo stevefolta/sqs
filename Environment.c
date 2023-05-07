@@ -67,6 +67,11 @@ void GlobalEnvironment_add_fn(
 	GlobalEnvironment_add(new_c_static_String(name), (struct Object*) method);
 }
 
+void GlobalEnvironment_add_class(Class* the_class)
+{
+	GlobalEnvironment_add(the_class->name, (struct Object*) the_class);
+}
+
 
 
 ParseNode* MethodEnvironment_find(Environment* super, String* name)

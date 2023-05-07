@@ -255,6 +255,12 @@ typedef struct DictIteratorKeyValue {
 	} DictIteratorKeyValue;
 
 
+static Object* Dict_init_builtin(Object* super, Object** args)
+{
+	Dict_init((Dict*) super);
+	return super;
+}
+
 static Object* Dict_at_builtin(Object* super, Object** args)
 {
 	String* key = String_enforce(args[0], "Dict.[]");
@@ -306,6 +312,7 @@ void Dict_init_class()
 {
 	init_static_class(Dict);
 	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 0, Dict_init_builtin },
 		{ "[]", 1, Dict_at_builtin },
 		{ "[]=", 1, Dict_set_at_builtin },
 		{ "iterator", 0, Dict_iterator_builtin },
