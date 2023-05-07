@@ -221,6 +221,9 @@ ParseNode* ClassFunctionContext_find(Environment* super, String* name)
 			}
 		}
 
+	if (self->environment.parent)
+		return self->environment.parent->find(self->environment.parent, name);
+
 	return NULL;
 }
 
