@@ -82,9 +82,6 @@ void interpret_bytecode(struct Method* method)
 				dest = *pc++;
 				frame[dest] = NULL;
 				break;
-			case BC_LOAD_GLOBAL:
-				//*** TODO
-				break;
 			case BC_BRANCH_IF_TRUE:
 				src = *pc++;
 				dest = *pc++;
@@ -365,9 +362,6 @@ void dump_bytecode(struct Method* method)
 				break;
 			case BC_NIL:
 				printf("nil -> [%d]\n", bytecode[++i]);
-				break;
-			case BC_LOAD_GLOBAL:
-				printf("load_global %d\n", bytecode[++i]);
 				break;
 			case BC_BRANCH_IF_TRUE:
 				src = bytecode[++i];

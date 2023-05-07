@@ -15,7 +15,6 @@ enum {
 	BC_TRUE,	// dest
 	BC_FALSE,	// dest
 	BC_NIL,	// dest
-	BC_LOAD_GLOBAL, 	// followed by location of global name (typically a literal).
 	BC_BRANCH_IF_TRUE, 	// value, offset_8
 	BC_BRANCH_IF_FALSE,	// value, offset_8
 	BC_BRANCH_IF_NIL, 	// value, offset_8
