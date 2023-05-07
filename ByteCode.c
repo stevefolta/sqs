@@ -179,6 +179,7 @@ void interpret_bytecode(struct Method* method)
 				frame[-3] = (Object*) old_fp;
 				frame[-2] = (Object*) pc;
 				frame[-1] = (Object*) literals;
+				frame[0] = NULL; 	// receiver is "nil"
 
 				// Make sure it's really a function.
 				Object* method = DEREF(fn_loc);

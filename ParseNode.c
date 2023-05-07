@@ -1008,9 +1008,6 @@ int FunctionCallExpr_emit(ParseNode* super, MethodBuilder* method)
 	int fn_loc = self->fn->emit(self->fn, method);
 
 	// Set up the new frame's arguments.
-	// "receiver" is nil.
-	MethodBuilder_add_bytecode(method, BC_NIL);
-	MethodBuilder_add_bytecode(method, args_start);
 	for (int i = 0; i < num_args; ++i) {
 		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
 		int arg_loc = arg->emit(arg, method);
