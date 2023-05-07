@@ -49,11 +49,15 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 	if (token.type == Indent) {
 		Lexer_next(self->lexer);
 		while (true) {
-			token = Lexer_next(self->lexer);
-			if (token.type == Unindent)
+			token = Lexer_peek(self->lexer);
+			if (token.type == Unindent) {
+				Lexer_next(self->lexer);
 				break;
-			else if (token.type == EOL)
+				}
+			else if (token.type == EOL) {
+				Lexer_next(self->lexer);
 				continue;
+				}
 
 			// "class"
 			else if (token.type == Identifier && String_equals_c(token.token, "class")) {
@@ -64,6 +68,7 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 
 			// It might be preceded by "fn", or not.
 			if (token.type == Identifier && String_equals_c(token.token, "fn")) {
+				Lexer_next(self->lexer);
 				token = Lexer_next(self->lexer);
 				if (token.type != Identifier && token.type != Operator)
 					Error("Bad function definition on line %d.", token.line_number);
