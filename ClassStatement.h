@@ -11,7 +11,7 @@ extern ParseNode* Parser_parse_class_statement(struct Parser* self);
 
 typedef struct ClassStatement {
 	ParseNode parse_node;
-	struct ParseNode* superclass;
+	struct String* superclass_name;
 	struct Array* ivars;
 	struct Array* functions;
 

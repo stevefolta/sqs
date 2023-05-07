@@ -18,8 +18,8 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 	Block* self = (Block*) super;
 
 	// Before we do anything, compile our functions to get them into the
-	// literals.  (Classes are treated more like globals, so they don't need such
-	// special treatment.)
+	// literals.  (Classes are exist as soon as they're parsed, so they don't
+	// need quite such special treatment.)
 	if (self->functions) {
 		BlockUpvalueContext context;
 		BlockUpvalueContext_init(&context, self, method->environment);

@@ -2,6 +2,7 @@
 #include "Parser.h"
 #include "Lexer.h"
 #include "MethodBuilder.h"
+#include "Environment.h"
 #include "String.h"
 #include "Array.h"
 #include "Class.h"
@@ -33,7 +34,7 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 		token = Lexer_next(self->lexer);
 		if (token.type != Identifier)
 			Error("Expected a class name as the superclass on line %d.", token.line_number);
-		class_statement->superclass = (ParseNode*) new_Variable(token.token, token.line_number);
+		class_statement->superclass_name = token.token;
 		}
 
 	// Ivars.
@@ -85,7 +86,18 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 
 int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 {
+	ClassStatement* self = (ClassStatement*) super;
+
+	// Superclass.
+	if (self->superclass_name) {
+		Class* superclass = Environment_find_class(method->environment, self->superclass_name);
+		if (superclass == NULL)
+			Error("Couldn't find a superclass named \"%s\".", self->superclass_name);
+		self->built_class->superclass = superclass;
+		}
+
 	/***/
+
 	return 0;
 }
 

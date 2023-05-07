@@ -4,6 +4,7 @@ struct String;
 struct ParseNode;
 struct Dict;
 struct Object;
+struct Class;
 struct Block;
 struct MethodBulder;
 
@@ -12,7 +13,9 @@ typedef struct Environment {
 	struct Environment* parent;
 	struct ParseNode* (*find)(struct Environment* self, struct String* name);
 	struct ParseNode* (*find_autodeclaring)(struct Environment* self, struct String* name);
+	struct Class* (*get_class)(struct Environment* self, struct String* name);
 	} Environment;
+extern struct Class* Environment_find_class(Environment* self, struct String* name);
 
 typedef struct GlobalEnvironment {
 	Environment environment;
