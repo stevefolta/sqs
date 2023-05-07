@@ -19,6 +19,7 @@ typedef struct MethodBuilder {
 
 extern MethodBuilder* new_MethodBuilder(struct Array* arguments, struct Environment* environment);
 extern void MethodBuilder_finish(MethodBuilder* self);
+extern void MethodBuilder_finish_init(MethodBuilder* self);
 
 extern int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal);
 extern int MethodBuilder_reserve_literal(MethodBuilder* self);

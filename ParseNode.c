@@ -419,7 +419,10 @@ Object* FunctionStatement_compile(FunctionStatement* self, Environment* environm
 	MethodBuilder* builder = new_MethodBuilder(self->arguments, environment);
 	if (self->body)
 		self->body->emit(self->body, builder);
-	MethodBuilder_finish(builder);
+	if (String_equals_c(self->name, "init"))
+		MethodBuilder_finish_init(builder);
+	else
+		MethodBuilder_finish(builder);
 	self->compiled_method = (Object*) builder->method;
 
 	// Patch up previous references.

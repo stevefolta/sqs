@@ -29,6 +29,13 @@ void MethodBuilder_finish(MethodBuilder* self)
 	self->method->stack_size = self->max_num_variables;
 }
 
+void MethodBuilder_finish_init(MethodBuilder* self)
+{
+	MethodBuilder_add_bytecode(self, BC_RETURN);
+	MethodBuilder_add_bytecode(self, 0);
+	self->method->stack_size = self->max_num_variables;
+}
+
 
 int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
 {
