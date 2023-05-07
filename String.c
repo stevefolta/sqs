@@ -172,6 +172,66 @@ static Object* String_not_equals_builtin(Object* self, Object** args)
 	return make_bool(!String_equals((String*) self, (String*) args[0]));
 }
 
+static Object* String_strip_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	const char* new_start = self->str;
+	const char* end = new_start + self->size;
+	while (new_start < end) {
+		char c = *new_start;
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			new_start += 1;
+		else
+			break;
+		}
+	if (new_start >= end)
+		return (Object*) new_static_String(NULL, 0);
+	const char* new_end = end;
+	while (new_end > new_start) {
+		char c = new_end[-1];
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			new_end -= 1;
+		else
+			break;
+		}
+	if (new_start >= new_end)
+		return (Object*) new_static_String(NULL, 0);
+	return (Object*) new_static_String(new_start, new_end - new_start);
+}
+
+static Object* String_lstrip_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	const char* new_start = self->str;
+	const char* end = new_start + self->size;
+	while (new_start < end) {
+		char c = *new_start;
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			new_start += 1;
+		else
+			break;
+		}
+	if (new_start >= end)
+		return (Object*) new_static_String(NULL, 0);
+	return (Object*) new_static_String(new_start, end - new_start);
+}
+
+static Object* String_rstrip_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	const char* start = self->str;
+	const char* new_end = start + self->size;
+	while (new_end > start) {
+		char c = new_end[-1];
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			new_end -= 1;
+		else
+			break;
+		}
+	if (start >= new_end)
+		return (Object*) new_static_String(NULL, 0);
+	return (Object*) new_static_String(start, new_end - start);
+}
 
 void String_init_class()
 {
@@ -182,6 +242,12 @@ void String_init_class()
 		{ "string", 0, String_string },
 		{ "==", 1, String_equals_builtin },
 		{ "!=", 1, String_not_equals_builtin },
+		{ "strip", 0, String_strip_builtin },
+		{ "lstrip", 0, String_lstrip_builtin },
+		{ "rstrip", 0, String_rstrip_builtin },
+		{ "trim", 0, String_strip_builtin },
+		{ "ltrim", 0, String_lstrip_builtin },
+		{ "rtrim", 0, String_rstrip_builtin },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);
