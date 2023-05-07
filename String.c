@@ -1,11 +1,13 @@
 #include "String.h"
 #include "Class.h"
+#include "Array.h"
 #include "Object.h"
 #include "Boolean.h"
 #include "Nil.h"
 #include "Memory.h"
 #include "Error.h"
 #include <string.h>
+#include <stdbool.h>
 
 Class String_class;
 
@@ -233,6 +235,69 @@ static Object* String_rstrip_builtin(Object* super, Object** args)
 	return (Object*) new_static_String(start, new_end - start);
 }
 
+static Object* String_split_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	Array* result = new_Array();
+	const char* p = self->str;
+	const char* end = p + self->size;
+
+	// Whiltespace splitting.
+	if (args[0] == NULL) {
+		while (p < end) {
+			// Skip initial whitespace.
+			while (p < end) {
+				char c = *p;
+				if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+					p += 1;
+				else
+					break;
+				}
+
+			// Add the non-whitespace run.
+			const char* word_start = p;
+			while (p < end) {
+				char c = *p;
+				if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+					break;
+				p += 1;
+				}
+			if (p > word_start)
+				Array_append(result, (Object*) new_static_String(word_start, p - word_start));
+			}
+		}
+
+	// Splitting by delimiter string.
+	else {
+		String* delimiter = String_enforce(args[0], "String.split");
+		size_t delimiter_size = delimiter->size;
+		while (true) {
+			// Find the start of the delimiter.
+			// (We'd use memmem() but it's not part of POSIX.)
+			const char* delimiter_start = NULL;
+			const char* search_p = p;
+			while (search_p < end) {
+				if (bcmp(search_p, delimiter->str, delimiter_size) == 0) {
+					delimiter_start = search_p;
+					break;
+					}
+				search_p += 1;
+				}
+
+			if (delimiter_start) {
+				Array_append(result, (Object*) new_static_String(p, delimiter_start - p));
+				p = delimiter_start + delimiter_size;
+				}
+			else {
+				Array_append(result, (Object*) new_static_String(p, end - p));
+				break;
+				}
+			}
+		}
+
+	return (Object*) result;
+}
+
 void String_init_class()
 {
 	init_static_class(String);
@@ -248,6 +313,7 @@ void String_init_class()
 		{ "trim", 0, String_strip_builtin },
 		{ "ltrim", 0, String_lstrip_builtin },
 		{ "rtrim", 0, String_rstrip_builtin },
+		{ "split", 1, String_split_builtin },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);
