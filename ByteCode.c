@@ -60,6 +60,16 @@ void interpret_bytecode(struct Method* method)
 				dest = *pc++;
 				frame[dest] = DEREF(src);
 				break;
+			case BC_GET_IVAR:
+				src = *pc++;
+				dest = *pc++;
+				frame[dest] = ((Object**) frame[0])[src + 1];
+				break;
+			case BC_SET_IVAR:
+				dest = *pc++;
+				src = *pc++;
+				((Object**) frame[0])[dest + 1] = DEREF(src);
+				break;
 			case BC_TRUE:
 				dest = *pc++;
 				frame[dest] = &true_obj;
@@ -336,6 +346,16 @@ void dump_bytecode(struct Method* method)
 				src = bytecode[++i];
 				dest = bytecode[++i];
 				printf("[%d] -> [%d]\n", src, dest);
+				break;
+			case BC_GET_IVAR:
+				src = bytecode[++i];
+				dest = bytecode[++i];
+				printf("get_ivar %d -> [%d]\n", src, dest);
+				break;
+			case BC_SET_IVAR:
+				dest = bytecode[++i];
+				src = bytecode[++i];
+				printf("set_ivar %d <- [%d]\n", dest, src);
 				break;
 			case BC_TRUE:
 				printf("true -> [%d]\n", bytecode[++i]);

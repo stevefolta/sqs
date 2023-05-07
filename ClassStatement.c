@@ -3,6 +3,7 @@
 #include "Lexer.h"
 #include "MethodBuilder.h"
 #include "Environment.h"
+#include "ByteCode.h"
 #include "String.h"
 #include "Array.h"
 #include "Dict.h"
@@ -10,6 +11,13 @@
 #include "Object.h"
 #include "Memory.h"
 #include "Error.h"
+
+typedef struct ClassFunctionContext {
+	Environment environment;
+	ClassStatement* class_statement;
+	} ClassFunctionContext;
+
+extern void ClassFunctionContext_init(struct ClassFunctionContext* self, ClassStatement* class_statement, Environment* parent);
 
 
 ParseNode* Parser_parse_class_statement(Parser* self)
@@ -111,6 +119,11 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 		}
 
 	// Compile functions.
+	// Set up environment.
+	ClassFunctionContext context;
+	ClassFunctionContext_init(&context, self, method->environment);
+	method->environment = (Environment*) &context;
+	// Compile all functions.
 	DictIterator* it = new_DictIterator(self->functions);
 	while (true) {
 		DictIteratorResult kv = DictIterator_next(it);
@@ -122,6 +135,8 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 			self->built_class->methods = new_Dict();
 		Dict_set_at(self->built_class->methods, function->name, compiled_method);
 		}
+	// Clean up environment.
+	method->environment = context.environment.parent;
 
 	/***/
 
@@ -148,6 +163,85 @@ ParseNode* ClassStatement_make_reference(ClassStatement* self)
 {
 	return (ParseNode*) new_GlobalExpr((Object*) self->built_class);
 }
+
+
+typedef struct IvarExpr {
+	ParseNode parse_node;
+	int ivar_index;
+	} IvarExpr;
+
+int IvarExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	IvarExpr* self = (IvarExpr*) super;
+
+	int result_loc = MethodBuilder_reserve_locals(method, 1);
+
+	MethodBuilder_add_bytecode(method, BC_GET_IVAR);
+	MethodBuilder_add_bytecode(method, self->ivar_index);
+	MethodBuilder_add_bytecode(method, result_loc);
+
+	return result_loc;
+}
+
+int IvarExpr_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
+{
+	IvarExpr* self = (IvarExpr*) super;
+
+	int value_loc = value->emit(value, method);
+
+	MethodBuilder_add_bytecode(method, BC_SET_IVAR);
+	MethodBuilder_add_bytecode(method, self->ivar_index);
+	MethodBuilder_add_bytecode(method, value_loc);
+
+	return value_loc;
+}
+
+IvarExpr* new_IvarExpr(int ivar_index)
+{
+	IvarExpr* self = alloc_obj(IvarExpr);
+	self->parse_node.emit = IvarExpr_emit;
+	self->parse_node.emit_set = IvarExpr_emit_set;
+	return self;
+}
+
+
+ParseNode* ClassFunctionContext_find(Environment* super, String* name)
+{
+	ClassFunctionContext* self = (ClassFunctionContext*) super;
+	ClassStatement* class_statement = self->class_statement;
+
+	// Ivars.
+	Array* ivars = class_statement->ivars;
+	if (ivars) {
+		for (int i = 0; i < ivars->size; ++i) {
+			if (String_equals(name, (String*) Array_at(ivars, i))) {
+				int added_ivars_base = class_statement->built_class->num_ivars - class_statement->ivars->size;
+				return (ParseNode*) new_IvarExpr(i + added_ivars_base);
+				}
+			}
+		}
+
+	return NULL;
+}
+
+Class* ClassFunctionContext_get_class(struct Environment* super, String* name)
+{
+	// ClassFunctionContext* self = (ClassFunctionContext*) super;
+	// ClassStatement* class_statement = self->class_statement;
+
+	/***/
+	return NULL;
+}
+
+void ClassFunctionContext_init(struct ClassFunctionContext* self, ClassStatement* class_statement, Environment* parent)
+{
+	self->environment.parent = parent;
+	self->environment.find = ClassFunctionContext_find;
+	self->environment.get_class = ClassFunctionContext_get_class;
+	self->class_statement = class_statement;
+}
+
+
 
 
 

@@ -10,6 +10,8 @@ struct String;
 enum {
 	BC_NOP,
 	BC_SET_LOCAL, 	// src, dest
+	BC_GET_IVAR, 	// ivar, dest
+	BC_SET_IVAR, 	// ivar, src
 	BC_TRUE,	// dest
 	BC_FALSE,	// dest
 	BC_NIL,	// dest
