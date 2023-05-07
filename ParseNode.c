@@ -379,10 +379,19 @@ int ReturnStatement_emit(ParseNode* super, MethodBuilder* method)
 	return 0;
 }
 
+void ReturnStatement_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	ReturnStatement* self = (ReturnStatement*) super;
+
+	if (self->value && self->value->resolve_names)
+		self->value->resolve_names(self->value, method);
+}
+
 ReturnStatement* new_ReturnStatement()
 {
 	ReturnStatement* self = alloc_obj(ReturnStatement);
 	self->parse_node.emit = ReturnStatement_emit;
+	self->parse_node.resolve_names = ReturnStatement_resolve_names;
 	return self;
 }
 
