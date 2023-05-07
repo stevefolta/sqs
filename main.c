@@ -50,6 +50,7 @@ static void lexer_test(const char* file_path)
 			case IntLiteral:
 			case FloatLiteral:
 			case StringLiteral:
+			case RawStringLiteral:
 			case Operator:
 				fwrite(token.token->str, token.token->size, 1, stdout);
 				printf("\n");

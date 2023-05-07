@@ -6,7 +6,10 @@
 
 typedef struct Token {
 	enum {
-		EndOfText, EOL, Identifier, IntLiteral, FloatLiteral, StringLiteral, Operator, Indent, Unindent,
+		EndOfText, EOL,
+		Identifier, Operator,
+		IntLiteral, FloatLiteral, StringLiteral, RawStringLiteral,
+		Indent, Unindent,
 		} type;
 	String* token;
 	size_t line_number;

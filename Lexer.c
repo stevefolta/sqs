@@ -154,6 +154,7 @@ Token Lexer_next_token(struct Lexer* self)
 
 	const char* token_start = self->p;
 	char c = *self->p++;
+	bool string_is_raw = false;
 	switch (c) {
 		case '\n':
 			self->line_number += 1;
@@ -281,6 +282,7 @@ Token Lexer_next_token(struct Lexer* self)
 		case '"':
 		case '\'':
 		case '`':
+		string_literal:
 			{
 			char delimiter = c;
 			size_t start_line = self->line_number;
@@ -288,7 +290,7 @@ Token Lexer_next_token(struct Lexer* self)
 			while (self->p < self->end) {
 				c = *self->p;
 				if (c == delimiter) {
-					result.type = StringLiteral;
+					result.type = (string_is_raw ? RawStringLiteral : StringLiteral);
 					result.token = new_String(token_start, self->p - token_start);
 					self->p += 1;
 					return result;
@@ -303,7 +305,21 @@ Token Lexer_next_token(struct Lexer* self)
 			}
 			break;
 
+		case 'r':
+			if (self->p < self->end) {
+				char next_c = *self->p;
+				if (next_c == '"' || next_c == '\'' || next_c == '`') {
+					string_is_raw = true;
+					token_start = self->p;
+					c = *self->p++;
+					goto string_literal;
+					}
+				}
+			goto identifier;
+			break;
+
 		default:
+		identifier:
 			// Identifier.
 			if (!is_identifier_character(c))
 				Error("Unknown character");
