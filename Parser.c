@@ -911,8 +911,10 @@ String* Parser_parse_fn_name(Parser* self)
 	// Add "="?
 	if (can_be_set) {
 		token = Lexer_peek(self->lexer);
-		if (token.type == Operator && String_equals_c(token.token, "="))
+		if (token.type == Operator && String_equals_c(token.token, "=")) {
 			name = String_add(name, token.token);
+			Lexer_next(self->lexer);
+			}
 		}
 
 	return name;
