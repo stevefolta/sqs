@@ -364,6 +364,29 @@ ParseNode* new_BreakStatement()
 }
 
 
+int ReturnStatement_emit(ParseNode* super, MethodBuilder* method)
+{
+	ReturnStatement* self = (ReturnStatement*) super;
+
+	if (self->value) {
+		int value_loc = self->value->emit(self->value, method);
+		MethodBuilder_add_bytecode(method, BC_RETURN);
+		MethodBuilder_add_bytecode(method, value_loc);
+		}
+	else
+		MethodBuilder_add_bytecode(method, BC_RETURN_NIL);
+
+	return 0;
+}
+
+ReturnStatement* new_ReturnStatement()
+{
+	ReturnStatement* self = alloc_obj(ReturnStatement);
+	self->parse_node.emit = ReturnStatement_emit;
+	return self;
+}
+
+
 int FunctionStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	// Nothing to do here; everything was taken care of at the start of the

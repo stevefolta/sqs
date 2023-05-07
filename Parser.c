@@ -17,6 +17,7 @@ extern ParseNode* Parser_parse_while_statement(Parser* self);
 extern ParseNode* Parser_parse_for_statement(Parser* self);
 extern ParseNode* Parser_parse_continue_statement(Parser* self);
 extern ParseNode* Parser_parse_break_statement(Parser* self);
+extern ParseNode* Parser_parse_return_statement(Parser* self);
 extern ParseNode* Parser_parse_fn_statement(Parser* self);
 extern ParseNode* Parser_parse_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_or_expression(Parser* self);
@@ -100,6 +101,7 @@ static StatementParser statement_parsers[] = {
 	{ "for", &Parser_parse_for_statement },
 	{ "continue", &Parser_parse_continue_statement },
 	{ "break", &Parser_parse_break_statement },
+	{ "return", &Parser_parse_return_statement },
 	{ "fn", &Parser_parse_fn_statement },
 	{ "class", &Parser_parse_class_statement },
 	};
@@ -219,6 +221,24 @@ ParseNode* Parser_parse_break_statement(Parser* self)
 {
 	Lexer_next(self->lexer);
 	return new_BreakStatement();
+}
+
+
+ParseNode* Parser_parse_return_statement(Parser* self)
+{
+	Lexer_next(self->lexer);
+
+	ReturnStatement* return_statement = new_ReturnStatement();
+
+	ParseNode* value = Parser_parse_expression(self);
+	if (value)
+		return_statement->value = value;
+
+	Token token = Lexer_next(self->lexer);
+	if (token.type != EOL)
+		Error("Extra characters at end of \"return\" statement on line %d.", token.line_number);
+
+	return (ParseNode*) return_statement;
 }
 
 

@@ -78,6 +78,13 @@ extern ParseNode* new_ContinueStatement();
 extern ParseNode* new_BreakStatement();
 
 
+typedef struct ReturnStatement {
+	ParseNode parse_node;
+	ParseNode* value;
+	} ReturnStatement;
+extern ReturnStatement* new_ReturnStatement();
+
+
 struct UpvalueFunction;
 typedef struct FunctionStatement {
 	ParseNode parse_node;
