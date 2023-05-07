@@ -96,6 +96,14 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 		self->built_class->superclass = superclass;
 		}
 
+	// Calculate "num_ivars".
+	int num_ivars = (self->ivars ? self->ivars->size : 0);
+	Class* ancestor = self->built_class->superclass;
+	while (ancestor) {
+		num_ivars += ancestor->num_ivars;
+		ancestor = ancestor->superclass;
+		}
+
 	/***/
 
 	return 0;
