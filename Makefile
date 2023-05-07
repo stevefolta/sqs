@@ -40,8 +40,6 @@ $(OBJECTS): | $(OBJECTS_DIR)
 $(PROGRAM): $(OBJECTS)
 	@echo "Linking $@..."
 	$(QUIET) $(CPP) $(filter-out $(OBJECTS_DIR),$^) -g $(LINK_FLAGS) -o $@
-	@echo "---------------------------------------------"
-	@echo
 
 $(OBJECTS_DIR):
 	@echo "Making $@..."
