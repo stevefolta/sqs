@@ -5,6 +5,7 @@
 #include "Environment.h"
 #include "String.h"
 #include "Array.h"
+#include "Dict.h"
 #include "Class.h"
 #include "Object.h"
 #include "Memory.h"
@@ -74,10 +75,10 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 					Error("Bad function definition on line %d.", token.line_number);
 				}
 
-			ParseNode* function = Parser_parse_fn_statement_raw(self);
+			FunctionStatement* function = Parser_parse_fn_statement_raw(self);
 			if (function == NULL)
 				Error("Expected function definition on line %d.", token.line_number);
-			Array_append(class_statement->functions, (Object*) function);
+			Dict_set_at(class_statement->functions, function->name, (Object*) function);
 			}
 		}
 
@@ -109,6 +110,19 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 		ancestor = ancestor->superclass;
 		}
 
+	// Compile functions.
+	DictIterator* it = new_DictIterator(self->functions);
+	while (true) {
+		DictIteratorResult kv = DictIterator_next(it);
+		if (kv.key == NULL)
+			break;
+		FunctionStatement* function = (FunctionStatement*) kv.value;
+		Object* compiled_method = FunctionStatement_compile(function, method->environment);
+		if (self->built_class->methods == NULL)
+			self->built_class->methods = new_Dict();
+		Dict_set_at(self->built_class->methods, function->name, compiled_method);
+		}
+
 	/***/
 
 	return 0;
@@ -119,7 +133,7 @@ ClassStatement* new_ClassStatement(String* name)
 	ClassStatement* self = alloc_obj(ClassStatement);
 	self->parse_node.emit = ClassStatement_emit;
 	self->built_class = new_Class(name);
-	self->functions = new_Array();
+	self->functions = new_Dict();
 	return self;
 }
 

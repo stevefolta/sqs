@@ -242,7 +242,7 @@ ParseNode* Parser_parse_return_statement(Parser* self)
 }
 
 
-ParseNode* Parser_parse_fn_statement_raw(Parser* self)
+FunctionStatement* Parser_parse_fn_statement_raw(Parser* self)
 {
 	// This could be in either a Block or a ClassStatement.
 
@@ -264,7 +264,7 @@ ParseNode* Parser_parse_fn_statement_raw(Parser* self)
 		function->body = Parser_parse_block(self);
 		}
 
-	return (ParseNode*) function;
+	return function;
 }
 
 ParseNode* Parser_parse_fn_statement(Parser* self)
@@ -272,12 +272,12 @@ ParseNode* Parser_parse_fn_statement(Parser* self)
 	// This one is only used in a Block.
 
 	Lexer_next(self->lexer); 	// Consume the "fn".
-	ParseNode* function = Parser_parse_fn_statement_raw(self);
+	FunctionStatement* function = Parser_parse_fn_statement_raw(self);
 
 	if (self->inner_block)
-		Block_add_function(self->inner_block, (FunctionStatement*) function);
+		Block_add_function(self->inner_block, function);
 
-	return function;
+	return (ParseNode*) function;
 }
 
 
