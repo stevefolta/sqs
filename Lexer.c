@@ -216,9 +216,9 @@ Token Lexer_next_token(struct Lexer* self)
 			// Could be doubled, then possibly followed by '='.
 			if (self->p < self->end && *self->p == c) {
 				self->p += 1;
-				if (self->p < self->end && *self->p == '=')
-					self->p += 1;
 				}
+			if (self->p < self->end && *self->p == '=')
+				self->p += 1;
 			result.type = Operator;
 			break;
 
