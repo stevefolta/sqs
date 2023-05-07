@@ -187,6 +187,26 @@ static Object* String_not_equals_builtin(Object* self, Object** args)
 	return make_bool(!String_equals((String*) self, (String*) args[0]));
 }
 
+static Object* String_less_than_builtin(Object* self, Object** args)
+{
+	return make_bool(String_cmp((String*) self, String_enforce(args[0], "<")) < 0);
+}
+
+static Object* String_greater_than_builtin(Object* self, Object** args)
+{
+	return make_bool(String_cmp((String*) self, String_enforce(args[0], ">")) > 0);
+}
+
+static Object* String_less_than_equals_builtin(Object* self, Object** args)
+{
+	return make_bool(String_cmp((String*) self, String_enforce(args[0], "<=")) <= 0);
+}
+
+static Object* String_greater_than_equals_builtin(Object* self, Object** args)
+{
+	return make_bool(String_cmp((String*) self, String_enforce(args[0], ">=")) >= 0);
+}
+
 static Object* String_strip_builtin(Object* super, Object** args)
 {
 	String* self = (String*) super;
@@ -333,6 +353,10 @@ void String_init_class()
 		{ "string", 0, String_string },
 		{ "==", 1, String_equals_builtin },
 		{ "!=", 1, String_not_equals_builtin },
+		{ "<", 1, String_less_than_builtin },
+		{ ">", 1, String_greater_than_builtin },
+		{ "<=", 1, String_less_than_equals_builtin },
+		{ ">=", 1, String_greater_than_equals_builtin },
 		{ "strip", 0, String_strip_builtin },
 		{ "lstrip", 0, String_lstrip_builtin },
 		{ "rstrip", 0, String_rstrip_builtin },
