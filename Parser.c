@@ -419,7 +419,7 @@ ParseNode* Parser_parse_binop(
 		Lexer_next(self->lexer);
 		ParseNode* expr2 = parse_tighter(self);
 		if (expr2 == NULL)
-			Error("Missing expression after \"%s\" in line %d.", op.token, op.line_number);
+			Error("Missing expression after \"%s\" in line %d.", String_c_str(op.token), op.line_number);
 
 		// Make the binop.
 		expr = (ParseNode*) new_CallExpr_binop(expr, expr2, op.token);
@@ -463,7 +463,7 @@ ParseNode* Parser_parse_equality_expression(Parser* self)
 		Lexer_next(self->lexer);
 		ParseNode* expr2 = Parser_parse_relational_expression(self);
 		if (expr2 == NULL)
-			Error("Missing expression after \"%s\" in line %d.", op.token, op.line_number);
+			Error("Missing expression after \"%s\" in line %d.", String_c_str(op.token), op.line_number);
 
 		// Special-case "== nil" and "!= nil".
 		//*** TODO
