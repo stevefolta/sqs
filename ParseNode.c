@@ -744,6 +744,7 @@ int Variable_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 Variable* new_Variable(struct String* name, int line_number)
 {
 	Variable* self = alloc_obj(Variable);
+	self->parse_node.type = PN_Variable;
 	self->parse_node.emit = Variable_emit;
 	self->parse_node.emit_set = Variable_emit_set;
 	self->parse_node.resolve_names = Variable_resolve_names;
@@ -779,6 +780,19 @@ Local* new_Local(Block* block, int block_index)
 	self->parse_node.emit_set = Local_emit_set;
 	self->block = block;
 	self->block_index = block_index;
+	return self;
+}
+
+
+int SelfExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	return 0;
+}
+
+SelfExpr* new_SelfExpr()
+{
+	SelfExpr* self = (SelfExpr*) alloc_obj(SelfExpr);
+	self->parse_node.emit = SelfExpr_emit;
 	return self;
 }
 
@@ -970,6 +984,7 @@ void CallExpr_resolve_names(ParseNode* super, MethodBuilder* method)
 CallExpr* new_CallExpr(ParseNode* receiver, String* name)
 {
 	CallExpr* self = alloc_obj(CallExpr);
+	self->parse_node.type = PN_CallExpr;
 	self->parse_node.emit = CallExpr_emit;
 	self->parse_node.emit_set = CallExpr_emit_set;
 	self->parse_node.resolve_names = CallExpr_resolve_names;
@@ -989,12 +1004,28 @@ CallExpr* new_CallExpr_binop(ParseNode* receiver, ParseNode* arg, String* name)
 void CallExpr_add_argument(CallExpr* self, ParseNode* arg)
 {
 	Array_append(self->arguments, (Object*) arg);
+	self->got_args = true;
 }
 
 
 int FunctionCallExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	FunctionCallExpr* self = (FunctionCallExpr*) super;
+
+	// Certain CallExprs, like self-calls, don't become CallExprs until name
+	// resolution happens.  In that case, this is actually just attaching the
+	// arguments to that call.
+	ParseNode* resolved_fn = self->fn;
+	if (self->fn->type == PN_Variable)
+		resolved_fn = ((Variable*) resolved_fn)->resolved;
+	if (resolved_fn->type == PN_CallExpr) {
+		CallExpr* call = (CallExpr*) resolved_fn;
+		if (!call->got_args) {
+			// Attach the args and emit the call.
+			call->arguments = self->arguments;
+			return call->parse_node.emit((ParseNode*) call, method);
+			}
+		}
 
 	// Allocate stack space for the new frame.
 	int num_args = self->arguments->size;

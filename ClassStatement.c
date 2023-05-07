@@ -221,6 +221,11 @@ ParseNode* ClassFunctionContext_find(Environment* super, String* name)
 			}
 		}
 
+	// Self calls.
+	FunctionStatement* function = (FunctionStatement*) Dict_at(class_statement->functions, name);
+	if (function)
+		return (ParseNode*) new_CallExpr((ParseNode*) new_SelfExpr(), name);
+
 	if (self->environment.parent)
 		return self->environment.parent->find(self->environment.parent, name);
 

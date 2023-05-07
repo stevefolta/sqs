@@ -17,6 +17,8 @@ enum {
 	// their type as PN_Undefined.
 	PN_Undefined,
 	PN_IfStatement,
+	PN_CallExpr,
+	PN_Variable,
 	};
 
 typedef struct ParseNode {
@@ -180,6 +182,11 @@ typedef struct Local {
 	} Local;
 extern Local* new_Local(Block* block, int block_index);
 
+typedef struct SelfExpr {
+	ParseNode parse_node;
+	} SelfExpr;
+extern SelfExpr* new_SelfExpr();
+
 typedef struct RawLoc {
 	ParseNode parse_node;
 	int loc;
@@ -206,6 +213,7 @@ typedef struct CallExpr {
 	struct ParseNode* receiver;
 	struct String* name;
 	struct Array* arguments;
+	bool got_args;
 	} CallExpr;
 extern CallExpr* new_CallExpr(ParseNode* receiver, struct String* name);
 extern CallExpr* new_CallExpr_binop(ParseNode* receiver, ParseNode* arg, struct String* name);

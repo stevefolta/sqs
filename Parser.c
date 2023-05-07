@@ -537,6 +537,7 @@ ParseNode* Parser_parse_dot_call(Parser* self, ParseNode* receiver)
 		Array* args = Parser_parse_arguments(self);
 		call->arguments = args;
 		}
+	call->got_args = true; 	// We know we handled them if there are any.
 
 	return (ParseNode*) call;
 }
