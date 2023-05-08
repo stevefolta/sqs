@@ -20,12 +20,13 @@ Int* new_Int(int value)
 }
 
 
-void Int_enforce(Object* object, const char* name)
+int Int_enforce(Object* object, const char* name)
 {
 	if (object == NULL || object->class_ != &Int_class) {
 		Class* class_ = (object ? object->class_ : &Nil_class);
 		Error("Int required, but got a %s, in \"%s\".", String_c_str(class_->name), name);
 		}
+	return Int_value(object);
 }
 
 

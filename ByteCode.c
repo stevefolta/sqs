@@ -49,7 +49,6 @@ void interpret_bytecode(struct Method* method)
 		int8_t src, dest;
 		Object* value;
 		#define DEREF(index) (index >= 0 ? frame[index] : literals[-index - 1])
-		#define IS_TRUTHY(obj) (obj != NULL && obj != &false_obj)
 		switch (opcode) {
 			case BC_NOP:
 				break;

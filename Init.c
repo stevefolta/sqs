@@ -12,6 +12,7 @@
 #include "Environment.h"
 #include "Print.h"
 #include "Run.h"
+#include "Regex.h"
 
 
 void init_all()
@@ -26,12 +27,14 @@ void init_all()
 	Method_init_class();
 	BuiltinMethod_init_class();
 	Nil_init_class();
+	Regex_init_class();
 
 	GlobalEnvironment_init();
 	GlobalEnvironment_add_fn("print", 2, Print);
 	GlobalEnvironment_add_fn("run", 2, Run);
 	GlobalEnvironment_add_class(&Array_class);
 	GlobalEnvironment_add_class(&Dict_class);
+	GlobalEnvironment_add_class(&Regex_class);
 }
 
 
