@@ -1,0 +1,85 @@
+#!/usr/bin/env sqs
+
+# sqs in a Nutshell
+
+# Comments start with '#'.
+
+name = "world"
+print("Hello, {name}!")
+
+if name == "world"
+	inner-variable = "worldless"
+	print("=> {inner-variable}")
+
+# Can't do this here, because variables are scoped to the block where they're
+# declared:
+# print("=> {inner-variable}")
+
+# Running other programs:
+run([ "echo" "Hello," "world" ])
+
+# That's an array, here are some more:
+array = [ "foo", 1, "bar" ] 	# Separate items with commas...
+array = [ "foo" 1 "bar" ] 	# ...or not.
+array.append("baz")
+print("array: {array.join(', ')}")
+print("array[2]: {array[2]}")
+
+# As you've seen, string interpolation is the default.
+# Strings can start with ", ', or `.
+string = "Hello"
+string = 'Hello'
+string = `Hello`
+# Or contain multiple lines.
+string = "
+Line 1
+Line 2
+Line 3
+"
+print(string.trim()) 	# Or "string.strip()", they're synonyms.  ltrim()/rtrim()/lstrip()/rstrip() are there too.
+# If you don't want string interpolation and character escapes, use raw strings:
+pattern = r"foo (\w{3}) \{moustache\}"
+if Regex(pattern).match("foo bar {{moustache}}")
+	print("Matches.")
+
+# There are dictionaries too.
+dict = { foo: "alpha", bar: "beta", baz: "gamma" } 	# Use colons...
+dict = { foo = "alpha", bar = "beta", baz = "gamma" } 	# ...or =.
+print("dict['bar']: {dict['bar']}")
+dict["quux"] = "delta"
+for kv: dict
+	print("\t{kv.key} => {kv.value}")
+
+
+# Control structures.
+
+# "if" statement.
+score = 7
+if score > 10
+	print("Great!")
+else if score > 5
+	print("Almost...")
+else
+	print("Sorry!")
+
+# "for" statement.
+array = [ "alpha" "beta" "gamma" ]
+for item: array
+	print(item)
+
+# "while" statement.
+index = 0
+while index < 10
+	print("index: {index}")
+	index += 1
+	if index > 5
+		break
+
+
+# Functions.
+## COMING SOON.
+
+# Classes.
+## COMING SOON.
+
+
