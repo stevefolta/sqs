@@ -3,6 +3,7 @@
 #include "Dict.h"
 #include "String.h"
 #include "Nil.h"
+#include "Boolean.h"
 #include "Error.h"
 #include <stddef.h>
 #include <string.h>
@@ -34,6 +35,18 @@ Object* Object_string(Object* self, Object** args)
 	return (Object*) String_add(prefix, class_name);
 }
 
+Object* Object_equals(Object* self, Object** args)
+{
+	// Default: is it the exact same object?
+	return make_bool(self == args[0]);
+}
+
+Object* Object_not_equals(Object* self, Object** args)
+{
+	// Default: is it the exact same object?
+	return make_bool(self != args[0]);
+}
+
 
 Class Object_class;
 void Object_init_class()
@@ -43,6 +56,8 @@ void Object_init_class()
 
 	static BuiltinMethodSpec builtin_methods[] = {
 		{ "string", 0, Object_string },
+		{ "==", 1, Object_equals },
+		{ "!=", 1, Object_not_equals },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&Object_class, builtin_methods);
