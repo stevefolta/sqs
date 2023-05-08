@@ -7,6 +7,7 @@
 #include "Boolean.h"
 #include "Memory.h"
 #include "Error.h"
+#include <string.h>
 
 Class Regex_class;
 Class RegexMatch_class;
@@ -19,6 +20,8 @@ void free_regex(void* ptr, void* data)
 {
 	regfree((regex_t*) ptr);
 }
+
+extern char* Regex_adjust_regex(Regex* self, String* regex_string);
 
 Object* Regex_init(Object* super, Object** args)
 {
@@ -37,21 +40,12 @@ Object* Regex_init(Object* super, Object** args)
 			flags |= REG_NEWLINE;
 		}
 
-	// Count the groups.
 	String* regex_string = String_enforce(args[0], "Regex.init");
-	const char* p = regex_string->str;
-	const char* end = p + regex_string->size;
-	self->num_groups = 0;
-	for (; p < end; ++p) {
-		if (*p == '\'')
-			p += 1;
-		else if (*p == '(')
-			self->num_groups += 1;
-		}
+	char* adjusted_regex = Regex_adjust_regex(self, regex_string);
 
 	// Compile the regex.
 	self->regex = (regex_t*) alloc_mem(sizeof(regex_t));
-	int result = regcomp(self->regex, String_c_str(regex_string), flags);
+	int result = regcomp(self->regex, adjusted_regex, flags);
 	if (result) {
 		size_t error_length = regerror(result, self->regex, NULL, 0);
 		char* message = alloc_mem_no_pointers(error_length);
@@ -63,10 +57,60 @@ Object* Regex_init(Object* super, Object** args)
 	return super;
 }
 
+char* Regex_adjust_regex(Regex* self, String* regex_string)
+{
+	// Count the groups, and get the named groups.
+	self->num_groups = 0;
+	char* adjusted_regex_string = alloc_mem(regex_string->size + 1);
+	const char* p = regex_string->str;
+	const char* end = p + regex_string->size;
+	char* out = adjusted_regex_string;
+	while (p < end) {
+		char c = *p++;
+		*out++ = c;
+		if (p < end && *p == '\'')
+			*out++ = *p++;
+
+		else if (c == '(') {
+			self->num_groups += 1;
+			String* group_name = NULL;
+			if (p + 3 < end && memcmp(p, "?P<", 3) == 0) {
+				// Named capture group.
+				p += 3;
+				const char* name_start = p;
+
+				// Find the end of the name.
+				while (true) {
+					if (p >= end)
+						Error("Unterminated capture group name in regex.");
+					if (*p == '>') {
+						group_name = new_String(name_start, p - name_start);
+						p += 1;
+						break;
+						}
+					p += 1;
+					}
+
+				// Add the name.
+				if (self->capture_groups == NULL)
+					self->capture_groups = new_Dict();
+				// We need a non-zero index (zero == NULL == no entry in the Dict), so
+				// leave it +1, which will be the index we eventually want anyway.
+				Dict_set_at(self->capture_groups, group_name, (Object*) (size_t) self->num_groups);
+				}
+			}
+		}
+
+	// Make it a C string.
+	*out++ = 0;
+	return adjusted_regex_string;
+}
+
+
 typedef struct RegexMatch {
 	Class* class_;
 	String* str;
-	int num_groups;
+	Regex* regex;
 	regmatch_t* matches;
 	} RegexMatch;
 
@@ -98,7 +142,7 @@ Object* Regex_match(Object* super, Object** args)
 	RegexMatch* match = alloc_obj(RegexMatch);
 	match->class_ = &RegexMatch_class;
 	match->str = str;
-	match->num_groups = self->num_groups;
+	match->regex = self;
 	match->matches = matches;
 	return (Object*) match;
 }
@@ -107,8 +151,19 @@ Object* Regex_match(Object* super, Object** args)
 Object* RegexMatch_at(Object* super, Object** args)
 {
 	RegexMatch* self = (RegexMatch*) super;
-	size_t index = Int_enforce(args[0], "RegexMatch.[]");
-	if (index >= self->num_groups + 1)
+
+	// Get the index, either given directly or as the name of a group.
+	size_t index = 0;
+	if (args[0] && args[0]->class_ == &String_class) {
+		if (self->regex->capture_groups)
+			index = (size_t) Dict_at(self->regex->capture_groups, (String*) args[0]);
+		if (index == 0)
+			Error("No capture group named \"%s\" in regex.", String_c_str((String*) args[0]));
+		}
+	else
+		index = Int_enforce(args[0], "RegexMatch.[]");
+
+	if (index >= self->regex->num_groups + 1)
 		return NULL;
 	regmatch_t* match = &self->matches[index];
 	if (match->rm_so == -1)
