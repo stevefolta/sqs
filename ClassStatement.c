@@ -12,12 +12,24 @@
 #include "Memory.h"
 #include "Error.h"
 
+// This file includes all the functions for compiling a class definition,
+// instead of having them spread out over Parser.c, ParseNodes.c, and
+// Environment.c.
+
+
 typedef struct ClassFunctionContext {
 	Environment environment;
 	ClassStatement* class_statement;
 	} ClassFunctionContext;
 
-extern void ClassFunctionContext_init(struct ClassFunctionContext* self, ClassStatement* class_statement, Environment* parent);
+extern void ClassFunctionContext_init(ClassFunctionContext* self, ClassStatement* class_statement, Environment* parent);
+
+typedef struct EnclosedClassContext {
+	Environment environment;
+	ClassStatement* class_statement;
+	} EnclosedClassContext;
+
+extern void EnclosedClassContext_init(EnclosedClassContext* self, ClassStatement* class_statement, Environment* parent);
 
 
 ParseNode* Parser_parse_class_statement(Parser* self)
@@ -70,7 +82,14 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 
 			// "class"
 			else if (token.type == Identifier && String_equals_c(token.token, "class")) {
-				//***
+				ClassStatement* enclosed_class = (ClassStatement*) Parser_parse_class_statement(self);
+				if (class_statement->enclosed_classes == NULL)
+					class_statement->enclosed_classes = new_Dict();
+				Dict_set_at(
+					class_statement->enclosed_classes,
+					ClassStatement_get_name(enclosed_class),
+					(Object*) enclosed_class);
+				continue;
 				}
 
 			// Anything else is a function.
@@ -138,7 +157,23 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 	// Clean up environment.
 	method->environment = context.environment.parent;
 
-	/***/
+	// Compile enclosed classes.
+	if (self->enclosed_classes) {
+		EnclosedClassContext enclosed_class_context;
+		EnclosedClassContext_init(&enclosed_class_context, self, method->environment);
+		method->environment = &enclosed_class_context.environment;
+
+		DictIterator* it = new_DictIterator(self->enclosed_classes);
+		while (true) {
+			DictIteratorResult kv = DictIterator_next(it);
+			if (kv.key == NULL)
+				break;
+			ClassStatement* enclosed_class = (ClassStatement*) kv.value;
+			ClassStatement_emit((ParseNode*) enclosed_class, method);
+			}
+
+		method->environment = enclosed_class_context.environment.parent;
+		}
 
 	return 0;
 }
@@ -162,6 +197,13 @@ String* ClassStatement_get_name(ClassStatement* self)
 ParseNode* ClassStatement_make_reference(ClassStatement* self)
 {
 	return (ParseNode*) new_GlobalExpr((Object*) self->built_class);
+}
+
+ClassStatement* ClassStatement_get_enclosed_class(ClassStatement* self, String* name)
+{
+	if (self->enclosed_classes)
+		return (ClassStatement*) Dict_at(self->enclosed_classes, name);
+	return NULL;
 }
 
 
@@ -226,6 +268,11 @@ ParseNode* ClassFunctionContext_find(Environment* super, String* name)
 	if (function)
 		return (ParseNode*) new_CallExpr((ParseNode*) new_SelfExpr(), name);
 
+	// Enclosed classes.
+	ClassStatement* enclosed_class = ClassStatement_get_enclosed_class(class_statement, name);
+	if (enclosed_class)
+		return (ParseNode*) new_GlobalExpr((Object*) enclosed_class->built_class);
+
 	if (self->environment.parent)
 		return self->environment.parent->find(self->environment.parent, name);
 
@@ -234,10 +281,13 @@ ParseNode* ClassFunctionContext_find(Environment* super, String* name)
 
 Class* ClassFunctionContext_get_class(struct Environment* super, String* name)
 {
-	// ClassFunctionContext* self = (ClassFunctionContext*) super;
-	// ClassStatement* class_statement = self->class_statement;
+	ClassFunctionContext* self = (ClassFunctionContext*) super;
+	ClassStatement* class_statement = self->class_statement;
 
-	/***/
+	ClassStatement* enclosed_class = ClassStatement_get_enclosed_class(class_statement, name);
+	if (enclosed_class)
+		return enclosed_class->built_class;
+
 	return NULL;
 }
 
@@ -250,6 +300,40 @@ void ClassFunctionContext_init(struct ClassFunctionContext* self, ClassStatement
 }
 
 
+ParseNode* EnclosedClassContext_find(Environment* super, String* name)
+{
+	EnclosedClassContext* self = (EnclosedClassContext*) super;
+	ClassStatement* class_statement = self->class_statement;
 
+	// Enclosed classes.
+	ClassStatement* enclosed_class = ClassStatement_get_enclosed_class(class_statement, name);
+	if (enclosed_class)
+		return (ParseNode*) new_GlobalExpr((Object*) enclosed_class->built_class);
+
+	if (self->environment.parent)
+		return self->environment.parent->find(self->environment.parent, name);
+
+	return NULL;
+}
+
+Class* EnclosedClassContext_get_class(Environment* super, String* name)
+{
+	EnclosedClassContext* self = (EnclosedClassContext*) super;
+	ClassStatement* class_statement = self->class_statement;
+
+	ClassStatement* enclosed_class = ClassStatement_get_enclosed_class(class_statement, name);
+	if (enclosed_class)
+		return enclosed_class->built_class;
+
+	return NULL;
+}
+
+void EnclosedClassContext_init(EnclosedClassContext* self, ClassStatement* class_statement, Environment* parent)
+{
+	self->environment.parent = parent;
+	self->environment.find = EnclosedClassContext_find;
+	self->environment.get_class = EnclosedClassContext_get_class;
+	self->class_statement = class_statement;
+}
 
 

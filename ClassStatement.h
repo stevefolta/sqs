@@ -15,6 +15,7 @@ typedef struct ClassStatement {
 	struct String* superclass_name;
 	struct Array* ivars;
 	struct Dict* functions;
+	struct Dict* enclosed_classes;
 
 	struct Class* built_class;
 	} ClassStatement;
