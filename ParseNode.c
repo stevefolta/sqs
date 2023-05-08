@@ -553,7 +553,7 @@ int ShortCircuitExpr_emit(ParseNode* super, MethodBuilder* method)
 
 	// Finish.
 	MethodBuilder_patch_offset8(method, patch_point);
-	return 0;
+	return result_slot;
 }
 
 void ShortCircuitExpr_resolve_names(ParseNode* super, MethodBuilder* method)
