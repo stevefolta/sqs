@@ -59,7 +59,7 @@ enum {
 
 struct Method;
 
-extern void interpret_bytecode(struct Method* method);
-extern struct Object* call_method(struct Object* receiver, struct String* name, struct Array* arguments);
+extern struct Object* call_object(struct Object* receiver, struct String* name, struct Array* arguments);
+extern struct Object* call_method(struct Method* method, struct Array* arguments);
 extern void dump_bytecode(struct Method* method);
 

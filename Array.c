@@ -111,7 +111,7 @@ String* Array_join(Array* self, String* joiner)
 		if (item == NULL || item->class_ != &String_class) {
 			String name_str;
 			String_init_static_c(&name_str, "string");
-			str = (String*) call_method(item, &name_str, NULL);
+			str = (String*) call_object(item, &name_str, NULL);
 			Array_append(stringized_items, (Object*) str);
 			}
 		else

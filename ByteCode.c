@@ -27,19 +27,11 @@ void init_bytecode_interpreter()
 	stack = (Object**) alloc_mem(stack_size * sizeof(Object*));
 	stack_limit = stack + stack_size;
 	suspended_fp = stack;
-
-	// Start with "self" == nil.
-	// This is for the initial "script" method, which doesn't have a receiver or
-	// arguments.
-	stack[0] = NULL;
 }
 
 
 void interpret_bytecode(struct Method* method)
 {
-	if (stack == NULL)
-		init_bytecode_interpreter();
-
 	// Interpret.
 	Object** frame = suspended_fp;
 	Object** literals = method->literals->items;
@@ -273,16 +265,12 @@ void interpret_bytecode(struct Method* method)
 }
 
 
-Object* call_method(Object* receiver, String* name, Array* arguments)
+Object* call_method_raw(Object* method, Object* receiver, Array* arguments)
 {
 	static uint8_t terminator[] = { BC_TERMINATE };
 
-	// Find the method.
-	Object* method = Object_find_method(receiver, name);
-	if (method == NULL) {
-		Class* receiver_class = (receiver ? receiver->class_ : &Nil_class);
-		Error("Unhandled method call: \"%s\" on %s.", String_c_str(name), String_c_str(receiver_class->name));
-		}
+	if (stack == NULL)
+		init_bytecode_interpreter();
 
 	// If it's a BuiltinMethod, we can just call it.
 	if (method->class_ == &BuiltinMethod_class)
@@ -322,6 +310,25 @@ Object* call_method(Object* receiver, String* name, Array* arguments)
 	// Clean up and return.
 	suspended_fp = orig_fp;
 	return result;
+}
+
+
+Object* call_object(Object* receiver, String* name, Array* arguments)
+{
+	// Find the method.
+	Object* method = Object_find_method(receiver, name);
+	if (method == NULL) {
+		Class* receiver_class = (receiver ? receiver->class_ : &Nil_class);
+		Error("Unhandled method call: \"%s\" on %s.", String_c_str(name), String_c_str(receiver_class->name));
+		}
+
+	return call_method_raw(method, receiver, arguments);
+}
+
+
+Object* call_method(struct Method* method, struct Array* arguments)
+{
+	return call_method_raw((Object*) method, NULL, arguments);
 }
 
 

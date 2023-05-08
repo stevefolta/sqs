@@ -9,6 +9,7 @@
 #include "Object.h"
 #include "String.h"
 #include "Array.h"
+#include "Int.h"
 #include "Memory.h"
 #include "Error.h"
 #include <stdbool.h>
@@ -80,7 +81,6 @@ static Method* compile_script(const char* file_path)
 	ParseNode* ast = Parser_parse_block(parser);
 	MethodBuilder* method_builder = new_MethodBuilder(new_Array(), NULL);
 	ast->emit(ast, method_builder);
-	MethodBuilder_add_bytecode(method_builder, BC_TERMINATE);
 	MethodBuilder_finish(method_builder);
 	return method_builder->method;
 }
@@ -129,7 +129,9 @@ int main(int argc, char* argv[])
 	if (method) {
 		if (dump)
 			Method_dump(method);
-		interpret_bytecode(method);
+		Object* result = call_method(method, NULL);
+		if (result && result->class_ == &Int_class)
+			return Int_value(result);
 		}
 
 	return 0;

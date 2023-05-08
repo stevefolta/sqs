@@ -22,7 +22,7 @@ struct Object* Print(struct Object* self, struct Object** args)
 
 	if (args[0]) {
 		if (args[0]->class_ != &String_class)
-			args[0] = call_method(args[0], new_c_static_String("string"), NULL);
+			args[0] = call_object(args[0], new_c_static_String("string"), NULL);
 		String* str = (String*) args[0];
 		fwrite(str->str, str->size, 1, stdout);
 		}
