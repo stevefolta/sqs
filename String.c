@@ -104,7 +104,7 @@ const char* String_c_str(struct String* self)
 {
 	// Useful for debugging.
 
-	char* str = (char*) alloc_mem(self->size + 1);
+	char* str = (char*) alloc_mem_no_pointers(self->size + 1);
 	memcpy(str, self->str, self->size);
 	str[self->size] = 0;
 	return str;
@@ -127,7 +127,7 @@ String* String_add(String* self, String* other)
 	result->class_ = &String_class;
 	int total_size = self->size + other->size;
 	result->size = total_size;
-	char* result_str = alloc_mem(total_size);
+	char* result_str = alloc_mem_no_pointers(total_size);
 	memcpy(result_str, self->str, self->size);
 	memcpy(result_str + self->size, other->str, other->size);
 	result->str = result_str;
@@ -140,7 +140,7 @@ void String_init(String* self, const char* str, size_t size)
 	self->class_ = &String_class;
 
 	self->size = size;
-	self->str = alloc_mem(size);
+	self->str = alloc_mem_no_pointers(size);
 	memcpy((char*) self->str, str, size);
 }
 
