@@ -127,7 +127,7 @@ ParseNode* BlockContext_find_autodeclaring(Environment* super, String* name)
 		return expr;
 
 	// Not declared here, search up the chain.
-	expr = self->environment.parent->find_autodeclaring(self->environment.parent, name);
+	expr = self->environment.parent->find(self->environment.parent, name);
 	if (expr)
 		return expr;
 
