@@ -13,12 +13,12 @@
 			packages = forAllSystems (system: {
 				default =
 					nixpkgsFor.${system}.stdenv.mkDerivation {
-						name = "qqs";
+						name = "sqs";
 						src = self;
 						buildInputs = with nixpkgsFor.${system}; [ boehmgc ];
 						installPhase = ''
 							mkdir -p $out/bin
-							cp qqs $out/bin/
+							cp sqs $out/bin/
 							'';
 						};
 					});
