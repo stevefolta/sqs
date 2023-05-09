@@ -174,6 +174,24 @@ static Object* Array_append_builtin(Object* super, Object** args)
 	return args[0];
 }
 
+static Object* Array_plus_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	Array* other = (Array*) args[0];
+	if (other == NULL || other->class_ != &Array_class)
+		Error("Array.+ called without another Array.");
+
+	size_t needed_size = self->size + other->size;
+	Array* result = alloc_obj(Array);
+	result->class_ = &Array_class;
+	result->size = result->capacity = needed_size;
+	result->items = (Object**) alloc_mem(needed_size * sizeof(Object*));
+	memcpy(result->items, self->items, self->size * sizeof(Object*));
+	memcpy(result->items + self->size, other->items, other->size * sizeof(Object*));
+
+	return (Object*) result;
+}
+
 static Object* Array_iterator_builtin(Object* super, Object** args)
 {
 	Array* self = (Array*) super;
@@ -209,6 +227,7 @@ void Array_init_class()
 		{ "[]", 1, Array_at_builtin },
 		{ "[]=", 2, Array_at_set_builtin },
 		{ "append", 1, Array_append_builtin },
+		{ "+", 1, Array_plus_builtin },
 		{ "iterator", 0, Array_iterator_builtin },
 		{ "join", 1, Array_join_builtin },
 		{ "pop", 0, Array_pop_back_builtin },
