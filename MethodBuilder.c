@@ -6,6 +6,7 @@
 #include "ByteArray.h"
 #include "ByteCode.h"
 #include "Memory.h"
+#include "Error.h"
 
 
 MethodBuilder* new_MethodBuilder(Array* arguments, Environment* environment)
@@ -73,6 +74,8 @@ int MethodBuilder_add_offset8(MethodBuilder* self)
 void MethodBuilder_add_back_offset8(MethodBuilder* self, int patch_point)
 {
 	int offset = patch_point - self->method->bytecode->size - 1;
+	if (offset < -127 || offset > 127)
+		Error("Internal error: Offset out-of-bounds!");
 	ByteArray_append(self->method->bytecode, offset);
 }
 
@@ -81,6 +84,8 @@ void MethodBuilder_patch_offset8(MethodBuilder* self, int patch_point)
 {
 	ByteArray* bytecode = self->method->bytecode;
 	int offset = bytecode->size - patch_point - 1;
+	if (offset < -127 || offset > 127)
+		Error("Internal error: Offset out-of-bounds!");
 	ByteArray_set_at(bytecode, patch_point, offset);
 }
 
