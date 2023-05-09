@@ -13,6 +13,7 @@
 #include "Print.h"
 #include "Run.h"
 #include "Glob.h"
+#include "File.h"
 #include "Regex.h"
 
 
@@ -28,6 +29,7 @@ void init_all()
 	Method_init_class();
 	BuiltinMethod_init_class();
 	Nil_init_class();
+	File_init_class();
 	Regex_init_class();
 
 	GlobalEnvironment_init();
@@ -36,6 +38,7 @@ void init_all()
 	GlobalEnvironment_add_fn("glob", 2, Glob);
 	GlobalEnvironment_add_class(&Array_class);
 	GlobalEnvironment_add_class(&Dict_class);
+	GlobalEnvironment_add_class(&File_class);
 	GlobalEnvironment_add_class(&Regex_class);
 }
 
