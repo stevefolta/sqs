@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct DictNode;
 struct String;
@@ -41,5 +42,8 @@ DictIteratorResult DictIterator_next(DictIterator* self);
 extern struct Class Dict_class;
 extern void Dict_init_class();
 
+// Helpers when used for function options.
+bool Dict_option_turned_on(Dict* dict, struct String* option_name);
+bool Dict_option_turned_off(Dict* dict, struct String* option_name);
 
 

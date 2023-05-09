@@ -31,12 +31,11 @@ Object* Regex_init(Object* super, Object** args)
 	int flags = REG_EXTENDED;
 	if (args[1] && args[1]->class_ == &Dict_class) {
 		Dict* options = (Dict*) args[1];
-		Object* option = Dict_at(options, &extended_syntax);
-		if (option && !IS_TRUTHY(option))
+		if (Dict_option_turned_off(options, &extended_syntax))
 			flags &= ~REG_EXTENDED;
-		if (IS_TRUTHY(Dict_at(options, &case_insensitive)))
+		if (Dict_option_turned_on(options, &case_insensitive))
 			flags |= REG_ICASE;
-		if (IS_TRUTHY(Dict_at(options, &newline)))
+		if (Dict_option_turned_on(options, &newline))
 			flags |= REG_NEWLINE;
 		}
 

@@ -3,6 +3,7 @@
 #include "Class.h"
 #include "Array.h"
 #include "Object.h"
+#include "Boolean.h"
 #include "Int.h"
 #include "Memory.h"
 #include <string.h>
@@ -336,5 +337,22 @@ void Dict_init_class()
 		};
 	Class_add_builtin_methods(&DictIteratorKeyValue_class, builtin_kv_methods);
 }
+
+
+bool Dict_option_turned_on(Dict* dict, String* option_name)
+{
+	Object* option_value = Dict_at(dict, option_name);
+	return IS_TRUTHY(option_value);
+}
+
+
+bool Dict_option_turned_off(Dict* dict, String* option_name)
+{
+	Object* option_value = Dict_at(dict, option_name);
+	if (option_value == NULL)
+		return false;
+	return !IS_TRUTHY(option_value);
+}
+
 
 

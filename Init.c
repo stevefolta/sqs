@@ -12,6 +12,7 @@
 #include "Environment.h"
 #include "Print.h"
 #include "Run.h"
+#include "Glob.h"
 #include "Regex.h"
 
 
@@ -32,6 +33,7 @@ void init_all()
 	GlobalEnvironment_init();
 	GlobalEnvironment_add_fn("print", 2, Print);
 	GlobalEnvironment_add_fn("run", 2, Run);
+	GlobalEnvironment_add_fn("glob", 2, Glob);
 	GlobalEnvironment_add_class(&Array_class);
 	GlobalEnvironment_add_class(&Dict_class);
 	GlobalEnvironment_add_class(&Regex_class);
