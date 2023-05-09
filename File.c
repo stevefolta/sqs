@@ -43,6 +43,14 @@ Object* File_write(Object* super, Object** args)
 		String* str = (String*) args[0];
 		fwrite(str->str, str->size, 1, self->file);
 		}
+
+	else if (args[0]->class_ == &ByteArray_class) {
+		ByteArray* byte_array = (ByteArray*) args[0];
+		fwrite(byte_array->array, byte_array->size, 1, self->file);
+		}
+
+	else
+		Error("File.write() needs a String or a ByteArray.");
 	
 	return super;
 }
