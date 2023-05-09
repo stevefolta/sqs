@@ -9,6 +9,7 @@
 #include "Object.h"
 #include "Int.h"
 #include "ByteCode.h"
+#include "Memory.h"
 #include "Error.h"
 #include <stdlib.h>
 

@@ -5,6 +5,7 @@
 #include "Int.h"
 #include "Boolean.h"
 #include "Array.h"
+#include "ByteArray.h"
 #include "Dict.h"
 #include "Nil.h"
 #include "Method.h"
@@ -25,6 +26,7 @@ void init_all()
 	Int_init_class();
 	Boolean_init_class();
 	Array_init_class();
+	ByteArray_init_class();
 	Dict_init_class();
 	Method_init_class();
 	BuiltinMethod_init_class();
@@ -37,6 +39,7 @@ void init_all()
 	GlobalEnvironment_add_fn("run", 2, Run);
 	GlobalEnvironment_add_fn("glob", 2, Glob);
 	GlobalEnvironment_add_class(&Array_class);
+	GlobalEnvironment_add_class(&ByteArray_class);
 	GlobalEnvironment_add_class(&Dict_class);
 	GlobalEnvironment_add_class(&File_class);
 	GlobalEnvironment_add_class(&Regex_class);

@@ -2,10 +2,8 @@
 
 #include "Class.h"
 #include "Object.h"
-#include "Memory.h"
-#include <stddef.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stddef.h>
 
 
 typedef struct ByteArray {
@@ -21,4 +19,5 @@ extern uint8_t ByteArray_at(struct ByteArray* self, size_t index);
 extern void ByteArray_set_at(struct ByteArray* self, size_t index, uint8_t value);
 extern void ByteArray_append(struct ByteArray* self, uint8_t value);
 
-
+extern Class ByteArray_class;
+extern void ByteArray_init_class();
