@@ -87,6 +87,15 @@ typedef struct ReturnStatement {
 extern ReturnStatement* new_ReturnStatement();
 
 
+typedef struct WithStatement {
+	ParseNode parse_node;
+	struct String* name;
+	ParseNode* value;
+	ParseNode* body;
+	} WithStatement;
+extern WithStatement* new_WithStatement(struct String* name, ParseNode* value, ParseNode* body);
+
+
 struct UpvalueFunction;
 typedef struct FunctionStatement {
 	ParseNode parse_node;

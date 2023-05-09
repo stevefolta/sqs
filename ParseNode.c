@@ -396,6 +396,54 @@ ReturnStatement* new_ReturnStatement()
 }
 
 
+int WithStatement_emit(ParseNode* super, MethodBuilder* method)
+{
+	WithStatement* self = (WithStatement*) super;
+
+	int variable_loc = MethodBuilder_reserve_locals(method, 1);
+
+	int value_loc = self->value->emit(self->value, method);
+	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
+	MethodBuilder_add_bytecode(method, value_loc);
+	MethodBuilder_add_bytecode(method, variable_loc);
+	method->cur_num_variables = variable_loc + 1;
+
+	// Our context is just like a ForStatement_emit, we'll just leech off of that.
+	ForStatementContext context;
+	ForStatementContext_init(&context, self->name, value_loc);
+	MethodBuilder_push_environment(method, &context.environment);
+
+	// Emit the body.
+	if (self->body)
+		self->body->emit(self->body, method);
+
+	// Emit the "close" call.
+	emit_call(variable_loc, "close", 0, NULL, method);
+
+	MethodBuilder_pop_environment(method);
+	method->cur_num_variables = variable_loc + 1;
+	return variable_loc;
+}
+
+void WithStatement_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	WithStatement* self = (WithStatement*) super;
+
+	self->value->resolve_names(self->value, method);
+}
+
+WithStatement* new_WithStatement(String* name, ParseNode* value, ParseNode* body)
+{
+	WithStatement* self = alloc_obj(WithStatement);
+	self->parse_node.emit = WithStatement_emit;
+	self->parse_node.resolve_names = WithStatement_resolve_names;
+	self->name = name;
+	self->value = value;
+	self->body = body;
+	return self;
+}
+
+
 int FunctionStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	// Nothing to do here; everything was taken care of at the start of the

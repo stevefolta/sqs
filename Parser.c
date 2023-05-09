@@ -18,6 +18,7 @@ extern ParseNode* Parser_parse_for_statement(Parser* self);
 extern ParseNode* Parser_parse_continue_statement(Parser* self);
 extern ParseNode* Parser_parse_break_statement(Parser* self);
 extern ParseNode* Parser_parse_return_statement(Parser* self);
+extern ParseNode* Parser_parse_with_statement(Parser* self);
 extern ParseNode* Parser_parse_fn_statement(Parser* self);
 extern ParseNode* Parser_parse_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_or_expression(Parser* self);
@@ -103,6 +104,7 @@ static StatementParser statement_parsers[] = {
 	{ "continue", &Parser_parse_continue_statement },
 	{ "break", &Parser_parse_break_statement },
 	{ "return", &Parser_parse_return_statement },
+	{ "with", &Parser_parse_with_statement },
 	{ "fn", &Parser_parse_fn_statement },
 	{ "class", &Parser_parse_class_statement },
 	};
@@ -240,6 +242,33 @@ ParseNode* Parser_parse_return_statement(Parser* self)
 		Error("Extra characters at end of \"return\" statement on line %d.", token.line_number);
 
 	return (ParseNode*) return_statement;
+}
+
+
+ParseNode* Parser_parse_with_statement(Parser* self)
+{
+	Lexer_next(self->lexer);
+
+	// Parse.
+	Token token = Lexer_next(self->lexer);
+	if (token.type != Identifier)
+		Error("Expected a name in \"with\" statement on line %d.", token.line_number);
+	String* name = token.token;
+	token = Lexer_next(self->lexer);
+	if (token.type != Operator || !String_equals_c(token.token, "="))
+		Error("Expected \"=\"  in \"with\" statement on line %d.", token.line_number);
+	ParseNode* expr = Parser_parse_expression(self);
+	if (expr == NULL)
+		Error("Expected expression in \"with\" statement on line %d.", token.line_number);
+	if (Lexer_next(self->lexer).type != EOL)
+		Error("Extra characters after expression on line %d.", token.line_number);
+	ParseNode* body = NULL;
+	if (Lexer_peek(self->lexer).type == Indent) {
+		Lexer_next(self->lexer);
+		body = Parser_parse_block(self);
+		}
+
+	return (ParseNode*) new_WithStatement(name, expr, body);
 }
 
 
