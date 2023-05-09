@@ -29,6 +29,10 @@ extern void MethodBuilder_add_bytecode(MethodBuilder* self, uint8_t bytecode);
 extern int MethodBuilder_add_offset8(MethodBuilder* self);
 extern void MethodBuilder_add_back_offset8(MethodBuilder* self, int patch_point);
 extern void MethodBuilder_patch_offset8(MethodBuilder* self, int patch_point);
+extern int MethodBuilder_add_offset16(MethodBuilder* self);
+extern void MethodBuilder_add_back_offset16(MethodBuilder* self, int patch_point);
+extern void MethodBuilder_patch_offset16(MethodBuilder* self, int patch_point);
+extern void MethodBuilder_patch_offset16_to(MethodBuilder* self, int patch_point, int dest_point);
 extern int MethodBuilder_get_offset(MethodBuilder* self);
 
 extern void MethodBuilder_add_move(MethodBuilder* self, int src, int dest);
@@ -44,4 +48,6 @@ extern void MethodBuilder_push_loop_points(MethodBuilder* self);
 extern void MethodBuilder_pop_loop_points(MethodBuilder* self, int continue_point, int break_point);
 extern void MethodBuilder_add_continue_offset8(MethodBuilder* self);
 extern void MethodBuilder_add_break_offset8(MethodBuilder* self);
+extern void MethodBuilder_add_continue_offset16(MethodBuilder* self);
+extern void MethodBuilder_add_break_offset16(MethodBuilder* self);
 

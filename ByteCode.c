@@ -39,8 +39,10 @@ void interpret_bytecode(struct Method* method)
 	while (true) {
 		uint8_t opcode = *pc++;
 		int8_t src, dest;
+		ptrdiff_t offset;
 		Object* value;
 		#define DEREF(index) (index >= 0 ? frame[index] : literals[-index - 1])
+		#define GET_OFFSET() { offset = ((ptrdiff_t) (int8_t) *pc++) << 8; offset |= (uint8_t) *pc++; }
 		switch (opcode) {
 			case BC_NOP:
 				break;
@@ -75,35 +77,35 @@ void interpret_bytecode(struct Method* method)
 				break;
 			case BC_BRANCH_IF_TRUE:
 				src = *pc++;
-				dest = *pc++;
+				GET_OFFSET()
 				value = DEREF(src);
 				if (IS_TRUTHY(value))
-					pc += dest;
+					pc += offset;
 				break;
 			case BC_BRANCH_IF_FALSE:
 				src = *pc++;
-				dest = *pc++;
+				GET_OFFSET()
 				value = DEREF(src);
 				if (!IS_TRUTHY(value))
-					pc += dest;
+					pc += offset;
 				break;
 			case BC_BRANCH_IF_NIL:
 				src = *pc++;
-				dest = *pc++;
+				GET_OFFSET()
 				value = DEREF(src);
 				if (value == NULL)
-					pc += dest;
+					pc += offset;
 				break;
 			case BC_BRANCH_IF_NOT_NIL:
 				src = *pc++;
-				dest = *pc++;
+				GET_OFFSET()
 				value = DEREF(src);
 				if (value)
-					pc += dest;
+					pc += offset;
 				break;
 			case BC_BRANCH:
-				dest = *pc++;
-				pc += dest;
+				GET_OFFSET()
+				pc += offset;
 				break;
 
 			case BC_CALL_0:
@@ -339,6 +341,9 @@ void dump_bytecode(struct Method* method)
 	size_t size = method->bytecode->size;
 	int8_t* bytecode = (int8_t*) method->bytecode->array;
 	int8_t src, dest;
+	int16_t offset;
+	#undef GET_OFFSET
+	#define GET_OFFSET() { offset = ((int16_t) (int8_t) bytecode[++i]) << 8; offset |= (uint8_t) bytecode[++i]; }
 	for (int i = 0; i < size; ++i) {
 		uint8_t opcode = bytecode[i];
 		printf("%6d:  ", i);
@@ -372,27 +377,27 @@ void dump_bytecode(struct Method* method)
 				break;
 			case BC_BRANCH_IF_TRUE:
 				src = bytecode[++i];
-				dest = bytecode[++i];
-				printf("branch_if_true [%d], %d\n", src, i + dest + 1);
+				GET_OFFSET();
+				printf("branch_if_true [%d], %d\n", src, (i + 1) + offset);
 				break;
 			case BC_BRANCH_IF_FALSE:
 				src = bytecode[++i];
-				dest = bytecode[++i];
-				printf("branch_if_false [%d], %d\n", src, i + dest + 1);
+				GET_OFFSET()
+				printf("branch_if_false [%d], %d\n", src, (i + 1) + offset);
 				break;
 			case BC_BRANCH_IF_NIL:
 				src = bytecode[++i];
-				dest = bytecode[++i];
-				printf("branch_if_nil [%d], %d\n", src, i + dest + 1);
+				GET_OFFSET()
+				printf("branch_if_nil [%d], %d\n", src, (i + 1) + offset);
 				break;
 			case BC_BRANCH_IF_NOT_NIL:
 				src = bytecode[++i];
-				dest = bytecode[++i];
-				printf("branch_if_not_nil [%d], %d\n", src, i + dest + 1);
+				GET_OFFSET()
+				printf("branch_if_not_nil [%d], %d\n", src, (i + 1) + offset);
 				break;
 			case BC_BRANCH:
-				dest = bytecode[++i];
-				printf("branch %d\n", i + dest + 1);
+				GET_OFFSET()
+				printf("branch %d\n", (i + 1) + offset);
 				break;
 			case BC_RETURN:
 				src = bytecode[++i];

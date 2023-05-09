@@ -15,11 +15,11 @@ enum {
 	BC_TRUE,	// dest
 	BC_FALSE,	// dest
 	BC_NIL,	// dest
-	BC_BRANCH_IF_TRUE, 	// value, offset_8
-	BC_BRANCH_IF_FALSE,	// value, offset_8
-	BC_BRANCH_IF_NIL, 	// value, offset_8
-	BC_BRANCH_IF_NOT_NIL,	// value, offset_8
-	BC_BRANCH, 	// offset_8
+	BC_BRANCH_IF_TRUE, 	// value, offset_16
+	BC_BRANCH_IF_FALSE,	// value, offset_16
+	BC_BRANCH_IF_NIL, 	// value, offset_16
+	BC_BRANCH_IF_NOT_NIL,	// value, offset_16
+	BC_BRANCH, 	// offset_16
 	BC_RETURN, 	// value
 	BC_RETURN_NIL,
 	BC_TERMINATE,

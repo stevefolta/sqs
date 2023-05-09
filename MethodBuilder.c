@@ -74,7 +74,7 @@ int MethodBuilder_add_offset8(MethodBuilder* self)
 void MethodBuilder_add_back_offset8(MethodBuilder* self, int patch_point)
 {
 	int offset = patch_point - self->method->bytecode->size - 1;
-	if (offset < -127 || offset > 127)
+	if (offset < INT8_MIN || offset > INT8_MAX)
 		Error("Internal error: Offset out-of-bounds!");
 	ByteArray_append(self->method->bytecode, offset);
 }
@@ -84,9 +84,50 @@ void MethodBuilder_patch_offset8(MethodBuilder* self, int patch_point)
 {
 	ByteArray* bytecode = self->method->bytecode;
 	int offset = bytecode->size - patch_point - 1;
-	if (offset < -127 || offset > 127)
+	if (offset < INT8_MIN || offset > INT8_MAX)
 		Error("Internal error: Offset out-of-bounds!");
 	ByteArray_set_at(bytecode, patch_point, offset);
+}
+
+
+int MethodBuilder_add_offset16(MethodBuilder* self)
+{
+	int patch_point = self->method->bytecode->size;
+	ByteArray_append(self->method->bytecode, 0);
+	ByteArray_append(self->method->bytecode, 0);
+	return patch_point;
+}
+
+
+void MethodBuilder_add_back_offset16(MethodBuilder* self, int patch_point)
+{
+	int offset = patch_point - self->method->bytecode->size - 2;
+	if (offset < INT16_MIN || offset > INT16_MAX)
+		Error("Internal error: Offset out-of-bounds!");
+	ByteArray_append(self->method->bytecode, offset >> 8);
+	ByteArray_append(self->method->bytecode, offset & 0xFF);
+}
+
+
+void MethodBuilder_patch_offset16(MethodBuilder* self, int patch_point)
+{
+	ByteArray* bytecode = self->method->bytecode;
+	int offset = bytecode->size - patch_point - 2;
+	if (offset < INT16_MIN || offset > INT16_MAX)
+		Error("Internal error: Offset out-of-bounds!");
+	ByteArray_set_at(bytecode, patch_point, offset >> 8);
+	ByteArray_set_at(bytecode, patch_point + 1, offset & 0xFF);
+}
+
+
+void MethodBuilder_patch_offset16_to(MethodBuilder* self, int patch_point, int dest_point)
+{
+	ByteArray* bytecode = self->method->bytecode;
+	int offset = dest_point - patch_point - 2;
+	if (offset < INT16_MIN || offset > INT16_MAX)
+		Error("Internal error: Offset out-of-bounds!");
+	ByteArray_set_at(bytecode, patch_point, offset >> 8);
+	ByteArray_set_at(bytecode, patch_point + 1, offset & 0xFF);
 }
 
 
@@ -167,17 +208,14 @@ void MethodBuilder_pop_loop_points(MethodBuilder* self, int continue_point, int 
 		return;
 		}
 
-	ByteArray* bytecode = self->method->bytecode;
 	LoopPoints* loop_points = self->loop_points;
 	for (int i = 0; i < loop_points->continue_patch_points->size; ++i) {
 		size_t patch_point = (size_t) Array_at(loop_points->continue_patch_points, i);
-		int offset = continue_point - patch_point - 1;
-		ByteArray_set_at(bytecode, patch_point, offset);
+		MethodBuilder_patch_offset16_to(self, patch_point, continue_point);
 		}
 	for (int i = 0; i < loop_points->break_patch_points->size; ++i) {
 		size_t patch_point = (size_t) Array_at(loop_points->break_patch_points, i);
-		int offset = break_point - patch_point - 1;
-		ByteArray_set_at(bytecode, patch_point, offset);
+		MethodBuilder_patch_offset16_to(self, patch_point, break_point);
 		}
 
 	self->loop_points = loop_points->parent;
@@ -197,6 +235,22 @@ void MethodBuilder_add_break_offset8(MethodBuilder* self)
 	Array_append(
 		self->loop_points->break_patch_points,
 		(Object*) (size_t) MethodBuilder_add_offset8(self));
+}
+
+
+void MethodBuilder_add_continue_offset16(MethodBuilder* self)
+{
+	Array_append(
+		self->loop_points->continue_patch_points,
+		(Object*) (size_t) MethodBuilder_add_offset16(self));
+}
+
+
+void MethodBuilder_add_break_offset16(MethodBuilder* self)
+{
+	Array_append(
+		self->loop_points->break_patch_points,
+		(Object*) (size_t) MethodBuilder_add_offset16(self));
 }
 
 

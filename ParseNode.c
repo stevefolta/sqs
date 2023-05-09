@@ -147,7 +147,7 @@ int IfStatement_emit(ParseNode* super, MethodBuilder* method)
 		// Branch if false.
 		MethodBuilder_add_bytecode(method, BC_BRANCH_IF_FALSE);
 		MethodBuilder_add_bytecode(method, condition_reg);
-		int false_patch_point = MethodBuilder_add_offset8(method);
+		int false_patch_point = MethodBuilder_add_offset16(method);
 		method->cur_num_variables = orig_locals;
 
 		self->if_block->emit(self->if_block, method);
@@ -155,28 +155,28 @@ int IfStatement_emit(ParseNode* super, MethodBuilder* method)
 		if (self->else_block) {
 			// Finish "if" block".
 			MethodBuilder_add_bytecode(method, BC_BRANCH);
-			int end_patch_point = MethodBuilder_add_offset8(method);
+			int end_patch_point = MethodBuilder_add_offset16(method);
 
 			// "else" block.
-			MethodBuilder_patch_offset8(method, false_patch_point);
+			MethodBuilder_patch_offset16(method, false_patch_point);
 			self->else_block->emit(self->else_block, method);
 
 			// Finish.
-			MethodBuilder_patch_offset8(method, end_patch_point);
+			MethodBuilder_patch_offset16(method, end_patch_point);
 			}
 		else
-			MethodBuilder_patch_offset8(method, false_patch_point);
+			MethodBuilder_patch_offset16(method, false_patch_point);
 		}
 
 	else {
 		// *Only* an "else" block!
 		MethodBuilder_add_bytecode(method, BC_BRANCH_IF_TRUE);
 		MethodBuilder_add_bytecode(method, condition_reg);
-		int end_patch_point = MethodBuilder_add_offset8(method);
+		int end_patch_point = MethodBuilder_add_offset16(method);
 		method->cur_num_variables = orig_locals;
 
 		self->else_block->emit(self->else_block, method);
-		MethodBuilder_patch_offset8(method, end_patch_point);
+		MethodBuilder_patch_offset16(method, end_patch_point);
 		}
 
 	return 0;
@@ -217,7 +217,7 @@ int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 	// Branch out if false.
 	MethodBuilder_add_bytecode(method, BC_BRANCH_IF_FALSE);
 	MethodBuilder_add_bytecode(method, condition_loc);
-	int end_patch_point = MethodBuilder_add_offset8(method);
+	int end_patch_point = MethodBuilder_add_offset16(method);
 	method->cur_num_variables = orig_locals;
 
 	// Body.
@@ -226,10 +226,10 @@ int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	// Jump back to beginning.
 	MethodBuilder_add_bytecode(method, BC_BRANCH);
-	MethodBuilder_add_back_offset8(method, loop_point);
+	MethodBuilder_add_back_offset16(method, loop_point);
 
 	// Finish.
-	MethodBuilder_patch_offset8(method, end_patch_point);
+	MethodBuilder_patch_offset16(method, end_patch_point);
 	MethodBuilder_pop_loop_points(method, loop_point, MethodBuilder_get_offset(method));
 	return 0;
 }
@@ -301,7 +301,7 @@ int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 	// Test.
 	MethodBuilder_add_bytecode(method, BC_BRANCH_IF_NIL);
 	MethodBuilder_add_bytecode(method, value_loc);
-	int end_patch_point = MethodBuilder_add_offset8(method);
+	int end_patch_point = MethodBuilder_add_offset16(method);
 	method->cur_num_variables = value_loc + 1;
 
 	// Body.
@@ -310,9 +310,9 @@ int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	// Loop back.
 	MethodBuilder_add_bytecode(method, BC_BRANCH);
-	MethodBuilder_add_back_offset8(method, loop_point);
+	MethodBuilder_add_back_offset16(method, loop_point);
 
-	MethodBuilder_patch_offset8(method, end_patch_point);
+	MethodBuilder_patch_offset16(method, end_patch_point);
 	MethodBuilder_pop_loop_points(method, loop_point, MethodBuilder_get_offset(method));
 	MethodBuilder_pop_environment(method);
 	method->cur_num_variables = result_loc + 1;
@@ -338,7 +338,7 @@ ForStatement* new_ForStatement()
 int ContinueStatement_emit(ParseNode* self, MethodBuilder* method)
 {
 	MethodBuilder_add_bytecode(method, BC_BRANCH);
-	MethodBuilder_add_continue_offset8(method);
+	MethodBuilder_add_continue_offset16(method);
 	return 0;
 }
 
@@ -353,7 +353,7 @@ ParseNode* new_ContinueStatement()
 int BreakStatement_emit(ParseNode* self, MethodBuilder* method)
 {
 	MethodBuilder_add_bytecode(method, BC_BRANCH);
-	MethodBuilder_add_break_offset8(method);
+	MethodBuilder_add_break_offset16(method);
 	return 0;
 }
 
@@ -591,7 +591,7 @@ int ShortCircuitExpr_emit(ParseNode* super, MethodBuilder* method)
 	// Test.
 	MethodBuilder_add_bytecode(method, (self->is_and ? BC_BRANCH_IF_FALSE : BC_BRANCH_IF_TRUE));
 	MethodBuilder_add_bytecode(method, result_slot);
-	int patch_point = MethodBuilder_add_offset8(method);
+	int patch_point = MethodBuilder_add_offset16(method);
 
 	// expr2
 	expr_loc = self->expr2->emit(self->expr2, method);
@@ -601,7 +601,7 @@ int ShortCircuitExpr_emit(ParseNode* super, MethodBuilder* method)
 	method->cur_num_variables = orig_locals;
 
 	// Finish.
-	MethodBuilder_patch_offset8(method, patch_point);
+	MethodBuilder_patch_offset16(method, patch_point);
 	return result_slot;
 }
 
