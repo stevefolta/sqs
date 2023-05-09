@@ -1,13 +1,24 @@
 #include "Run.h"
 #include "Object.h"
+#include "Class.h"
 #include "Array.h"
 #include "String.h"
 #include "Int.h"
+#include "Boolean.h"
+#include "Memory.h"
 #include "Error.h"
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
 #include <errno.h>
+
+
+typedef struct RunResult {
+	Class* class_;
+	int return_code;
+	} RunResult;
+Class RunResult_class;
+extern RunResult* new_RunResult(int return_code);
 
 
 Object* Run(Object* self, Object** args)
@@ -48,10 +59,41 @@ Object* Run(Object* self, Object** args)
 		// This is still the parent process.  Wait for child to exit.
 		int status = 0;
 		waitpid(pid, &status, 0);
-		return (Object*) new_Int(WEXITSTATUS(status));
+		return (Object*) new_RunResult(WEXITSTATUS(status));
 		}
 
 	return NULL;
+}
+
+
+RunResult* new_RunResult(int return_code)
+{
+	RunResult* self = alloc_obj(RunResult);
+	self->class_ = &RunResult_class;
+	self->return_code = return_code;
+	return self;
+}
+
+
+Object* RunResult_return_code(Object* super, Object** args)
+{
+	return (Object*) new_Int(((RunResult*) super)->return_code);
+}
+
+Object* RunResult_ok(Object* super, Object** args)
+{
+	return make_bool(((RunResult*) super)->return_code == 0);
+}
+
+void Run_init()
+{
+	init_static_class(RunResult);
+	static const BuiltinMethodSpec run_result_methods[] = {
+		{ "return-code", 0, RunResult_return_code },
+		{ "ok", 0, RunResult_ok },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&RunResult_class, run_result_methods);
 }
 
 

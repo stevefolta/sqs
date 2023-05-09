@@ -34,6 +34,8 @@ void init_all()
 	File_init_class();
 	Regex_init_class();
 
+	Run_init();
+
 	GlobalEnvironment_init();
 	GlobalEnvironment_add_fn("print", 2, Print);
 	GlobalEnvironment_add_fn("run", 2, Run);
