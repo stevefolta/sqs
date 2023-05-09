@@ -153,6 +153,17 @@ static Object* Array_size_builtin(Object* super, Object** args)
 	return (Object*) new_Int(self->size);
 }
 
+static Object* Array_string_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	String* joined = Array_join(self, new_c_static_String(", "));
+	Array* capped = new_Array();
+	Array_append(capped, (Object*) new_c_static_String("["));
+	Array_append(capped, (Object*) joined);
+	Array_append(capped, (Object*) new_c_static_String("]"));
+	return (Object*) Array_join(capped, new_c_static_String(" "));
+}
+
 static Object* Array_at_builtin(Object* super, Object** args)
 {
 	Array* self = (Array*) super;
@@ -224,10 +235,11 @@ void Array_init_class()
 
 	static BuiltinMethodSpec builtin_methods[] = {
 		{ "size", 0, Array_size_builtin },
+		{ "string", 0, Array_string_builtin },
 		{ "[]", 1, Array_at_builtin },
 		{ "[]=", 2, Array_at_set_builtin },
-		{ "append", 1, Array_append_builtin },
 		{ "+", 1, Array_plus_builtin },
+		{ "append", 1, Array_append_builtin },
 		{ "iterator", 0, Array_iterator_builtin },
 		{ "join", 1, Array_join_builtin },
 		{ "pop", 0, Array_pop_back_builtin },
