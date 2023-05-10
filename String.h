@@ -37,3 +37,7 @@ extern void String_init_class();
 
 extern struct Class String_class;
 
+#define declare_static_string(name, value) 	\
+	static const char name##_chars[] = value; 	\
+	static String name = { &String_class, name##_chars, sizeof(value) - 1 };
+
