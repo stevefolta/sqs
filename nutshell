@@ -82,4 +82,14 @@ while index < 10
 # Classes.
 ## COMING SOON.
 
+# Files.
+# Writing.
+with file = File("/tmp/nutshell-file", "w")
+	print("Hello!", { file = file })
+# Reading.
+num_lines = 0
+for line: File("nutshell").lines
+	num_lines += 1
+print('{num_lines} lines in "nutshell".')
+
 

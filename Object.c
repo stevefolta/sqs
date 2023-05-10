@@ -25,6 +25,12 @@ Object* Object_find_method(Object* self, struct String* name)
 }
 
 
+Object* Object_identity(Object* self, Object** args)
+{
+	return self;
+}
+
+
 Object* Object_string(Object* self, Object** args)
 {
 	String* class_name = self->class_->name;

@@ -168,11 +168,6 @@ static Object* String_add_builtin(Object* self, Object** args)
 	return (Object*) String_add((String*) self, (String*) args[0]);
 }
 
-static Object* String_string(Object* self, Object** args)
-{
-	return (Object*) self;
-}
-
 static Object* String_equals_builtin(Object* self, Object** args)
 {
 	if (args[0] == NULL || args[0]->class_ != &String_class)
@@ -350,7 +345,7 @@ void String_init_class()
 
 	static const BuiltinMethodSpec specs[] = {
 		{ "+", 1, String_add_builtin, },
-		{ "string", 0, String_string },
+		{ "string", 0, Object_identity },
 		{ "==", 1, String_equals_builtin },
 		{ "!=", 1, String_not_equals_builtin },
 		{ "<", 1, String_less_than_builtin },
