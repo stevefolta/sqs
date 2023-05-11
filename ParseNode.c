@@ -416,7 +416,7 @@ int WithStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	// Our context is just like a ForStatement_emit, we'll just leech off of that.
 	ForStatementContext context;
-	ForStatementContext_init(&context, self->name, value_loc);
+	ForStatementContext_init(&context, self->name, variable_loc);
 	MethodBuilder_push_environment(method, &context.environment);
 
 	// Emit the body.
