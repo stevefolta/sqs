@@ -41,7 +41,7 @@ void MethodBuilder_finish_init(MethodBuilder* self)
 int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
 {
 	Array_append(self->method->literals, literal);
-	if (self->method->literals->size > -INT8_MIN)
+	if (self->method->literals->size > UINT16_MAX)
 		Error("Internal error: Too many literals.");
 	return self->method->literals->size - 1;
 }
@@ -49,7 +49,7 @@ int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
 int MethodBuilder_reserve_literal(MethodBuilder* self)
 {
 	Array_append(self->method->literals, NULL);
-	if (self->method->literals->size > -INT8_MIN)
+	if (self->method->literals->size > UINT16_MAX)
 		Error("Internal error: Too many literals.");
 	return self->method->literals->size - 1;
 }

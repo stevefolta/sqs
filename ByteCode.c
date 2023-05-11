@@ -8,6 +8,7 @@
 #include "Boolean.h"
 #include "Dict.h"
 #include "Class.h"
+#include "Int.h"
 #include "Nil.h"
 #include "Memory.h"
 #include "Error.h"
@@ -37,7 +38,8 @@ void interpret_bytecode(struct Method* method)
 	// Interpret.
 	Object** frame = suspended_fp;
 	Object** literals = method->literals->items;
-	int8_t* pc = (int8_t*) method->bytecode->array;
+	int8_t* start_pc = (int8_t*) method->bytecode->array; 	// Just for debugging.
+	int8_t* pc = start_pc;
 	while (true) {
 		uint8_t opcode = *pc++;
 		int8_t src, dest;
@@ -64,6 +66,11 @@ void interpret_bytecode(struct Method* method)
 				dest = *pc++;
 				src = *pc++;
 				((Object**) frame[0])[dest + 1] = DEREF(src);
+				break;
+			case BC_GET_LITERAL:
+				GET_OFFSET();
+				dest = *pc++;
+				frame[dest] = literals[(uint16_t) offset];
 				break;
 			case BC_TRUE:
 				dest = *pc++;
@@ -118,6 +125,7 @@ void interpret_bytecode(struct Method* method)
 				// Parameters.
 				int8_t name = *pc++;
 				uint8_t frame_adjustment = *pc++;
+				String* name_str = (String*) DEREF(name);
 
 				// Bump the frame and save the state.
 				Object** old_fp = frame;
@@ -127,7 +135,6 @@ void interpret_bytecode(struct Method* method)
 				frame[-1] = (Object*) literals;
 
 				// Find the method.
-				String* name_str = (String*) DEREF(name);
 				Object* method = Object_find_method(frame[0], name_str);
 				if (method == NULL) {
 					Class* receiver_class = (frame[0] ? frame[0]->class_ : &Nil_class);
@@ -167,6 +174,7 @@ void interpret_bytecode(struct Method* method)
 				int8_t fn_loc = *pc++;
 				uint8_t args_given = *pc++;
 				uint8_t frame_adjustment = *pc++;
+				Object* method = DEREF(fn_loc);
 
 				// Bump the frame and save the state.
 				Object** old_fp = frame;
@@ -177,7 +185,6 @@ void interpret_bytecode(struct Method* method)
 				frame[0] = NULL; 	// receiver is "nil"
 
 				// Make sure it's really a function.
-				Object* method = DEREF(fn_loc);
 				if (method == NULL || (method->class_ != &Method_class && method->class_ != &BuiltinMethod_class && method->class_ != &Class_class))
 					Error("Attempt to call a non-function.");
 
@@ -336,6 +343,32 @@ Object* call_method(struct Method* method, struct Array* arguments)
 }
 
 
+void print_object(Object* object)
+{
+	if (object == NULL) {
+		// Shouldn't really happen...
+		printf("nil");
+		}
+	else if (object->class_ == &String_class) {
+		String* str = (String*) object;
+		fwrite("\"", 1, 1, stdout);
+		fwrite(str->str, str->size, 1, stdout);
+		fwrite("\"", 1, 1, stdout);
+		}
+	else if (object->class_ == &Class_class) {
+		printf("Class: ");
+		String* str = ((Class*) object)->name;
+		fwrite(str->str, str->size, 1, stdout);
+		}
+	else if (object->class_ == &Int_class)
+		printf("%d", Int_value((Int*) object));
+	else {
+		printf("a ");
+		String* str = object->class_->name;
+		fwrite(str->str, str->size, 1, stdout);
+		}
+}
+
 void dump_bytecode(struct Method* method, String* class_name, String* function_name)
 {
 	if (function_name) {
@@ -364,7 +397,12 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 			case BC_SET_LOCAL:
 				src = bytecode[++i];
 				dest = bytecode[++i];
-				printf("[%d] -> [%d]\n", src, dest);
+				printf("[%d", src);
+				if (src < 0) {
+					printf(": ");
+					print_object(method->literals->items[-src - 1]);
+					}
+				printf("] -> [%d]\n", dest);
 				break;
 			case BC_GET_IVAR:
 				src = bytecode[++i];
@@ -375,6 +413,13 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 				dest = bytecode[++i];
 				src = bytecode[++i];
 				printf("set_ivar %d <- [%d]\n", dest, src);
+				break;
+			case BC_GET_LITERAL:
+				GET_OFFSET();
+				dest = bytecode[++i];
+				printf("literal %d (", (uint16_t) offset);
+				print_object(method->literals->items[(uint16_t) offset]);
+				printf(") -> [%d]\n", dest);
 				break;
 			case BC_TRUE:
 				printf("true -> [%d]\n", bytecode[++i]);
@@ -425,14 +470,24 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 			case BC_CALL_11: case BC_CALL_12: case BC_CALL_13: case BC_CALL_14: case BC_CALL_15:
 				src = bytecode[++i];
 				dest = bytecode[++i];
-				printf("call_%d [%d] stack-adjust: %d\n", opcode - BC_CALL_0, src, (uint8_t) dest);
+				printf("call_%d [%d", opcode - BC_CALL_0, src);
+				if (src < 0) {
+					printf(": ");
+					print_object(method->literals->items[-src - 1]);
+					}
+				printf("] stack-adjust: %d\n", (uint8_t) dest);
 				break;
 			case BC_FN_CALL:
 				{
 				int8_t fn_loc = bytecode[++i];
 				uint8_t num_args = bytecode[++i];
 				uint8_t frame_adjustment = bytecode[++i];
-				printf("fn_call [%d](%d args) stack-adjust: %d\n", fn_loc, num_args, frame_adjustment);
+				printf("fn_call [%d", fn_loc);
+				if (fn_loc < 0) {
+					printf(": ");
+					print_object(method->literals->items[-fn_loc - 1]);
+					}
+				printf("](%d args) stack-adjust: %d\n", num_args, frame_adjustment);
 				}
 				break;
 			case BC_NEW_ARRAY:
@@ -470,22 +525,11 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 	printf("Literals:\n");
 	size = method->literals->size;
 	for (int i = 0; i < size; ++i) {
-		printf("%6d: ", -i - 1);
-		String* str = (String*) method->literals->items[i];
-		if (str == NULL) {
-			// Shouldn't really happen...
-			printf("nil");
-			}
-		else if (str->class_ == &String_class) {
-			fwrite("\"", 1, 1, stdout);
-			fwrite(str->str, str->size, 1, stdout);
-			fwrite("\"", 1, 1, stdout);
-			}
-		else {
-			printf("a ");
-			str = str->class_->name;
-			fwrite(str->str, str->size, 1, stdout);
-			}
+		if (i < -INT8_MIN)
+			printf("%6d: ", -i - 1);
+		else
+			printf("%6d: ", i);
+		print_object(method->literals->items[i]);
 		printf("\n");
 		}
 }
