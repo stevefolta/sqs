@@ -38,7 +38,6 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 				dump_bytecode((struct Method*) compiled_method, NULL, kv.key);
 				printf("\n");
 				}
-			function->loc = -MethodBuilder_add_literal(method, compiled_method) - 1;
 			}
 
 		method->environment = context.environment.parent;

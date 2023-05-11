@@ -8,6 +8,7 @@ struct Dict;
 struct String;
 struct FunctionStatement;
 struct ClassStatement;
+struct UpvalueFunction;
 struct Environment;
 
 
@@ -96,13 +97,11 @@ typedef struct WithStatement {
 extern WithStatement* new_WithStatement(struct String* name, ParseNode* value, ParseNode* body);
 
 
-struct UpvalueFunction;
 typedef struct FunctionStatement {
 	ParseNode parse_node;
 	struct String* name;
 	struct Array* arguments;
 	ParseNode* body;
-	int loc;
 	struct Object* compiled_method;
 	struct UpvalueFunction* pending_references;
 	} FunctionStatement;
