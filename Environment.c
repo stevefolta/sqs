@@ -109,8 +109,12 @@ ParseNode* BlockContext_find(Environment* super, String* name)
 	if (expr)
 		return expr;
 	FunctionStatement* function = Block_get_function(self->block, name);
-	if (function)
-		return (ParseNode*) new_RawLoc(function->loc);
+	if (function) {
+		// If this is in the same function, we could return a RawLoc of the local.
+		// But it might be in an enclosed function, so we'll use an
+		// UpvalueFunction, which works anywhere.
+		return (ParseNode*) new_UpvalueFunction(function);
+		}
 	ClassStatement* class_statement = Block_get_class(self->block, name);
 	if (class_statement)
 		return ClassStatement_make_reference(class_statement);
