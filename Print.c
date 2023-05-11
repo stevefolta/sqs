@@ -35,7 +35,7 @@ struct Object* Print(struct Object* self, struct Object** args)
 
 		// "file"
 		Object* file_object = Dict_at(options, &file_option);
-		if (file) {
+		if (file_object) {
 			if (file_object->class_ != &File_class)
 				Error("print(): \"file\" option must be a File.");
 			file = File_get_file((struct File*) file_object);
