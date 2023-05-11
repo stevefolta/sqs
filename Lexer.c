@@ -92,6 +92,16 @@ Token Lexer_next_token(struct Lexer* self)
 	if (self->at_line_start && self->paren_level == 0) {
 		self->at_line_start = false;
 
+		// Consume blank lines before looking at indentation.
+		while (true) {
+			if (self->p >= self->end)
+				return result;
+			if (*self->p != '\n')
+				break;
+			self->p += 1;
+			self->line_number += 1;
+			}
+
 		// Get the indentation.
 		size_t indentation = 0;
 		while (self->p < self->end) {
@@ -100,20 +110,6 @@ Token Lexer_next_token(struct Lexer* self)
 				break;
 			self->p += 1;
 			indentation += 1;
-			}
-
-		// Comment?
-		if (Lexer_skip_comment(self)) {
-			result.type = EOL;
-			return result;
-			}
-		// EOL?
-		if (*self->p == '\n') {
-			self->p += 1;
-			self->line_number += 1;
-			self->at_line_start = true;
-			result.type = EOL;
-			return result;
 			}
 
 		// Figure out the indentation change.
@@ -129,6 +125,20 @@ Token Lexer_next_token(struct Lexer* self)
 			self->unindent_to = indentation;
 			self->indent_stack_size -= 1;
 			result.type = Unindent;
+			return result;
+			}
+
+		// Comment?
+		if (Lexer_skip_comment(self)) {
+			result.type = EOL;
+			return result;
+			}
+		// EOL?
+		if (*self->p == '\n') {
+			self->p += 1;
+			self->line_number += 1;
+			self->at_line_start = true;
+			result.type = EOL;
 			return result;
 			}
 		}
