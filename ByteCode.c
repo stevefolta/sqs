@@ -18,6 +18,8 @@ static Object** stack_limit;
 static Object** suspended_fp;
 #define stack_size 1024
 
+bool dump_requested = false;
+
 
 void init_bytecode_interpreter()
 {
@@ -334,10 +336,18 @@ Object* call_method(struct Method* method, struct Array* arguments)
 }
 
 
-void dump_bytecode(struct Method* method)
+void dump_bytecode(struct Method* method, String* class_name, String* function_name)
 {
-	printf("Args: %d\n", method->num_args);
-	printf("Bytecode:\n");
+	if (function_name) {
+		if (class_name)
+			printf("%s.%s(%d args):\n", String_c_str(class_name), String_c_str(function_name), method->num_args);
+		else
+			printf("%s(%d args):\n", String_c_str(function_name), method->num_args);
+		}
+	else {
+		printf("Args: %d\n", method->num_args);
+		printf("Bytecode:\n");
+		}
 	size_t size = method->bytecode->size;
 	int8_t* bytecode = (int8_t*) method->bytecode->array;
 	int8_t src, dest;
@@ -462,7 +472,11 @@ void dump_bytecode(struct Method* method)
 	for (int i = 0; i < size; ++i) {
 		printf("%6d: ", -i - 1);
 		String* str = (String*) method->literals->items[i];
-		if (str->class_ == &String_class) {
+		if (str == NULL) {
+			// Shouldn't really happen...
+			printf("nil");
+			}
+		else if (str->class_ == &String_class) {
 			fwrite("\"", 1, 1, stdout);
 			fwrite(str->str, str->size, 1, stdout);
 			fwrite("\"", 1, 1, stdout);

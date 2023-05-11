@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 // A "location", if non-negative, is an offset in the current stack frame.  If
 // negative, it's the offset in the current method's literals minus one.
 
@@ -61,5 +63,8 @@ struct Method;
 
 extern struct Object* call_object(struct Object* receiver, struct String* name, struct Array* arguments);
 extern struct Object* call_method(struct Method* method, struct Array* arguments);
-extern void dump_bytecode(struct Method* method);
+extern void dump_bytecode(struct Method* method, struct String* class_name, struct String* function_name);
+
+extern bool dump_requested;
+
 

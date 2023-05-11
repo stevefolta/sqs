@@ -100,14 +100,13 @@ int main(int argc, char* argv[])
 		return 1;
 
 	// Parse the initial arguments.
-	bool dump = false;
 	bool test_lexer = false;
 	int first_arg = 1;
 	while (first_arg < argc) {
 		const char* arg = argv[first_arg];
 		if (arg[0] == '-') {
 			if (arg[1] == 'd')
-				dump = true;
+				dump_requested = true;
 			else if (arg[1] == 'l')
 				test_lexer = true;
 			else
@@ -132,8 +131,8 @@ int main(int argc, char* argv[])
 	// Compile and run the script.
 	Method* method = compile_script(argv[first_arg]);
 	if (method) {
-		if (dump)
-			Method_dump(method);
+		if (dump_requested)
+			dump_bytecode(method, NULL, new_c_static_String("main"));
 		Object* result = call_method(method, NULL);
 		if (result && result->class_ == &Int_class)
 			return Int_value(result);

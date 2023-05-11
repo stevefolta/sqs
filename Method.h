@@ -14,7 +14,6 @@ typedef struct Method {
 	} Method;
 
 Method* new_Method(int num_args);
-void Method_dump(Method* self);
 
 extern struct Class Method_class;
 extern void Method_init_class();

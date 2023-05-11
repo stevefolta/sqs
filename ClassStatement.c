@@ -11,6 +11,7 @@
 #include "Object.h"
 #include "Memory.h"
 #include "Error.h"
+#include <stdio.h>
 
 // This file includes all the functions for compiling a class definition,
 // instead of having them spread out over Parser.c, ParseNodes.c, and
@@ -150,6 +151,10 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 			break;
 		FunctionStatement* function = (FunctionStatement*) kv.value;
 		Object* compiled_method = FunctionStatement_compile(function, method->environment);
+		if (dump_requested) {
+			dump_bytecode((struct Method*) compiled_method, self->built_class->name, kv.key);
+			printf("\n");
+			}
 		if (self->built_class->methods == NULL)
 			self->built_class->methods = new_Dict();
 		Dict_set_at(self->built_class->methods, function->name, compiled_method);

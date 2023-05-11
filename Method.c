@@ -26,10 +26,4 @@ Method* new_Method(int num_args)
 }
 
 
-void Method_dump(Method* self)
-{
-	dump_bytecode(self);
-}
-
-
 

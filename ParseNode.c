@@ -12,6 +12,7 @@
 #include "Memory.h"
 #include "Error.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 
 int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
@@ -33,6 +34,10 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 				break;
 			FunctionStatement* function = (FunctionStatement*) kv.value;
 			Object* compiled_method = FunctionStatement_compile(function, method->environment);
+			if (dump_requested) {
+				dump_bytecode((struct Method*) compiled_method, NULL, kv.key);
+				printf("\n");
+				}
 			function->loc = -MethodBuilder_add_literal(method, compiled_method) - 1;
 			}
 
