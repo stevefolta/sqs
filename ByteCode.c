@@ -270,6 +270,9 @@ void interpret_bytecode(struct Method* method)
 				src = *pc++; 	// value
 				Dict_set_at((Dict*) DEREF(dest), (String*) value, DEREF(src));
 				break;
+			default:
+				Error("Internal error: bad bytecode %d.", opcode);
+				break;
 			}
 		}
 	exit: ;

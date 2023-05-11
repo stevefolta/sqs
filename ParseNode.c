@@ -950,11 +950,12 @@ int DictLiteral_emit(ParseNode* super, MethodBuilder* method)
 		ParseNode* value = (ParseNode*) item.value;
 
 		int value_loc = value->emit(value, method);
+		int name_literal = MethodBuilder_add_literal(method, (Object*) item.key);
+		int name_loc = emit_literal(name_literal, method);
 
 		MethodBuilder_add_bytecode(method, BC_DICT_ADD);
 		MethodBuilder_add_bytecode(method, dict_loc);
-		int name_literal = MethodBuilder_add_literal(method, (Object*) item.key);
-		MethodBuilder_add_bytecode(method, emit_literal(name_literal, method));
+		MethodBuilder_add_bytecode(method, name_loc);
 		MethodBuilder_add_bytecode(method, value_loc);
 		}
 
