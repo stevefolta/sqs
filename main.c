@@ -50,11 +50,16 @@ static void lexer_test(const char* file_path)
 			case Identifier:
 			case IntLiteral:
 			case FloatLiteral:
-			case StringLiteral:
-			case RawStringLiteral:
 			case Operator:
 				fwrite(token.token->str, token.token->size, 1, stdout);
 				printf("\n");
+				break;
+			case RawStringLiteral:
+				printf("r");
+			case StringLiteral:
+				printf("\"");
+				fwrite(token.token->str, token.token->size, 1, stdout);
+				printf("\"\n");
 				break;
 			case EOL:
 				printf("-eol-\n");
