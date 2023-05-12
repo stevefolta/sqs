@@ -151,6 +151,7 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 		num_ivars += ancestor->num_ivars;
 		ancestor = ancestor->superclass;
 		}
+	self->built_class->num_ivars = num_ivars;
 
 	// Compile functions.
 	// Set up environment.
@@ -262,6 +263,7 @@ IvarExpr* new_IvarExpr(int ivar_index)
 	IvarExpr* self = alloc_obj(IvarExpr);
 	self->parse_node.emit = IvarExpr_emit;
 	self->parse_node.emit_set = IvarExpr_emit_set;
+	self->ivar_index = ivar_index;
 	return self;
 }
 
