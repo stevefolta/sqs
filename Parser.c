@@ -38,6 +38,7 @@ extern ParseNode* Parser_parse_primary_expression(Parser* self);
 extern ParseNode* Parser_parse_string_literal(Parser* self);
 extern ParseNode* Parser_parse_array_literal(Parser* self);
 extern ParseNode* Parser_parse_dict_literal(Parser* self);
+extern ParseNode* Parser_parse_super_call(Parser* self);
 extern bool String_is_one_of(String* str, const char** values);
 
 
@@ -691,6 +692,8 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 			return new_NilLiteral();
 		else if (String_equals_c(next_token.token, "self"))
 			return (ParseNode*) new_SelfExpr();
+		else if (String_equals_c(next_token.token, "super"))
+			return Parser_parse_super_call(self);
 		return (ParseNode*) new_Variable(next_token.token, next_token.line_number);
 		}
 
@@ -970,6 +973,31 @@ ParseNode* Parser_parse_dict_literal(Parser* self)
 		}
 
 	return (ParseNode*) dict_literal;
+}
+
+
+ParseNode* Parser_parse_super_call(Parser* self)
+{
+	// The "super" has already been consumed.
+
+	// "."
+	Token token = Lexer_next(self->lexer);
+	if (token.type != Operator && !String_equals_c(token.token, "."))
+		Error("Expected \".\" in \"super\" call on line %d.", token.line_number);
+
+	// Name.
+	String* name = Parser_parse_fn_name(self);
+
+	SuperCallExpr* call = new_SuperCallExpr(name);
+
+	// Arguments.
+	token = Lexer_peek(self->lexer);
+	if (token.type == Operator && String_equals_c(token.token, "(")) {
+		Array* arguments = Parser_parse_arguments(self);
+		call->arguments = arguments;
+		}
+
+	return (ParseNode*) call;
 }
 
 

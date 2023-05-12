@@ -41,6 +41,11 @@ enum {
 	// Followed by number of arguments.
 	// Followed by the "frame adjustment".
 
+	BC_SUPER_CALL,
+	// Followed by value for the method name.
+	// Followed by number of arguments.
+	// Followed by the "frame adjustment".
+
 	BC_NEW_ARRAY, 	// dest
 	BC_ARRAY_APPEND,	// array, item
 	BC_ARRAY_JOIN,	// array, dest

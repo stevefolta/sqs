@@ -1192,4 +1192,83 @@ FunctionCallExpr* new_FunctionCallExpr(ParseNode* fn, struct Array* arguments)
 }
 
 
+int SuperCallExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	SuperCallExpr* self = (SuperCallExpr*) super;
+
+	// Allocate stack space for the new frame.
+	int num_args = self->arguments->size;
+	int orig_locals =
+		MethodBuilder_reserve_locals(
+			method,
+			frame_saved_area_size + 1 /* receiver's "self" */ + num_args);
+	int args_start = orig_locals + frame_saved_area_size;
+
+	// Emit receiver (self) and args, and put them into the new frame's arguments.
+	MethodBuilder_add_move(method, 0, args_start);
+	for (int i = 0; i < num_args; ++i) {
+		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
+		int arg_loc = arg->emit(arg, method);
+		MethodBuilder_add_move(method, arg_loc, args_start + i + 1);
+		}
+
+	// Emit the name.
+	// If it needs a temporary local, it's okay for it to be in the callee's
+	// frame, since it'll be consumed right away.
+	int name_literal = MethodBuilder_add_literal(method, (Object*) self->name);
+	int name_loc = emit_literal(name_literal, method);
+
+	// Emit the call itself.
+	MethodBuilder_add_bytecode(method, BC_SUPER_CALL);
+	MethodBuilder_add_bytecode(method, name_loc);
+	MethodBuilder_add_bytecode(method, num_args);
+	MethodBuilder_add_bytecode(method, args_start);
+
+	method->cur_num_variables = orig_locals + 1;
+	return orig_locals;
+}
+
+int SuperCallExpr_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
+{
+	SuperCallExpr* self = (SuperCallExpr*) super;
+
+	// Make a copy, turn it into the setter, and emit from that.
+	SuperCallExpr setter = *self;
+	String equals_string;
+	String_init_static_c(&equals_string, "=");
+	setter.name = String_add(setter.name, &equals_string);
+	setter.arguments = Array_copy(setter.arguments);
+	SuperCallExpr_add_argument(&setter, value);
+	return SuperCallExpr_emit((ParseNode*) &setter, method);
+}
+
+void SuperCallExpr_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	SuperCallExpr* self = (SuperCallExpr*) super;
+	int num_args = self->arguments->size;
+	for (int i = 0; i < num_args; ++i) {
+		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
+		if (arg->resolve_names)
+			arg->resolve_names(arg, method);
+		}
+}
+
+SuperCallExpr* new_SuperCallExpr(struct String* name)
+{
+	SuperCallExpr* self = alloc_obj(SuperCallExpr);
+	self->parse_node.emit = SuperCallExpr_emit;
+	self->parse_node.emit_set = SuperCallExpr_emit_set;
+	self->parse_node.resolve_names = SuperCallExpr_resolve_names;
+	self->name = name;
+	self->arguments = new_Array();
+	return self;
+}
+
+
+void SuperCallExpr_add_argument(SuperCallExpr* self, ParseNode* arg)
+{
+	/***/
+}
+
+
 

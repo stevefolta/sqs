@@ -241,3 +241,11 @@ typedef struct FunctionCallExpr {
 	} FunctionCallExpr;
 extern FunctionCallExpr* new_FunctionCallExpr(ParseNode* fn, struct Array* arguments);
 
+typedef struct SuperCallExpr {
+	ParseNode parse_node;
+	struct String* name;
+	struct Array* arguments;
+	} SuperCallExpr;
+extern SuperCallExpr* new_SuperCallExpr(struct String* name);
+extern void SuperCallExpr_add_argument(SuperCallExpr* self, ParseNode* arg);
+

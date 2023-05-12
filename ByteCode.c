@@ -210,6 +210,24 @@ void interpret_bytecode(struct Method* method)
 				goto make_call;
 				break;
 
+			case BC_SUPER_CALL:
+				{
+				// Parameters.
+				int8_t name = *pc++;
+				args_given = *pc++;
+				frame_adjustment = *pc++;
+				String* name_str = (String*) DEREF(name);
+
+				// Find the method.
+				value = Object_find_super_method(frame[frame_adjustment], name_str);
+				if (value == NULL) {
+					Class* receiver_class = (frame[frame_adjustment] ? frame[frame_adjustment]->class_ : &Nil_class);
+					Error("Unhandled method call: \"%s\" on %s.", String_c_str(name_str), String_c_str(receiver_class->name));
+					}
+				}
+				goto make_call;
+				break;
+
 			case BC_RETURN_NIL:
 				frame[-4] = NULL;
 				goto return_from_method;
