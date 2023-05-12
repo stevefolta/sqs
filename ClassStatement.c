@@ -152,6 +152,7 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 		ancestor = ancestor->superclass;
 		}
 	self->built_class->num_ivars = num_ivars;
+	self->built_class->slot_names = self->ivars;
 
 	// Compile functions.
 	// Set up environment.
@@ -283,11 +284,32 @@ ParseNode* ClassFunctionContext_find(Environment* super, String* name)
 				}
 			}
 		}
+	// Superclass ivars.
+	Class* cur_class = class_statement->built_class->superclass;
+	while (cur_class) {
+		if (cur_class->slot_names) {
+			for (int i = 0; i < cur_class->slot_names->size; ++i) {
+				if (String_equals((String*) Array_at(cur_class->slot_names, i), name)) {
+					int added_ivars_base = cur_class->num_ivars - cur_class->slot_names->size;
+					return (ParseNode*) new_IvarExpr(i + added_ivars_base);
+					}
+				}
+			}
+		cur_class = cur_class->superclass;
+		}
 
 	// Self calls.
 	FunctionStatement* function = (FunctionStatement*) Dict_at(class_statement->functions, name);
 	if (function)
 		return (ParseNode*) new_CallExpr((ParseNode*) new_SelfExpr(), name);
+	// Self calls of super functions.
+	cur_class = class_statement->built_class->superclass;
+	while (cur_class) {
+		if (cur_class->methods && Dict_at(cur_class->methods, name)) {
+			return (ParseNode*) new_CallExpr((ParseNode*) new_SelfExpr(), name);
+			}
+		cur_class = cur_class->superclass;
+		}
 
 	// Enclosed classes.
 	ClassStatement* enclosed_class = ClassStatement_get_enclosed_class(class_statement, name);
