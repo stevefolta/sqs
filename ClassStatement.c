@@ -81,6 +81,20 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 				continue;
 				}
 
+			// Ivars.
+			else if (token.type == Operator && String_equals_c(token.token, "(")) {
+				Array* arg_names = Parser_parse_names_list(self, "argument");
+				token = Lexer_next(self->lexer);
+				if (token.type != EOL)
+					Error("Extra characters after ivars list on line %d.", token.line_number);
+				if (class_statement->ivars == NULL)
+					class_statement->ivars = arg_names;
+				else {
+					for (int i = 0; i < arg_names->size; ++i)
+						Array_append(class_statement->ivars, Array_at(arg_names, i));
+					}
+				}
+
 			// "class"
 			else if (token.type == Identifier && String_equals_c(token.token, "class")) {
 				ClassStatement* enclosed_class = (ClassStatement*) Parser_parse_class_statement(self);
