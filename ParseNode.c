@@ -648,6 +648,40 @@ ShortCircuitExpr* new_ShortCircuitExpr(ParseNode* expr1, ParseNode* expr2, bool 
 }
 
 
+int ShortCircuitNot_emit(ParseNode* super, MethodBuilder* method)
+{
+	ShortCircuitNot* self = (ShortCircuitNot*) super;
+
+	int result_slot = MethodBuilder_reserve_locals(method, 1);
+	int orig_locals = method->cur_num_variables;
+
+	int expr_loc = self->expr->emit(self->expr, method);
+	MethodBuilder_add_bytecode(method, BC_NOT);
+	MethodBuilder_add_bytecode(method, expr_loc);
+	MethodBuilder_add_bytecode(method, result_slot);
+	method->cur_num_variables = orig_locals;
+
+	// Finish.
+	return result_slot;
+}
+
+void ShortCircuitNot_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	ShortCircuitNot* self = (ShortCircuitNot*) super;
+	if (self->expr->resolve_names)
+		self->expr->resolve_names(self->expr, method);
+}
+
+ShortCircuitNot* new_ShortCircuitNot(ParseNode* expr)
+{
+	ShortCircuitNot* self = alloc_obj(ShortCircuitNot);
+	self->parse_node.emit = ShortCircuitNot_emit;
+	self->parse_node.resolve_names = ShortCircuitNot_resolve_names;
+	self->expr = expr;
+	return self;
+}
+
+
 int StringLiteralExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	StringLiteralExpr* self = (StringLiteralExpr*) super;

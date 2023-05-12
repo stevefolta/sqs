@@ -144,6 +144,13 @@ typedef struct ShortCircuitExpr {
 extern ShortCircuitExpr* new_ShortCircuitExpr(ParseNode* expr1, ParseNode* expr2, bool is_and);
 
 
+typedef struct ShortCircuitNot {
+	ParseNode parse_node;
+	ParseNode* expr;
+	} ShortCircuitNot;
+extern ShortCircuitNot* new_ShortCircuitNot(ParseNode* expr);
+
+
 typedef struct StringLiteralExpr {
 	ParseNode parse_node;
 	struct String* str;

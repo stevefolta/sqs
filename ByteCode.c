@@ -84,6 +84,11 @@ void interpret_bytecode(struct Method* method)
 				dest = *pc++;
 				frame[dest] = NULL;
 				break;
+			case BC_NOT:
+				src = *pc++;
+				dest = *pc++;
+				frame[dest] = NOT(DEREF(src));
+				break;
 			case BC_BRANCH_IF_TRUE:
 				src = *pc++;
 				GET_OFFSET()
@@ -432,6 +437,11 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 				break;
 			case BC_NIL:
 				printf("nil -> [%d]\n", bytecode[++i]);
+				break;
+			case BC_NOT:
+				src = bytecode[++i];
+				dest = bytecode[++i];
+				printf("not [%d] -> [%d]\n", src, dest);
 				break;
 			case BC_BRANCH_IF_TRUE:
 				src = bytecode[++i];

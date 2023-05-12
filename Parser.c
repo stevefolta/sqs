@@ -409,13 +409,20 @@ ParseNode* Parser_parse_logical_and_expression(Parser* self)
 
 ParseNode* Parser_parse_not_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_inclusive_or_expression(self);
-	if (expr == NULL)
-		return NULL;
+	ParseNode* expr = NULL;
 
-	/***/
+	Token next_token = Lexer_peek(self->lexer);
+	if (next_token.type == Operator) {
+		if (String_equals_c(next_token.token, "!")) {
+			Lexer_next(self->lexer);
+			expr = Parser_parse_not_expression(self);
+			if (expr == NULL)
+				Error("Expected expression after \"!\" on line %d.", next_token.line_number);
+			return (ParseNode*) new_ShortCircuitNot(expr);
+			}
+		}
 
-	return expr;
+	return Parser_parse_inclusive_or_expression(self);
 }
 
 
@@ -534,13 +541,9 @@ ParseNode* Parser_parse_multiplicative_expression(Parser* self)
 
 ParseNode* Parser_parse_unary_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_postfix_expression(self);
-	if (expr == NULL)
-		return NULL;
-
 	/***/
 
-	return expr;
+	return Parser_parse_postfix_expression(self);
 }
 
 

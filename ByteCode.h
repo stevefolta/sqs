@@ -18,6 +18,7 @@ enum {
 	BC_TRUE,	// dest
 	BC_FALSE,	// dest
 	BC_NIL,	// dest
+	BC_NOT, 	// src, dest
 	BC_BRANCH_IF_TRUE, 	// value, offset_16
 	BC_BRANCH_IF_FALSE,	// value, offset_16
 	BC_BRANCH_IF_NIL, 	// value, offset_16
