@@ -45,6 +45,8 @@ void interpret_bytecode(struct Method* method)
 		int8_t src, dest;
 		ptrdiff_t offset;
 		Object* value;
+		uint8_t frame_adjustment;
+		int args_given;
 		#define DEREF(index) (index >= 0 ? frame[index] : literals[-index - 1])
 		#define GET_OFFSET() { offset = ((ptrdiff_t) (int8_t) *pc++) << 8; offset |= (uint8_t) *pc++; }
 		switch (opcode) {
@@ -129,9 +131,20 @@ void interpret_bytecode(struct Method* method)
 				{
 				// Parameters.
 				int8_t name = *pc++;
-				uint8_t frame_adjustment = *pc++;
+				frame_adjustment = *pc++;
 				String* name_str = (String*) DEREF(name);
+				args_given = opcode - BC_CALL_0;
 
+				// Find the method.
+				value = Object_find_method(frame[frame_adjustment], name_str);
+				if (value == NULL) {
+					Class* receiver_class = (frame[frame_adjustment] ? frame[frame_adjustment]->class_ : &Nil_class);
+					Error("Unhandled method call: \"%s\" on %s.", String_c_str(name_str), String_c_str(receiver_class->name));
+					}
+				}
+
+			make_call:
+				{
 				// Bump the frame and save the state.
 				Object** old_fp = frame;
 				frame += frame_adjustment;
@@ -139,16 +152,8 @@ void interpret_bytecode(struct Method* method)
 				frame[-2] = (Object*) pc;
 				frame[-1] = (Object*) literals;
 
-				// Find the method.
-				Object* method = Object_find_method(frame[0], name_str);
-				if (method == NULL) {
-					Class* receiver_class = (frame[0] ? frame[0]->class_ : &Nil_class);
-					Error("Unhandled method call: \"%s\" on %s.", String_c_str(name_str), String_c_str(receiver_class->name));
-					}
-
 				// If there weren't enough arguments, fill the rest with nil.
-				int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod
-				int args_given = opcode - BC_CALL_0;
+				int args_needed = ((Method*) value)->num_args; 	// also works for BuiltinMethod
 				while (args_given < args_needed) {
 					// These arg counts don't include "self".
 					frame[args_given + 1] = NULL;
@@ -156,17 +161,17 @@ void interpret_bytecode(struct Method* method)
 					}
 
 				// Call the method.
-				if (method->class_ == &Method_class) {
-					pc = (int8_t*) ((Method*) method)->bytecode->array;
-					literals = ((Method*) method)->literals->items;
+				if (value->class_ == &Method_class) {
+					pc = (int8_t*) ((Method*) value)->bytecode->array;
+					literals = ((Method*) value)->literals->items;
 					}
-				else if (method->class_ == &BuiltinMethod_class) {
+				else if (value->class_ == &BuiltinMethod_class) {
 					// Set "suspended_fp" to the end of our stack frame, so this can be
 					// called re-entrantly.
 					suspended_fp = frame + args_needed + 1;
 
 					// Call.
-					Object* result = ((BuiltinMethod*) method)->fn(frame[0], frame + 1);
+					Object* result = ((BuiltinMethod*) value)->fn(frame[0], frame + 1);
 					frame[-4] = result;
 					goto return_from_method;
 					}
@@ -177,63 +182,32 @@ void interpret_bytecode(struct Method* method)
 				{
 				// Parameters.
 				int8_t fn_loc = *pc++;
-				uint8_t args_given = *pc++;
-				uint8_t frame_adjustment = *pc++;
-				Object* method = DEREF(fn_loc);
-
-				// Bump the frame and save the state.
-				Object** old_fp = frame;
-				frame += frame_adjustment;
-				frame[-3] = (Object*) old_fp;
-				frame[-2] = (Object*) pc;
-				frame[-1] = (Object*) literals;
-				frame[0] = NULL; 	// receiver is "nil"
+				args_given = *pc++;
+				frame_adjustment = *pc++;
+				value = DEREF(fn_loc);
+				frame[frame_adjustment] = NULL; 	// receiver is "nil"
 
 				// Make sure it's really a function.
-				if (method == NULL || (method->class_ != &Method_class && method->class_ != &BuiltinMethod_class && method->class_ != &Class_class))
+				if (value == NULL || (value->class_ != &Method_class && value->class_ != &BuiltinMethod_class && value->class_ != &Class_class))
 					Error("Attempt to call a non-function.");
 
 				// Turn calling a class into object instantiation.
-				if (method->class_ == &Class_class) {
+				if (value->class_ == &Class_class) {
 					// Create the object.
-					frame[0] = Class_instantiate((Class*) method);
+					frame[frame_adjustment] = Class_instantiate((Class*) value);
 
 					// Turn this into an "init()" call.
 					String init_str;
 					String_init_static_c(&init_str, "init");
-					method = Object_find_method(frame[0], &init_str);
-					if (method == NULL) {
-						// No init(), just quit.
-						frame[-4] = frame[0];
-						frame -= frame_adjustment;
+					value = Object_find_method(frame[frame_adjustment], &init_str);
+					if (value == NULL) {
+						// No init(), just quit, returning the new object.
+						frame[frame_adjustment - 4] = frame[frame_adjustment];
 						continue;
 						}
 					}
-
-				// If there weren't enough arguments, fill the rest with nil.
-				int args_needed = ((Method*) method)->num_args; 	// also works for BuiltinMethod
-				while (args_given < args_needed) {
-					// These arg counts don't include "self".
-					frame[args_given + 1] = NULL;
-					args_given += 1;
-					}
-
-				// Call the method.
-				if (method->class_ == &Method_class) {
-					pc = (int8_t*) ((Method*) method)->bytecode->array;
-					literals = ((Method*) method)->literals->items;
-					}
-				else if (method->class_ == &BuiltinMethod_class) {
-					// Set "suspended_fp" to the end of our stack frame, so this can be
-					// called re-entrantly.
-					suspended_fp = frame + args_needed + 1;
-
-					// Call.
-					Object* result = ((BuiltinMethod*) method)->fn(frame[0], frame + 1);
-					frame[-4] = result;
-					goto return_from_method;
-					}
 				}
+				goto make_call;
 				break;
 
 			case BC_RETURN_NIL:
