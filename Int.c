@@ -45,6 +45,8 @@ Object* Int_plus(Object* super, Object** args)
 
 Object* Int_minus(Object* super, Object** args)
 {
+	if (args[0] == NULL)
+		return (Object*) new_Int(-Int_value(super));
 	Int_enforce(args[0], "Int.-");
 	return (Object*) new_Int(Int_value(super) - Int_value(args[0]));
 }
@@ -77,6 +79,11 @@ Object* Int_and(Object* super, Object** args)
 {
 	Int_enforce(args[0], "Int.+");
 	return (Object*) new_Int(Int_value(super) & Int_value(args[0]));
+}
+
+Object* Int_not(Object* super, Object** args)
+{
+	return (Object*) new_Int(~Int_value(super));
 }
 
 Object* Int_left_shift(Object* super, Object** args)
@@ -147,6 +154,7 @@ void Int_init_class()
 		{ "|", 1, Int_or },
 		{ "^", 1, Int_exclusive_or },
 		{ "&", 1, Int_and },
+		{ "~", 0, Int_not },
 		{ "==", 1, Int_equals },
 		{ "!=", 1, Int_not_equals },
 		{ "<", 1, Int_less_than },

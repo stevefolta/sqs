@@ -541,7 +541,16 @@ ParseNode* Parser_parse_multiplicative_expression(Parser* self)
 
 ParseNode* Parser_parse_unary_expression(Parser* self)
 {
-	/***/
+	static const char* tokens[] = { "~", "-", NULL };
+
+	Token next_token = Lexer_peek(self->lexer);
+	if (next_token.type == Operator && String_is_one_of(next_token.token, tokens)) {
+		Lexer_next(self->lexer);
+		ParseNode* expr = Parser_parse_unary_expression(self);
+		if (expr == NULL)
+			Error("Expected expression after \"%s\" on line %d.", String_c_str(next_token.token), next_token.line_number);
+		return (ParseNode*) new_CallExpr(expr, next_token.token);
+		}
 
 	return Parser_parse_postfix_expression(self);
 }
