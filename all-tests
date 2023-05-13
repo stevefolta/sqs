@@ -1,0 +1,254 @@
+#!/usr/bin/env sqs
+
+all-ok = true
+
+fn test(name, ok)
+	if ok
+		print("{name}:\t\e[32mok\e[m")
+	else
+		print("{name}:\t\e[31mFAIL\e[m")
+		all-ok = false
+
+fn outer-test(name, ok)
+	test(name, ok)
+
+
+### Classes ###
+
+class Foo (value)
+	init
+		value = "ivar value"
+	get-value
+		return value
+	get-value=(new-value)
+		value = new-value
+	get-literal
+		return "this is a literal"
+
+f = Foo()
+test("Method call", f.get-literal == "this is a literal")
+test("Ivar get", f.get-value == "ivar value")
+f.get-value = 777
+test("Ivar set", f.get-value == 777)
+
+class OuterClass
+	name
+		return "OuterClass"
+	test
+		outer-test("Class self access", OuterClass().name == "OuterClass")
+		outer-test("Enclosed class access 1", InnerClass1().name == "InnerClass1")
+		outer-test("Enclosed class access 2", InnerClass2().name == "InnerClass2")
+		InnerClass1().test()
+		InnerClass2().test()
+
+	class InnerClass1
+		name
+			return "InnerClass1"
+		test
+			outer-test("Outer class access 1", OuterClass().name == "OuterClass")
+			outer-test("Inner class self access 1", InnerClass1().name == "InnerClass1")
+			outer-test("Inner sibling class access 1", InnerClass2().name == "InnerClass2")
+
+	class InnerClass2
+		name
+			return "InnerClass2"
+		test
+			outer-test("Outer class access 2", OuterClass().name == "OuterClass")
+			outer-test("Inner class self access 2", InnerClass1().name == "InnerClass1")
+			outer-test("Inner sibling class access 2", InnerClass2().name == "InnerClass2")
+			outer-test("Inner class outer fn with ()", outer-fn() == "from outer-fn")
+			# outer-test("Inner class outer fn without ()", outer-fn == "from outer-fn")
+			# print('Inner class outer fn = "{outer-fn}"')
+
+fn outer-fn
+	return "from outer-fn"
+
+OuterClass().test()
+
+class Super (foo)
+	init
+		foo = "alpha"
+	combined
+		return foo
+
+class Sub: Super (verious)
+	(ululal)
+	init
+		super.init()
+		ululal = "beta"
+		verious = "gamma"
+	combined
+		return "{foo} {ululal} {verious}"
+
+test("Superclasses", Sub().combined == "alpha beta gamma")
+
+### Functions ###
+
+fn foo-fn(x)
+	test("Enclosed function", sub-fn() == "from sub-fn")
+	test("Enclosed function access to top 1", bar-fn() == "from bar")
+	test("Enclosed function access to top 2", xerces() == "from xerces")
+
+	fn sub-fn
+		test("Enclosed function access to top 3", xerces() == "from xerces")
+		return "from sub-fn"
+
+fn bar-fn()
+	return "from bar"
+
+fn xerces()
+	return "from xerces"
+
+foo-fn(3)
+
+fn returner
+	return 7
+
+test("Function return", returner() == 7)
+
+
+### Lexer ###
+
+if true
+	# Comment.
+	test("Comment at start of block", true)
+if true
+	
+	test("Blank line at start of block", true)
+
+
+### Arrays ###
+
+foo = [ "foo" "bar", "baz" ]
+test("Array literal", foo[0] == "foo" && foo[1] == "bar" && foo[2] == "baz")
+foo[1] = "yuhuh"
+test("Array set", foo[1] == "yuhuh")
+test("Array size", foo.size == 3)
+test("Array.join", foo.join(', ') == "foo, yuhuh, baz")
+bar = [ "alpha" "beta" "gamma" ]
+test("Array add", (foo + bar).join(', ') == "foo, yuhuh, baz, alpha, beta, gamma")
+
+
+### Dicts ###
+
+d = { foo = "Foo", bar:  2 }
+d['baz'] = "yahhh!"
+test("Dict", d['bar'] == 2 && d['baz'] == "yahhh!" && d['foo'] == "Foo")
+
+e = { x: 2, y: 3, able: "able", xerxes: "xerx", baz: "rebaz" }
+for kv: e
+	d[kv.key] = kv.value
+test("Dict loop", d.size == 7 && d['baz'] == "rebaz")
+
+
+### File ###
+
+path = "/tmp/sqs-file-result"
+
+with file = File(path, "w")
+	file.write("Hello\r\n")
+	print("Right on!", { file = file })
+
+expected_lines = [ "Hello", "Right on!" ]
+ok = true
+with file = File(path)
+	index = 0
+	for line: file.lines
+		if line != expected_lines[index]
+			ok = false
+			break
+		index += 1
+test("File write and read", ok)
+
+
+### Regex ###
+
+r = Regex(r"foo (?P<word>\w+) baz")
+test("Regex non-match", r.match("foo bar blech") == nil)
+test("Regex match 1", r.match("foo bar baz")['word'] == "bar")
+test("Regex match 2", r.match("foo blech baz")['word'] == "blech")
+
+
+### run() ###
+
+output = run([ "echo" "Hello" ], { capture = true }).output.rtrim()
+test("run() capture", output == "Hello")
+test("run() return code 1", run([ "false" ]).ok != true)
+test("run() return code 2", run([ "true" ]).ok)
+
+
+### Short-circuits ###
+
+test("Short-circuit && 1", (nil && "yeh") == nil)
+test("Short-circuit && 2", ("nah" && "yeh") == "yeh")
+test("Short-circuit || 1", nil || "yeh")
+test("Short-circuit || 2", ("nah" || "yeh") == "nah")
+test("!", !("foo" == "bar"))
+
+
+### Stringops ###
+
+foo = " \tokay then   \n"
+test("String.strip()", foo.strip == "okay then")
+test("String.lstrip()", foo.lstrip == "okay then   \n")
+test("String.rstrip()", foo.rstrip == " \tokay then")
+test("String.trim()", foo.trim == "okay then")
+
+foo = "  foo bar baz "
+splitted = foo.split()
+test(
+	"String.split()",
+	splitted[0] == "foo" && splitted[1] == "bar" && splitted[2] == "baz")
+splitted = "foo, bar,, baz,".split(",")
+test(
+	"Delimiter split",
+	splitted.size == 5 &&
+	splitted[0] == "foo" &&
+	splitted[1] == " bar" &&
+	splitted[2] == "" &&
+	splitted[3] == " baz" &&
+	splitted[4] == "")
+
+test("starts-with", "foo bar baz".starts-with("foo"))
+test("ends-with", "foo bar baz".ends-with("baz"))
+
+foo = "- "
+foo += "bar "
+foo += "baz "
+foo += "quux"
+test("String +=", foo == "- bar baz quux")
+
+test("Raw string literal", r"{moustache}" == "{{moustache}}")
+test("String comparison", ("foo" > "foo") == false)
+test("String comparison", "foo" >= "foo")
+
+
+### Int operations ###
+
+test("3 - 4", 3 - 4 == -1)
+test("~1", ~1 == -2)
+test("~0", ~0 == -1)
+test("-(-3)", -(-3) == 3)
+
+
+### Upvalue locals ###
+
+foo = "foo"
+bar = "bar"
+if true
+	baz = "baz"
+
+	fn do-it()
+		test("Upvalue get", bar == "bar")
+		bar = "blech"
+
+	do-it()
+	test("Upvalue set", "{foo} {bar} {baz}" == "foo blech baz")
+
+
+### FINAL ###
+
+print()
+test("All", all-ok)
+
+
