@@ -2,6 +2,7 @@
 #include "ClassStatement.h"
 #include "MethodBuilder.h"
 #include "Environment.h"
+#include "Upvalues.h"
 #include "ByteArray.h"
 #include "Array.h"
 #include "String.h"
@@ -33,29 +34,6 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 {
 	Block* self = (Block*) super;
 
-	// Before we do anything, compile our functions.  (Classes are exist as soon
-	// as they're parsed, so they don't need quite such special treatment.)
-	if (self->functions) {
-		BlockUpvalueContext context;
-		BlockUpvalueContext_init(&context, self, method->environment);
-		method->environment = &context.environment;
-
-		DictIterator* it = new_DictIterator(self->functions);
-		while (true) {
-			DictIteratorResult kv = DictIterator_next(it);
-			if (kv.key == NULL)
-				break;
-			FunctionStatement* function = (FunctionStatement*) kv.value;
-			Object* compiled_method = FunctionStatement_compile(function, method->environment);
-			if (dump_requested) {
-				dump_bytecode((struct Method*) compiled_method, NULL, kv.key);
-				printf("\n");
-				}
-			}
-
-		method->environment = context.environment.parent;
-		}
-
 	// Push our context.
 	BlockContext context;
 	BlockContext_init(&context, self, method->environment);
@@ -80,7 +58,23 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 	// Emit.
 	for (int i = 0; i < size; ++i) {
 		ParseNode* statement = (ParseNode*) Array_at(self->statements, i);
-		statement->emit(statement, method);
+		if (statement->type == PN_FunctionStatement) {
+			// Function.  Add upvalues to the context.
+			BlockUpvalueContext context;
+			BlockUpvalueContext_init(&context, self, method, method->environment);
+			method->environment = &context.environment;
+
+			FunctionStatement* function = (FunctionStatement*) statement;
+			Object* compiled_method = FunctionStatement_compile(function, method->environment);
+			if (dump_requested) {
+				dump_bytecode((struct Method*) compiled_method, NULL, function->name);
+				printf("\n");
+				}
+
+			method->environment = context.environment.parent;
+			}
+		else
+			statement->emit(statement, method);
 		}
 
 	// Pop our context.
@@ -477,6 +471,7 @@ int FunctionStatement_emit(ParseNode* super, MethodBuilder* method)
 FunctionStatement* new_FunctionStatement(struct String* name)
 {
 	FunctionStatement* self = alloc_obj(FunctionStatement);
+	self->parse_node.type = PN_FunctionStatement;
 	self->parse_node.emit = FunctionStatement_emit;
 	self->name = name;
 	self->arguments = new_Array();
@@ -883,6 +878,7 @@ int Local_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 Local* new_Local(Block* block, int block_index)
 {
 	Local* self = alloc_obj(Local);
+	self->parse_node.type = PN_Local;
 	self->parse_node.emit = Local_emit;
 	self->parse_node.emit_set = Local_emit_set;
 	self->block = block;

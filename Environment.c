@@ -3,6 +3,7 @@
 #include "ClassStatement.h"
 #include "BuiltinMethod.h"
 #include "MethodBuilder.h"
+#include "Upvalues.h"
 #include "String.h"
 #include "Dict.h"
 #include "Class.h"
@@ -161,7 +162,7 @@ void BlockContext_init(BlockContext* self, struct Block* block, Environment* par
 
 ParseNode* BlockUpvalueContext_find(Environment* super, String* name)
 {
-	BlockContext* self = (BlockContext*) super;
+	BlockUpvalueContext* self = (BlockUpvalueContext*) super;
 
 	FunctionStatement* function = Block_get_function(self->block, name);
 	if (function)
@@ -170,7 +171,17 @@ ParseNode* BlockUpvalueContext_find(Environment* super, String* name)
 	if (class_statement)
 		return ClassStatement_make_reference(class_statement);
 
-	return self->environment.parent->find(self->environment.parent, name);
+	ParseNode* node = self->environment.parent->find(self->environment.parent, name);
+	if (node->type == PN_Local) {
+		// It's a local in the block's method, turn it into an upvalue.
+		// If it were a local in an enclosing method, it would already be an
+		// UpvalueLocal.
+		Local* local = (Local*) node;
+		return (ParseNode*) new_UpvalueLocal(
+			self->method_builder->method,
+			local->block->locals_base + local->block_index);
+		}
+	return node;
 }
 
 Class* BlockUpvalueContext_get_class(Environment* super, String* name)
@@ -182,13 +193,17 @@ Class* BlockUpvalueContext_get_class(Environment* super, String* name)
 	return NULL;
 }
 
-void BlockUpvalueContext_init(BlockUpvalueContext* self, struct Block* block, Environment* parent)
+void BlockUpvalueContext_init(
+	BlockUpvalueContext* self,
+	struct Block* block, struct MethodBuilder* method_builder,
+	Environment* parent)
 {
 	self->environment.parent = parent;
 	self->environment.find = BlockUpvalueContext_find;
 	self->environment.find_autodeclaring = BlockUpvalueContext_find;
 	self->environment.get_class = BlockUpvalueContext_get_class;
 	self->block = block;
+	self->method_builder = method_builder;
 }
 
 

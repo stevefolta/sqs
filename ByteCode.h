@@ -51,6 +51,9 @@ enum {
 	BC_ARRAY_JOIN,	// array, dest
 	BC_NEW_DICT, 	// dest
 	BC_DICT_ADD, 	// dict, key, value
+
+	BC_GET_UPVAL, 	// enclosing method (literal), local offset, dest
+	BC_SET_UPVAL, 	// enclosing method (literal), local offset, src
 	};
 
 /* A call frame on the stack looks like this:

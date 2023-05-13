@@ -46,8 +46,12 @@ extern void BlockContext_init(BlockContext* self, struct Block* block, Environme
 typedef struct BlockUpvalueContext {
 	Environment environment;
 	struct Block* block;
+	struct MethodBuilder* method_builder;
 	} BlockUpvalueContext;
-extern void BlockUpvalueContext_init(BlockUpvalueContext* self, struct Block* block, Environment* parent);
+extern void BlockUpvalueContext_init(
+	BlockUpvalueContext* self,
+	struct Block* block, struct MethodBuilder* method_builder,
+	Environment* parent);
 
 typedef struct ForStatementContext {
 	Environment environment;

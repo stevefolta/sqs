@@ -20,6 +20,8 @@ enum {
 	PN_IfStatement,
 	PN_CallExpr,
 	PN_Variable,
+	PN_FunctionStatement,
+	PN_Local,
 	};
 
 typedef struct ParseNode {
@@ -248,4 +250,7 @@ typedef struct SuperCallExpr {
 	} SuperCallExpr;
 extern SuperCallExpr* new_SuperCallExpr(struct String* name);
 extern void SuperCallExpr_add_argument(SuperCallExpr* self, ParseNode* arg);
+
+
+extern int emit_literal(int literal_num, struct MethodBuilder* method);
 

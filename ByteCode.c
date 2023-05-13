@@ -21,6 +21,7 @@ static Object** suspended_fp;
 
 bool dump_requested = false;
 
+extern Object** get_upvalue_ptr(Method* method, int local_offset, Object** frame);
 
 void init_bytecode_interpreter()
 {
@@ -267,6 +268,22 @@ void interpret_bytecode(struct Method* method)
 				src = *pc++; 	// value
 				Dict_set_at((Dict*) DEREF(dest), (String*) value, DEREF(src));
 				break;
+
+			case BC_GET_UPVAL:
+				src = *pc++; 	// method
+				value = DEREF(src);
+				src = *pc++; 	// local offset
+				dest = *pc++;
+				frame[dest] = *get_upvalue_ptr((Method*) value, src, frame);
+				break;
+			case BC_SET_UPVAL:
+				src = *pc++; 	// method
+				value = DEREF(src);
+				dest = *pc++; 	// local offset
+				src = *pc++;
+				*get_upvalue_ptr((Method*) value, dest, frame) = DEREF(src);
+				break;
+
 			default:
 				Error("Internal error: bad bytecode %d.", opcode);
 				break;
@@ -521,6 +538,32 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 				printf("dict_add ([%d] => [%d]) to [%d]\n", key, src, dest);
 				}
 				break;
+			case BC_GET_UPVAL:
+				{
+				src = bytecode[++i];
+				printf("get_upval ([%d", src);
+				if (src < 0) {
+					printf(": ");
+					print_object(method->literals->items[-src - 1]);
+					}
+				src = bytecode[++i];
+				dest = bytecode[++i];
+				printf("], %d) -> [%d]\n", src, dest);
+				}
+				break;
+			case BC_SET_UPVAL:
+				{
+				src = bytecode[++i];
+				printf("set_upval ([%d", src);
+				if (src < 0) {
+					printf(": ");
+					print_object(method->literals->items[-src - 1]);
+					}
+				dest = bytecode[++i];
+				src = bytecode[++i];
+				printf("], %d) <- [%d]\n", dest, src);
+				}
+				break;
 			default:
 				printf("UNKNOWN %d\n", opcode);
 				break;
@@ -537,6 +580,23 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 		print_object(method->literals->items[i]);
 		printf("\n");
 		}
+}
+
+
+Object** get_upvalue_ptr(Method* method, int local_offset, Object** frame)
+{
+	// Look for nearest enclosing frame for "method".
+	while (frame > stack) {
+		// Is the enclosing frame for "method"?
+		if (frame[-1] == (Object*) method->literals->items)
+			return ((Object**) frame[-3]) + local_offset;
+
+		// Go up a frame.
+		frame = (Object**) frame[-3];
+		}
+
+	Error("Internal error: upvalue reference with no enclosing frame.");
+	return NULL;
 }
 
 
