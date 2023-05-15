@@ -202,6 +202,7 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 ClassStatement* new_ClassStatement(String* name)
 {
 	ClassStatement* self = alloc_obj(ClassStatement);
+	self->parse_node.type = PN_ClassStatement;
 	self->parse_node.emit = ClassStatement_emit;
 	self->built_class = new_Class(name);
 	self->functions = new_Dict();

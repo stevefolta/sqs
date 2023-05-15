@@ -246,6 +246,28 @@ if true
 	test("Upvalue set", "{foo} {bar} {baz}" == "foo blech baz")
 
 
+### Upvalue local thru classes ###
+
+arbeiter = "a"
+bier = "b"
+churro = "c"
+
+fn report(str)
+	print(str)
+
+class UpvalUp
+	class UpvalDown
+		try-it
+			test("Upvalue get thru enclosed class", bier == "b")
+			bier = "brie"
+	try-it
+		UpvalDown().try-it()
+
+UpvalUp().try-it()
+test("Upvalue set thru enclosed class", bier == "brie")
+
+
+
 ### FINAL ###
 
 print()

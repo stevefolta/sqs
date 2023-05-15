@@ -73,6 +73,16 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 
 			method->environment = context.environment.parent;
 			}
+		else if (statement->type == PN_ClassStatement) {
+			// Class.  Add upvalues to the context.
+			BlockUpvalueContext context;
+			BlockUpvalueContext_init(&context, self, method, method->environment);
+			method->environment = &context.environment;
+
+			statement->emit(statement, method);
+
+			method->environment = context.environment.parent;
+			}
 		else
 			statement->emit(statement, method);
 		}

@@ -21,6 +21,7 @@ enum {
 	PN_CallExpr,
 	PN_Variable,
 	PN_FunctionStatement,
+	PN_ClassStatement,
 	PN_Local,
 	};
 
