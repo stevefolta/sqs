@@ -172,7 +172,7 @@ ParseNode* BlockUpvalueContext_find(Environment* super, String* name)
 		return ClassStatement_make_reference(class_statement);
 
 	ParseNode* node = self->environment.parent->find(self->environment.parent, name);
-	if (node->type == PN_Local) {
+	if (node && node->type == PN_Local) {
 		// It's a local in the block's method, turn it into an upvalue.
 		// If it were a local in an enclosing method, it would already be an
 		// UpvalueLocal.
