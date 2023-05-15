@@ -19,8 +19,3 @@ typedef struct UpvalueLocal {
 	} UpvalueLocal;
 extern UpvalueLocal* new_UpvalueLocal(struct Method* method, int local_index);
 
-typedef struct UpvalueLocalPatchPoint {
-	struct MethodBuilder* method_builder;
-	int patch_point;
-	} UpvalueLocalPatchPoint;
-
