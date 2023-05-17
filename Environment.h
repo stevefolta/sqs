@@ -6,16 +6,16 @@ struct Dict;
 struct Object;
 struct Class;
 struct Block;
-struct MethodBulder;
+struct MethodBuilder;
 
 
 typedef struct Environment {
 	struct Environment* parent;
 	struct ParseNode* (*find)(struct Environment* self, struct String* name);
 	struct ParseNode* (*find_autodeclaring)(struct Environment* self, struct String* name);
-	struct Class* (*get_class)(struct Environment* self, struct String* name);
+	struct Class* (*get_class_for_superclass)(struct Environment* self, struct String* name, struct MethodBuilder* method);
 	} Environment;
-extern struct Class* Environment_find_class(Environment* self, struct String* name);
+extern struct Class* Environment_find_class_for_superclass(Environment* self, struct String* name, struct MethodBuilder* method);
 
 typedef struct GlobalEnvironment {
 	Environment environment;

@@ -136,9 +136,15 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	ClassStatement* self = (ClassStatement*) super;
 
+	if (self->is_built) {
+		// This was already built because it was someone's superclass.
+		return 0;
+		}
+	self->is_building = true;
+
 	// Superclass.
 	if (self->superclass_name) {
-		Class* superclass = Environment_find_class(method->environment, self->superclass_name);
+		Class* superclass = Environment_find_class_for_superclass(method->environment, self->superclass_name, method);
 		if (superclass == NULL)
 			Error("Couldn't find a superclass named \"%s\".", String_c_str(self->superclass_name));
 		self->built_class->superclass = superclass;
@@ -196,6 +202,8 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 		method->environment = enclosed_class_context.environment.parent;
 		}
 
+	self->is_building = false;
+	self->is_built = true;
 	return 0;
 }
 
@@ -323,7 +331,7 @@ ParseNode* ClassFunctionContext_find(Environment* super, String* name)
 	return NULL;
 }
 
-Class* ClassFunctionContext_get_class(struct Environment* super, String* name)
+Class* ClassFunctionContext_get_class_for_superclass(struct Environment* super, String* name, MethodBuilder* method)
 {
 	ClassFunctionContext* self = (ClassFunctionContext*) super;
 	ClassStatement* class_statement = self->class_statement;
@@ -339,7 +347,7 @@ void ClassFunctionContext_init(struct ClassFunctionContext* self, ClassStatement
 {
 	self->environment.parent = parent;
 	self->environment.find = ClassFunctionContext_find;
-	self->environment.get_class = ClassFunctionContext_get_class;
+	self->environment.get_class_for_superclass = ClassFunctionContext_get_class_for_superclass;
 	self->class_statement = class_statement;
 }
 
@@ -360,14 +368,26 @@ ParseNode* EnclosedClassContext_find(Environment* super, String* name)
 	return NULL;
 }
 
-Class* EnclosedClassContext_get_class(Environment* super, String* name)
+Class* EnclosedClassContext_get_class_for_superclass(Environment* super, String* name, MethodBuilder* method)
 {
 	EnclosedClassContext* self = (EnclosedClassContext*) super;
 	ClassStatement* class_statement = self->class_statement;
 
 	ClassStatement* enclosed_class = ClassStatement_get_enclosed_class(class_statement, name);
-	if (enclosed_class)
+	if (enclosed_class) {
+		// If it's building, that's a superclass mutual recursion.
+		if (enclosed_class->is_building) {
+			Error(
+				"Two classes can't be each other's superclass!  (One of them is \"%s\".)",
+				String_c_str(name));
+			}
+		// If it's not built yet, we need to build it now, so we know how many
+		// ivars it has.
+		if (!enclosed_class->is_built)
+			ClassStatement_emit((ParseNode*) enclosed_class, method);
+
 		return enclosed_class->built_class;
+		}
 
 	return NULL;
 }
@@ -376,7 +396,7 @@ void EnclosedClassContext_init(EnclosedClassContext* self, ClassStatement* class
 {
 	self->environment.parent = parent;
 	self->environment.find = EnclosedClassContext_find;
-	self->environment.get_class = EnclosedClassContext_get_class;
+	self->environment.get_class_for_superclass = EnclosedClassContext_get_class_for_superclass;
 	self->class_statement = class_statement;
 }
 

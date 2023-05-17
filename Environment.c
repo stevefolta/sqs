@@ -9,14 +9,15 @@
 #include "Class.h"
 #include "Object.h"
 #include "Memory.h"
+#include "Error.h"
 
 
-Class* Environment_find_class(Environment* self, struct String* name)
+Class* Environment_find_class_for_superclass(Environment* self, struct String* name, struct MethodBuilder* method)
 {
 	Environment* env = self;
 	while (env) {
-		if (env->get_class) {
-			Class* the_class = env->get_class(env, name);
+		if (env->get_class_for_superclass) {
+			Class* the_class = env->get_class_for_superclass(env, name, method);
 			if (the_class)
 				return the_class;
 			}
@@ -37,7 +38,7 @@ ParseNode* GlobalEnvironment_find(Environment* super, String* name)
 	return (ParseNode*) new_GlobalExpr(value);
 }
 
-Class* GlobalEnvironment_get_class(Environment* super, String* name)
+Class* GlobalEnvironment_get_class_for_superclass(Environment* super, String* name, MethodBuilder* method)
 {
 	GlobalEnvironment* self = (GlobalEnvironment*) super;
 	Object* value = Dict_at(self->dict, name);
@@ -50,7 +51,7 @@ void GlobalEnvironment_init()
 {
 	global_environment.environment.find = GlobalEnvironment_find;
 	global_environment.environment.find_autodeclaring = GlobalEnvironment_find;
-	global_environment.environment.get_class = GlobalEnvironment_get_class;
+	global_environment.environment.get_class_for_superclass = GlobalEnvironment_get_class_for_superclass;
 	global_environment.dict = new_Dict();
 }
 
@@ -140,7 +141,7 @@ ParseNode* BlockContext_find_autodeclaring(Environment* super, String* name)
 	return Block_autodeclare(self->block, name);
 }
 
-Class* BlockContext_get_class(Environment* super, String* name)
+Class* BlockContext_get_class_for_superclass(Environment* super, String* name, MethodBuilder* method)
 {
 	BlockContext* self = (BlockContext*) super;
 	ClassStatement* class_statement = Block_get_class(self->block, name);
@@ -154,7 +155,7 @@ void BlockContext_init(BlockContext* self, struct Block* block, Environment* par
 	self->environment.parent = parent;
 	self->environment.find = BlockContext_find;
 	self->environment.find_autodeclaring = BlockContext_find_autodeclaring;
-	self->environment.get_class = BlockContext_get_class;
+	self->environment.get_class_for_superclass = BlockContext_get_class_for_superclass;
 	self->block = block;
 }
 
@@ -184,12 +185,15 @@ ParseNode* BlockUpvalueContext_find(Environment* super, String* name)
 	return node;
 }
 
-Class* BlockUpvalueContext_get_class(Environment* super, String* name)
+Class* BlockUpvalueContext_get_class_for_superclass(Environment* super, String* name, MethodBuilder* method)
 {
 	BlockContext* self = (BlockContext*) super;
 	ClassStatement* class_statement = Block_get_class(self->block, name);
-	if (class_statement)
+	if (class_statement) {
+		if (!class_statement->is_built)
+			Error("A class can't have a superclass (\"%s\") that hasn't been defined yet.", String_c_str(name));
 		return class_statement->built_class;
+		}
 	return NULL;
 }
 
@@ -201,7 +205,7 @@ void BlockUpvalueContext_init(
 	self->environment.parent = parent;
 	self->environment.find = BlockUpvalueContext_find;
 	self->environment.find_autodeclaring = BlockUpvalueContext_find;
-	self->environment.get_class = BlockUpvalueContext_get_class;
+	self->environment.get_class_for_superclass = BlockUpvalueContext_get_class_for_superclass;
 	self->block = block;
 	self->method_builder = method_builder;
 }
@@ -222,7 +226,7 @@ void ForStatementContext_init(ForStatementContext* self, struct String* variable
 {
 	self->environment.find = ForStatementContext_find;
 	self->environment.find_autodeclaring = NULL;
-	self->environment.get_class = NULL;
+	self->environment.get_class_for_superclass = NULL;
 	self->variable_name = variable_name;
 	self->variable_loc = variable_loc;
 }

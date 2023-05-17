@@ -18,6 +18,7 @@ typedef struct ClassStatement {
 	struct Dict* enclosed_classes;
 
 	struct Class* built_class;
+	bool is_building, is_built;
 	} ClassStatement;
 ClassStatement* new_ClassStatement(struct String* name);
 
