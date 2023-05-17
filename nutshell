@@ -17,8 +17,10 @@ if name == "world"
 
 # Running other programs:
 run([ "echo" "Hello," "world" ])
+today = run([ "date", "+%Y-%m-%d" ], { capture = true }).output.trim()
+print("Today: {today}")
 
-# That's an array, here are some more:
+# Those are arrays, here are some more:
 array = [ "foo", 1, "bar" ] 	# Separate items with commas...
 array = [ "foo" 1 "bar" ] 	# ...or not.
 array.append("baz")
