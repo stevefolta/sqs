@@ -142,7 +142,7 @@ Object* ByteArray_slice(Object* super, Object** args)
 	result->size = result->capacity = size;
 	if (size > 0)
 		result->array = self->array + start;
-	return result;
+	return (Object*) result;
 }
 
 

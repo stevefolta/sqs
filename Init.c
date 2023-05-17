@@ -15,6 +15,7 @@
 #include "Run.h"
 #include "Glob.h"
 #include "File.h"
+#include "LinesIterator.h"
 #include "Regex.h"
 
 
@@ -32,6 +33,7 @@ void init_all()
 	BuiltinMethod_init_class();
 	Nil_init_class();
 	File_init_class();
+	LinesIterator_init_class();
 	Regex_init_class();
 
 	Run_init();

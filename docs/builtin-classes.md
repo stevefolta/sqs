@@ -35,6 +35,9 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 
 <dl>
 
+<dt> init(<i>[size]</i>) <dt>
+<dd> If size is given, the new ByteArray has the given size.  If not, it starts out empty. </dd>
+
 <dt> size </dt>
 <dd> Returns the number of bytes in the ByteArray. </dd>
 
