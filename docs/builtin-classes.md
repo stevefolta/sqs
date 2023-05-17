@@ -42,10 +42,13 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dd> Returns the integer value of the byte at <i>index</i>. </dd>
 
 <dt> []=(<i>index</i>, <i>value</i>) </dt>
-<dd> Sets the byte at <i>index</i>. </dd>
+<dd> Sets the byte at <i>index</i>. Grows the ByteArray if needed. </dd>
 
 <dt> as-string </dt>
 <dd> Returns a String with the bytes in the ByteArray.  Assumes UTF-8 encoding. </dd>
+
+<dt> slice(<i>start</i>, <i>size</i>) </dt>
+<dd> Returns a new ByteArray that's a slice of the original ByteArray.  Setting a byte within the slice will modify the original ByteArray, but setting a byte outside it will cause the slice to be "detached" and become a copy. </dd>
 	
 </dl>
 

@@ -44,12 +44,13 @@ void ByteArray_ensure_capacity(struct ByteArray* self, size_t needed_size)
 
 	size_t old_capacity = self->capacity;
 	self->capacity = needed_size + capacity_increment - (needed_size % capacity_increment);
+	uint8_t* new_array = (uint8_t*) alloc_mem_no_pointers(self->capacity * sizeof(uint8_t));
+	memset(new_array + old_capacity, 0, (self->capacity - old_capacity) * sizeof(uint8_t));
 	if (self->array) {
-		self->array = (uint8_t*) realloc_mem(self->array, self->capacity * sizeof(uint8_t));
-		memset(self->array + old_capacity, 0, (self->capacity - old_capacity) * sizeof(uint8_t));
+		// We'd use realloc_mem(), but this might be a slice of another ByteArray.
+		memcpy(new_array, self->array, old_capacity * sizeof(uint8_t));
 		}
-	else
-		self->array = (uint8_t*) alloc_mem_no_pointers(self->capacity * sizeof(uint8_t));
+	self->array = new_array;
 }
 
 void ByteArray_set_at(struct ByteArray* self, size_t index, uint8_t value)
@@ -124,6 +125,26 @@ Object* ByteArray_as_string_builtin(Object* super, Object** args)
 	return (Object*) ByteArray_as_string((ByteArray*) super);
 }
 
+Object* ByteArray_slice(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+
+	int start = Int_enforce(args[0], "ByteArray.slice");
+	int size = Int_enforce(args[1], "ByteArray.slice");
+	if (start + size > self->size) {
+		size = self->size - start;
+		if (size < 0)
+			start = size = 0;
+		}
+
+	ByteArray* result = alloc_obj(ByteArray);
+	result->class_ = &ByteArray_class;
+	result->size = result->capacity = size;
+	if (size > 0)
+		result->array = self->array + start;
+	return result;
+}
+
 
 void ByteArray_init_class()
 {
@@ -134,6 +155,7 @@ void ByteArray_init_class()
 		{ "[]", 1, ByteArray_at_builtin },
 		{ "[]=", 1, ByteArray_set_at_builtin },
 		{ "as-string", 0, ByteArray_as_string_builtin },
+		{ "slice", 2, ByteArray_slice },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&ByteArray_class, builtin_methods);
