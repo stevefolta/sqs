@@ -267,6 +267,18 @@ UpvalUp().try-it()
 test("Upvalue set thru enclosed class", bier == "brie")
 
 
+# External ivar access
+
+class Accessed
+	(x, y)
+	init
+		x = 12
+		y = 13
+
+it = Accessed()
+test("External ivar access", it.x == 12 && it.y == 13)
+
+
 
 ### FINAL ###
 
