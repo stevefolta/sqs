@@ -5,6 +5,8 @@ sqs
 
 [Built-in Classes](docs/builtin-classes.md)
 
+[Built-in Functions](docs/builtin-functions.md)
+
 
 
 
