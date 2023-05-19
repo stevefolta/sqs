@@ -6,6 +6,7 @@
 #include "Array.h"
 #include "Object.h"
 #include "Memory.h"
+#include "UTF8.h"
 #include "Error.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -804,7 +805,7 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 						if (c >= '0' && c <= '9')
 							value += c - '0';
 						else
-							Error("Bad \\x escape in line %d.", token.line_number);
+							Error("Bad \\0 escape in line %d.", token.line_number);
 						}
 					}
 					break;
@@ -814,8 +815,9 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 					const char* p_copy = p; 	// Let "p" stay in a register.
 					uint32_t value = parse_hex(&p_copy, end, (c == 'u' ? 4 : 8), token.line_number);
 					p = p_copy;
-					//*** TODO: add the UTF-8 character.
-					Error("Unicode escapes aren't (yet) supported (0x%X in line %d).", value, token.line_number);
+					if (value > 0x10FFFF)
+						Error("Invalid unicode character (0x%Xd) on line %d.", value, token.line_number);
+					unescaped_out += put_utf8(value, unescaped_out);
 					}
 					break;
 				default:

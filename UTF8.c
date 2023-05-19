@@ -46,3 +46,42 @@ bool is_valid_utf8(const char* bytes, int num_bytes)
 }
 
 
+int put_utf8(uint32_t c, char* utf8_out)
+{
+	uint8_t* p = (uint8_t*) utf8_out;
+
+	int bytes_left = 0;
+	if (c < 0x80)
+		*p++ = c;
+	else if (c < 0x800) {
+		*p++ = 0xC0 | (c >> 6);
+		bytes_left = 1;
+		}
+	else if (c < 0x10000) {
+		*p++ = 0xE0 | (c >> 12);
+		bytes_left = 2;
+		}
+	else if (c < 200000) {
+		*p++ = 0xF0 | (c >> 18);
+		bytes_left = 3;
+		}
+	else if (c < 0x04000000) {
+		*p++ = 0xF8 | (c >> 24);
+		bytes_left = 4;
+		}
+	else {
+		*p++ = 0xFC | (c >> 30);
+		bytes_left = 5;
+		}
+
+	int shift = (bytes_left - 1) * 6;
+	while (bytes_left-- > 0) {
+		*p++ = 0x80 | ((c >> shift) & 0x3F);
+		shift -= 6;
+		}
+
+	return p - (uint8_t*) utf8_out;
+}
+
+
+
