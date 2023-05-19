@@ -339,11 +339,16 @@ Object* String_ends_with_builtin(Object* super, Object** args)
 	return make_bool(String_ends_with((String*) super, other));
 }
 
-
 Object* String_is_valid_builtin(Object* super, Object** args)
 {
 	String* self = (String*) super;
 	return make_bool(is_valid_utf8(self->str, self->size));
+}
+
+Object* String_decode_8859_1_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	return (Object*) decode_8859_1((uint8_t*) self->str, self->size);
 }
 
 
@@ -370,6 +375,7 @@ void String_init_class()
 		{ "starts-with", 1, String_starts_with_builtin },
 		{ "ends-with", 1, String_ends_with_builtin },
 		{ "is-valid", 0, String_is_valid_builtin },
+		{ "decode-8859-1", 0, String_decode_8859_1_builtin },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);

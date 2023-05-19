@@ -28,6 +28,12 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dt> ends-with(<i>other</i>) </dt>
 <dd> Returns whether the string starts or ends with the other string. </dd>
 
+<dt> is-valid </dt>
+<dd> Returns whether the string is valid UTF-8. </dd>
+
+<dt> decode-8851-1 </dt>
+<dd> Returns another String (in normal UTF-8 encoding) with this String's bytes interpreted as being encoded in ISO-8851-1. </dd>
+
 </dl>
 
 
@@ -141,6 +147,12 @@ The Regex class supports Posix Extended Regular Expression Syntax.  It also supp
 
 <dt> slice(<i>start</i>, <i>size</i>) </dt>
 <dd> Returns a new ByteArray that's a slice of the original ByteArray.  Setting a byte within the slice will modify the original ByteArray, but setting a byte outside it will cause the slice to be "detached" and become a copy. </dd>
+
+<dt> is-valid-utf8 </dt>
+<dd> Returns whether the bytes represent valid UTF-8. </dd>
+
+<dt> decode-8851-1 </dt>
+<dd> Returns a String (in normal UTF-8 encoding) with the ByteArray's bytes interpreted as being encoded in ISO-8851-1. </dd>
 	
 </dl>
 

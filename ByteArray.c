@@ -153,6 +153,12 @@ Object* ByteArray_is_valid_utf8(Object* super, Object** args)
 	return make_bool(is_valid_utf8((const char*) self->array, self->size));
 }
 
+Object* ByteArray_decode_8859_1(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	return (Object*) decode_8859_1(self->array, self->size);
+}
+
 
 void ByteArray_init_class()
 {
@@ -165,6 +171,7 @@ void ByteArray_init_class()
 		{ "as-string", 0, ByteArray_as_string_builtin },
 		{ "slice", 2, ByteArray_slice },
 		{ "is-valid-utf8", 0, ByteArray_is_valid_utf8 },
+		{ "decode-8859-1", 0, ByteArray_decode_8859_1 },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&ByteArray_class, builtin_methods);

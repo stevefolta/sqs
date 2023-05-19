@@ -1,4 +1,6 @@
 #include "UTF8.h"
+#include "String.h"
+#include "Memory.h"
 
 
 int bytes_in_utf8_character(uint8_t byte)
@@ -81,6 +83,58 @@ int put_utf8(uint32_t c, char* utf8_out)
 		}
 
 	return p - (uint8_t*) utf8_out;
+}
+
+
+String* decode_8859_1(const uint8_t* bytes, size_t size)
+{
+	// First, figure out how many bytes we'll need.
+	size_t extra_bytes = 0;
+	const uint8_t* p = bytes;
+	const uint8_t* end = bytes + size;
+	while (p < end) {
+		uint8_t c = *p++;
+		if (c >= 0x80) {
+			if (c < 0xA0) {
+				// These characters are actually Windows-1252, and are not valid in
+				// ISO-8859-1, but standard practice is to accept Windows-1252 (a
+				// superset of ISO-8859-1) whenever ISO-8859-1 is specified.
+				// These characters range from U+0152 to U+2122, which all are
+				// represented in 3 bytes in UTF-8.
+				extra_bytes += 2;
+				}
+			else
+				extra_bytes += 1;
+			}
+		}
+
+	static uint32_t cp_1252_chars[32] = {
+		0x20AC, 0, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+		0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0, 0x017D, 0,
+		0, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+		0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0, 0x017E, 0x0178,
+		};
+
+	// Decode.
+	char* utf8_bytes = alloc_mem(size + extra_bytes);
+	p = bytes;
+	char* out = utf8_bytes;
+	while (p < end) {
+		uint8_t c = *p++;
+		if (c < 0x80)
+			*out++ = (char) c;
+		else if (c < 0xA0)
+			out += put_utf8(cp_1252_chars[c - 0x80], out);
+		else
+			out += put_utf8(c, out);
+		}
+
+	// Make and return the String.
+	String* result = alloc_obj(String);
+	result->class_ = &String_class;
+	result->str = utf8_bytes;
+	result->size = size + extra_bytes;
+	return result;
 }
 
 
