@@ -5,6 +5,7 @@
 #include "Boolean.h"
 #include "Nil.h"
 #include "Memory.h"
+#include "UTF8.h"
 #include "Error.h"
 #include <string.h>
 #include <stdbool.h>
@@ -339,6 +340,13 @@ Object* String_ends_with_builtin(Object* super, Object** args)
 }
 
 
+Object* String_is_valid_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	return make_bool(is_valid_utf8(self->str, self->size));
+}
+
+
 void String_init_class()
 {
 	init_static_class(String);
@@ -361,6 +369,7 @@ void String_init_class()
 		{ "split", 1, String_split_builtin },
 		{ "starts-with", 1, String_starts_with_builtin },
 		{ "ends-with", 1, String_ends_with_builtin },
+		{ "is-valid", 0, String_is_valid_builtin },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);

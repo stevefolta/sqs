@@ -1,7 +1,9 @@
 #include "ByteArray.h"
 #include "Int.h"
 #include "String.h"
+#include "Boolean.h"
 #include "Memory.h"
+#include "UTF8.h"
 #include "Error.h"
 #include <stddef.h>
 #include <stdlib.h>
@@ -145,6 +147,12 @@ Object* ByteArray_slice(Object* super, Object** args)
 	return (Object*) result;
 }
 
+Object* ByteArray_is_valid_utf8(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	return make_bool(is_valid_utf8((const char*) self->array, self->size));
+}
+
 
 void ByteArray_init_class()
 {
@@ -156,6 +164,7 @@ void ByteArray_init_class()
 		{ "[]=", 1, ByteArray_set_at_builtin },
 		{ "as-string", 0, ByteArray_as_string_builtin },
 		{ "slice", 2, ByteArray_slice },
+		{ "is-valid-utf8", 0, ByteArray_is_valid_utf8 },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&ByteArray_class, builtin_methods);
