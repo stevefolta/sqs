@@ -12,7 +12,7 @@ SOURCES += BuiltinMethod.c
 SOURCES += Class.c Object.c Init.c
 SOURCES += String.c Boolean.c Int.c Array.c Dict.c ByteArray.c Nil.c
 SOURCES += File.c LinesIterator.c Regex.c
-SOURCES += Print.c Run.c Glob.c
+SOURCES += Print.c Run.c Glob.c Path.c
 SOURCES += Error.c UTF8.c
 LIBRARIES = gc
 
