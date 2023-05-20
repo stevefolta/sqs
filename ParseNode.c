@@ -916,10 +916,28 @@ int RawLoc_emit(ParseNode* super, MethodBuilder* method)
 	return self->loc;
 }
 
+int RawLoc_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
+{
+	RawLoc* self = (RawLoc*) super;
+	if (self->loc < 0)
+		Error("Internal error: attempt to set a literal.");
+
+	int orig_locals = method->cur_num_variables;
+	int value_loc = value->emit(value, method);
+
+	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
+	MethodBuilder_add_bytecode(method, value_loc);
+	MethodBuilder_add_bytecode(method, self->loc);
+
+	method->cur_num_variables = orig_locals;
+	return self->loc;
+}
+
 RawLoc* new_RawLoc(int loc)
 {
 	RawLoc* self = alloc_obj(RawLoc);
 	self->parse_node.emit = RawLoc_emit;
+	self->parse_node.emit_set = RawLoc_emit_set;
 	self->loc = loc;
 	return self;
 }
