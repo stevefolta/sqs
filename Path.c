@@ -51,14 +51,37 @@ Object* Path_init(Object* super, Object** args)
 }
 
 
+Object* Path_string(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+	return (Object*) new_static_String(self->path, strlen(self->path));
+}
+
+Object* Path_exists(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+
+	struct stat info;
+	int result = stat(self->path, &info);
+	if (result != 0) {
+		if (errno == ENOENT)
+			return &false_obj;
+		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+		}
+	return &true_obj;
+}
+
 Object* Path_is_file(Object* super, Object** args)
 {
 	Path* self = (Path*) super;
 
 	struct stat info;
 	int result = stat(self->path, &info);
-	if (result != 0)
+	if (result != 0) {
+		if (errno == ENOENT)
+			return &false_obj;
 		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+		}
 	return make_bool(S_ISREG(info.st_mode));
 }
 
@@ -68,8 +91,11 @@ Object* Path_is_dir(Object* super, Object** args)
 
 	struct stat info;
 	int result = stat(self->path, &info);
-	if (result != 0)
+	if (result != 0) {
+		if (errno == ENOENT)
+			return &false_obj;
 		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+		}
 	return make_bool(S_ISDIR(info.st_mode));
 }
 
@@ -79,8 +105,11 @@ Object* Path_is_symlink(Object* super, Object** args)
 
 	struct stat info;
 	int result = lstat(self->path, &info);
-	if (result != 0)
+	if (result != 0) {
+		if (errno == ENOENT)
+			return &false_obj;
 		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+		}
 	return make_bool(S_ISLNK(info.st_mode));
 }
 
@@ -96,12 +125,14 @@ Object* Path_size(Object* super, Object** args)
 }
 
 
-void Path_class_init()
+void Path_init_class()
 {
 	init_static_class(Path);
 
 	static const BuiltinMethodSpec builtin_methods[] = {
 		{ "init", 2, Path_init },
+		{ "string", 0, Path_string },
+		{ "exists", 0, Path_exists },
 		{ "is-file", 0, Path_is_file },
 		{ "is-dir", 0, Path_is_dir },
 		{ "is-symlink", 0, Path_is_symlink },

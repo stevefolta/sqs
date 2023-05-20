@@ -17,6 +17,7 @@
 #include "File.h"
 #include "LinesIterator.h"
 #include "Regex.h"
+#include "Path.h"
 
 
 void init_all()
@@ -35,6 +36,7 @@ void init_all()
 	File_init_class();
 	LinesIterator_init_class();
 	Regex_init_class();
+	Path_init_class();
 
 	Run_init();
 
@@ -47,6 +49,7 @@ void init_all()
 	GlobalEnvironment_add_class(&Dict_class);
 	GlobalEnvironment_add_class(&File_class);
 	GlobalEnvironment_add_class(&Regex_class);
+	GlobalEnvironment_add_class(&Path_class);
 }
 
 

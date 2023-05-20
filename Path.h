@@ -9,6 +9,6 @@ typedef struct Path {
 	} Path;
 
 extern struct Class Path_class;
-extern void Path_class_init();
+extern void Path_init_class();
 
 
