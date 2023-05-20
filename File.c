@@ -1,8 +1,10 @@
 #include "File.h"
 #include "String.h"
+#include "Path.h"
 #include "LinesIterator.h"
 #include "ByteArray.h"
 #include "Int.h"
+#include "ByteCode.h"
 #include "Memory.h"
 #include "Error.h"
 #include <stdio.h>
@@ -22,14 +24,24 @@ Object* File_init(Object* super, Object** args)
 	File* self = (File*) super;
 
 	// Arguments.
-	String* path = String_enforce(args[0], "File.init");
+	const char* path = NULL;
+	if (args[0] == NULL)
+		Error("File() needs a path.");
+	else if (args[0]->class_ == &Path_class)
+		path = ((Path*) args[0])->path;
+	else if (args[0]->class_ == &String_class)
+		path = String_c_str((String*) args[0]);
+	else {
+		String* obj_string = (String*) call_object(args[0], new_c_static_String("string"), NULL);
+		Error("File()'s path argument must be a Path or a String (got %s).", String_c_str(obj_string));
+		}
 	const char* mode = "r";
 	if (args[1] && args[1]->class_ == &String_class)
 		mode = String_c_str((String*) args[1]);
 
-	self->file = fopen(String_c_str(path), mode);
+	self->file = fopen(path, mode);
 	if (self->file == NULL)
-		Error("Error opening file \"%s\" (%s).", String_c_str(path), strerror(errno));
+		Error("Error opening file \"%s\" (%s).", path, strerror(errno));
 
 	return super;
 }
