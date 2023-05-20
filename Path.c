@@ -8,6 +8,8 @@
 #include "Error.h"
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <string.h>
 #include <errno.h>
 
@@ -125,6 +127,29 @@ Object* Path_size(Object* super, Object** args)
 }
 
 
+Object* Path_can_access(Object* super, int mode)
+{
+	Path* self = (Path*) super;
+	int result = faccessat(AT_FDCWD, self->path, mode, AT_EACCESS);
+	return make_bool(result == 0);
+}
+
+Object* Path_can_read(Object* super, Object** args)
+{
+	return Path_can_access(super, R_OK);
+}
+
+Object* Path_can_write(Object* super, Object** args)
+{
+	return Path_can_access(super, W_OK);
+}
+
+Object* Path_can_execute(Object* super, Object** args)
+{
+	return Path_can_access(super, X_OK);
+}
+
+
 void Path_init_class()
 {
 	init_static_class(Path);
@@ -137,6 +162,9 @@ void Path_init_class()
 		{ "is-dir", 0, Path_is_dir },
 		{ "is-symlink", 0, Path_is_symlink },
 		{ "size", 0, Path_size },
+		{ "can-read", 0, Path_can_read },
+		{ "can-write", 0, Path_can_write },
+		{ "can-execute", 0, Path_can_execute },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Path_class, builtin_methods);
