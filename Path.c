@@ -59,6 +59,35 @@ Object* Path_string(Object* super, Object** args)
 	return (Object*) new_static_String(self->path, strlen(self->path));
 }
 
+Object* Path_basename(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+	char* start_char = strrchr(self->path, '/');
+	if (start_char)
+		start_char += 1;
+	else
+		start_char = self->path;
+	return (Object*) new_static_String(start_char, strlen(start_char));
+}
+
+Object* Path_dirname(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+	char* end_char = strrchr(self->path, '/');
+	if (end_char == NULL)
+		return (Object*) new_c_static_String(".");
+
+	// Trim any additional trailing slashes.
+	while (end_char > self->path && end_char[-1] == '/')
+		end_char -= 1;
+	if (end_char == self->path) {
+		// Went too far!  The path is "/".
+		end_char += 1;
+		}
+
+	return (Object*) new_static_String(self->path, end_char - self->path);
+}
+
 Object* Path_exists(Object* super, Object** args)
 {
 	Path* self = (Path*) super;
@@ -157,6 +186,10 @@ void Path_init_class()
 	static const BuiltinMethodSpec builtin_methods[] = {
 		{ "init", 2, Path_init },
 		{ "string", 0, Path_string },
+		{ "basename", 0, Path_basename },
+		{ "base-name", 0, Path_basename },
+		{ "dirname", 0, Path_dirname },
+		{ "dir-name", 0, Path_dirname },
 		{ "exists", 0, Path_exists },
 		{ "is-file", 0, Path_is_file },
 		{ "is-dir", 0, Path_is_dir },

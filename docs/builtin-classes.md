@@ -126,6 +126,32 @@ The Regex class supports Posix Extended Regular Expression Syntax.  It also supp
 </dl>
 
 
+## Path
+
+Represents the path of a file or directory in the filesystem.  Basic tilde expansion is done (`~`, `~/foo/bar`), but not any more advanced tilde expansion (`~someuser/foo`).
+
+<dt> init(<i>string</i>) </dt>
+<dd> Creates the path, doing basic tilde expansion. </dd>
+
+<dt> basename, base-name </dt>
+<dd> Returns the last component of the path. </dd>
+
+<dt> dirname, dir-name </dt>
+<dd> Returns the path without its last component. <dd>
+
+<dt> exists </dt>
+<dd> Returns whether a file or directory exists at the path. </dd>
+
+<dt> is-file, is-dir, is-symlink </dt>
+<dd> Returns whether a filesystem entry exists at the path and is of that type. </dd>
+
+<dt> can-read, can-write, can-execute </dt>
+<dd> Returns whether the current user has permission to do the given operation. </dd>
+
+<dt> size </dt>
+<dd> For a file, returns the size of the file in bytes. </dd>
+
+
 ## ByteArray
 
 <dl>
