@@ -100,42 +100,42 @@ Object* Int_right_shift(Object* super, Object** args)
 
 Object* Int_equals(Object* super, Object** args)
 {
-	if (args[0] && args[0]->class_ != &Int_class)
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
 		return &false_obj;
 	return make_bool(Int_value(super) == Int_value(args[0]));
 }
 
 Object* Int_not_equals(Object* super, Object** args)
 {
-	if (args[0] && args[0]->class_ != &Int_class)
-		return &false_obj;
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
+		return &true_obj;
 	return make_bool(Int_value(super) != Int_value(args[0]));
 }
 
 Object* Int_less_than(Object* super, Object** args)
 {
-	if (args[0] && args[0]->class_ != &Int_class)
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
 		return &false_obj;
 	return make_bool(Int_value(super) < Int_value(args[0]));
 }
 
 Object* Int_greater_than(Object* super, Object** args)
 {
-	if (args[0] && args[0]->class_ != &Int_class)
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
 		return &false_obj;
 	return make_bool(Int_value(super) > Int_value(args[0]));
 }
 
 Object* Int_less_than_or_equal(Object* super, Object** args)
 {
-	if (args[0] && args[0]->class_ != &Int_class)
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
 		return &false_obj;
 	return make_bool(Int_value(super) <= Int_value(args[0]));
 }
 
 Object* Int_greater_than_or_equal(Object* super, Object** args)
 {
-	if (args[0] && args[0]->class_ != &Int_class)
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
 		return &false_obj;
 	return make_bool(Int_value(super) >= Int_value(args[0]));
 }
