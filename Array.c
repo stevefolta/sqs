@@ -167,15 +167,24 @@ static Object* Array_string_builtin(Object* super, Object** args)
 static Object* Array_at_builtin(Object* super, Object** args)
 {
 	Array* self = (Array*) super;
-	Int_enforce(args[0], "Array.[]");
-	return Array_at(self, ((Int*) args[0])->value);
+	int index = Int_enforce(args[0], "Array.[]");
+	if (index < 0)
+		index += self->size;
+	return Array_at(self, index);
 }
 
 static Object* Array_at_set_builtin(Object* super, Object** args)
 {
 	Array* self = (Array*) super;
-	Int_enforce(args[0], "Array.[]=");
-	return Array_set_at(self, ((Int*) args[0])->value, args[1]);
+	int index = Int_enforce(args[0], "Array.[]=");
+	if (index < 0) {
+		index += self->size;
+		if (index >= self->size) {
+			// Don't allow this, it would grow the array to way too large a size.
+			Error("Negative array index out of bounds.");
+			}
+		}
+	return Array_set_at(self, index, args[1]);
 }
 
 static Object* Array_append_builtin(Object* super, Object** args)

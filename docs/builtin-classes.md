@@ -45,7 +45,7 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dd> Returns the size of the array. </dd>
 
 <dt> [](<i>index</i>) </dt>
-<dd> Return the item at the index.  Results in an error if the index is out-of-range. </dd>
+<dd> Return the item at the index.  Negative indexes select items from the back of the array.  Results in an error if the index is out-of-range. </dd>
 
 <dt> []=(<i>index</i>, <i>value</i>) </dt>
 <dd> Sets the item at the index, growing the array if needed. </dd>

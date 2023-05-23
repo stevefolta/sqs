@@ -127,6 +127,9 @@ test("Array size", foo.size == 3)
 test("Array.join", foo.join(', ') == "foo, yuhuh, baz")
 bar = [ "alpha" "beta" "gamma" ]
 test("Array add", (foo + bar).join(', ') == "foo, yuhuh, baz, alpha, beta, gamma")
+test("Array negative index", foo[-2] == "yuhuh")
+foo[-1] = "nuhuh"
+test("Array negative index set", foo[2] == "nuhuh")
 
 
 ### Dicts ###
