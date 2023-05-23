@@ -158,6 +158,8 @@ static Object* Array_size_builtin(Object* super, Object** args)
 static Object* Array_string_builtin(Object* super, Object** args)
 {
 	Array* self = (Array*) super;
+	if (self->size == 0)
+		return (Object*) new_c_static_String("[]");
 	String* joined = Array_join(self, new_c_static_String(", "));
 	Array* capped = new_Array();
 	Array_append(capped, (Object*) new_c_static_String("["));
