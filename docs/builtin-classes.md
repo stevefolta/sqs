@@ -65,6 +65,12 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dt> back </dt>
 <dd> Returns the last item in the array. </dd>
 
+<dt> slice(<i>start</i>, <i>[end]</i>) </dt>
+<dd> Return a slice of the array from the start index (inclusive) to the end index (non-inclusive).  If <i>end</i> isn't given, the end of the array is used. </dd>
+
+<dt> copy </dt>
+<dd> Returns a shallow copy of the array. </dd>
+
 <dt> iterator </dt>
 <dd> Returns a new iterator on the array.  Mostly used by the "for" statement. </dd>
 

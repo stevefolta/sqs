@@ -16,6 +16,8 @@ extern void ArrayIterator_init_class();
 
 Class Array_class;
 
+Array empty_array = { &Array_class, 0, 0, NULL };
+
 
 Array* new_Array()
 {
@@ -237,6 +239,34 @@ static Object* Array_back_builtin(Object* super, Object** args)
 	return Array_back((Array*) super);
 }
 
+static Object* Array_copy_builtin(Object* super, Object** args)
+{
+	return (Object*) Array_copy((Array*) super);
+}
+
+static Object* Array_slice_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	int start = args[0] ? Int_enforce(args[0], "Array.slice") : 0;
+	int end = args[1] ? Int_enforce(args[1], "Array.slice") : self->size;
+	if (start < 0)
+		start += self->size;
+	if (start >= self->size)
+		return (Object*) &empty_array;
+	if (end < 0)
+		end += self->size;
+	if (end < start)
+		return (Object*) &empty_array;
+	else if (end > self->size)
+		end = self->size;
+
+	Array* slice = alloc_obj(Array);
+	slice->class_ = &Array_class;
+	slice->size = slice->capacity = end - start;
+	slice->items = self->items + start;
+	return (Object*) slice;
+}
+
 
 void Array_init_class()
 {
@@ -254,6 +284,8 @@ void Array_init_class()
 		{ "pop", 0, Array_pop_back_builtin },
 		{ "pop-back", 0, Array_pop_back_builtin },
 		{ "back", 0, Array_back_builtin },
+		{ "copy", 0, Array_copy_builtin },
+		{ "slice", 2, Array_slice_builtin },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Array_class, builtin_methods);
