@@ -3,6 +3,7 @@
 #include "Object.h"
 #include "String.h"
 #include "Int.h"
+#include "Boolean.h"
 #include "ByteCode.h"
 #include "Memory.h"
 #include "Error.h"
@@ -269,6 +270,19 @@ static Object* Array_slice_builtin(Object* super, Object** args)
 	return (Object*) slice;
 }
 
+static Object* Array_contains_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	declare_static_string(equals_string, "==");
+	for (int i = 0; i < self->size; ++i) {
+		Object* items[] = { self->items[i] };
+		Array args_array = { &Array_class, 1, 1, items };
+		if (IS_TRUTHY(call_object(args[0], &equals_string, &args_array)))
+			return &true_obj;
+		}
+	return &false_obj;
+}
+
 
 void Array_init_class()
 {
@@ -288,6 +302,7 @@ void Array_init_class()
 		{ "back", 0, Array_back_builtin },
 		{ "copy", 0, Array_copy_builtin },
 		{ "slice", 2, Array_slice_builtin },
+		{ "contains", 1, Array_contains_builtin },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Array_class, builtin_methods);
