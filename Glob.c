@@ -14,8 +14,8 @@ static void Glob_init()
 {
 	String_init_static_c(&mark_directories, "mark-directories");
 	String_init_static_c(&sort, "sort");
-	String_init_static_c(&escape, "sort");
-	String_init_static_c(&tilde, "escape");
+	String_init_static_c(&escape, "escape");
+	String_init_static_c(&tilde, "tilde");
 
 	Glob_initialized = true;
 }
