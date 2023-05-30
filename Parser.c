@@ -560,7 +560,7 @@ ParseNode* Parser_parse_unary_expression(Parser* self)
 
 Array* Parser_parse_arguments(Parser* self)
 {
-	Lexer_next(self->lexer); 	// Consume "(".
+	Token start_token = Lexer_next(self->lexer); 	// Consume "(".
 
 	Array* args = new_Array();
 
@@ -573,8 +573,10 @@ Array* Parser_parse_arguments(Parser* self)
 			break;
 			}
 		if (need_comma) {
+			if (next_token.type == EndOfText)
+				Error("Unterminated argument list starting at line %d.", start_token.line_number);
 			if (next_token.type != Operator || !String_equals_c(next_token.token, ","))
-				Error("Comma expected between argument in line %d.", next_token.line_number);
+				Error("Comma expected between arguments in line %d.", next_token.line_number);
 			Lexer_next(self->lexer);
 			need_comma = false;
 			}
