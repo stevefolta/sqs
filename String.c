@@ -339,6 +339,26 @@ Object* String_ends_with_builtin(Object* super, Object** args)
 	return make_bool(String_ends_with((String*) super, other));
 }
 
+Object* String_contains_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	String* other = String_enforce(args[0], "String.contains");
+	// memmem() is not part of Posix, so we have to do it ourself.
+	const char* haystack_end = self->str + self->size - other->size + 1;
+	const char* needle_end = other->str + other->size;
+	for (const char* haystack_p = self->str; haystack_p < haystack_end; ++haystack_p) {
+		const char* needle_p = other->str;
+		const char* cur_haystack_p = haystack_p;
+		for (; needle_p < needle_end; ++needle_p, ++cur_haystack_p) {
+			if (*cur_haystack_p != *needle_p)
+				break;
+			}
+		if (needle_p == needle_end)
+			return &true_obj;
+		}
+	return &false_obj;
+}
+
 Object* String_is_valid_builtin(Object* super, Object** args)
 {
 	String* self = (String*) super;
@@ -374,6 +394,7 @@ void String_init_class()
 		{ "split", 1, String_split_builtin },
 		{ "starts-with", 1, String_starts_with_builtin },
 		{ "ends-with", 1, String_ends_with_builtin },
+		{ "contains", 1, String_contains_builtin },
 		{ "is-valid", 0, String_is_valid_builtin },
 		{ "decode-8859-1", 0, String_decode_8859_1_builtin },
 		{ NULL, 0, NULL },
