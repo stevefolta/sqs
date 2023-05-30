@@ -28,6 +28,9 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dt> ends-with(<i>other</i>) </dt>
 <dd> Returns whether the string starts or ends with the other string. </dd>
 
+<dt> contains(<i>other</i>) </dt>
+<dd> Returns whether the string contains the other string. </dd>
+
 <dt> is-valid </dt>
 <dd> Returns whether the string is valid UTF-8. </dd>
 
@@ -74,6 +77,9 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dt> iterator </dt>
 <dd> Returns a new iterator on the array.  Mostly used by the "for" statement. </dd>
 
+<dt> contains(<i>item</i>) </dt>
+<dd> Returns whether the array contains the item. </dd>
+
 </dl>
 
 # Dict
@@ -88,6 +94,9 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 
 <dt> size </dt>
 <dd> Returns the number of keys/values in the Dict. </dd>
+
+<dt> contains(<i>key</i>) </dt>
+<dd> Returns whether the Dict contains the key. </dd>
 
 <dt> iterator </dt>
 <dd> Returns an iterator on the Dict.  Mostly used by the "for" statement.  The iterator's "next" method returns an object with "key" and "value" methods (or "nil" when it reaches the end). </dd>

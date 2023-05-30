@@ -285,6 +285,13 @@ static Object* Dict_size_builtin(Object* super, Object** args)
 	return (Object*) new_Int(((Dict*) super)->size);
 }
 
+static Object* Dict_contains_builtin(Object* super, Object** args)
+{
+	Dict* self = (Dict*) super;
+	String* key = String_enforce(args[0], "Dict.contains");
+	return make_bool(Dict_at(self, key) != NULL);
+}
+
 
 static Object* DictIterator_next_builtin(Object* super, Object** args)
 {
@@ -318,6 +325,7 @@ void Dict_init_class()
 		{ "[]=", 1, Dict_set_at_builtin },
 		{ "iterator", 0, Dict_iterator_builtin },
 		{ "size", 0, Dict_size_builtin },
+		{ "contains", 0, Dict_contains_builtin },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Dict_class, builtin_methods);
