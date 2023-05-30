@@ -19,6 +19,7 @@
 #include "Regex.h"
 #include "Path.h"
 #include "Env.h"
+#include "Sleep.h"
 
 
 void init_all()
@@ -46,6 +47,7 @@ void init_all()
 	GlobalEnvironment_add_fn("print", 2, Print);
 	GlobalEnvironment_add_fn("run", 2, Run);
 	GlobalEnvironment_add_fn("glob", 2, Glob);
+	GlobalEnvironment_add_fn("sleep", 1, Sleep);
 	GlobalEnvironment_add_class(&Array_class);
 	GlobalEnvironment_add_class(&ByteArray_class);
 	GlobalEnvironment_add_class(&Dict_class);
