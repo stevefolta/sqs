@@ -48,6 +48,7 @@ enum {
 
 	BC_NEW_ARRAY, 	// dest
 	BC_ARRAY_APPEND,	// array, item
+	BC_ARRAY_APPEND_STRINGS, 	// array, item
 	BC_ARRAY_JOIN,	// array, dest
 	BC_NEW_DICT, 	// dest
 	BC_DICT_ADD, 	// dict, key, value

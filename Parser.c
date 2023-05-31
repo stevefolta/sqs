@@ -2,6 +2,7 @@
 #include "Lexer.h"
 #include "ParseNode.h"
 #include "ClassStatement.h"
+#include "RunStatement.h"
 #include "String.h"
 #include "Array.h"
 #include "Object.h"
@@ -21,7 +22,6 @@ extern ParseNode* Parser_parse_break_statement(Parser* self);
 extern ParseNode* Parser_parse_return_statement(Parser* self);
 extern ParseNode* Parser_parse_with_statement(Parser* self);
 extern ParseNode* Parser_parse_fn_statement(Parser* self);
-extern ParseNode* Parser_parse_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_or_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_and_expression(Parser* self);
 extern ParseNode* Parser_parse_inclusive_or_expression(Parser* self);
@@ -35,7 +35,6 @@ extern ParseNode* Parser_parse_multiplicative_expression(Parser* self);
 extern ParseNode* Parser_parse_unary_expression(Parser* self);
 extern ParseNode* Parser_parse_postfix_expression(Parser* self);
 extern ParseNode* Parser_parse_primary_expression(Parser* self);
-extern ParseNode* Parser_parse_string_literal(Parser* self);
 extern ParseNode* Parser_parse_array_literal(Parser* self);
 extern ParseNode* Parser_parse_dict_literal(Parser* self);
 extern ParseNode* Parser_parse_super_call(Parser* self);
@@ -108,6 +107,7 @@ static StatementParser statement_parsers[] = {
 	{ "with", &Parser_parse_with_statement },
 	{ "fn", &Parser_parse_fn_statement },
 	{ "class", &Parser_parse_class_statement },
+	{ "$", &Parser_parse_run_statement },
 	};
 
 ParseNode* Parser_parse_statement(Parser* self)

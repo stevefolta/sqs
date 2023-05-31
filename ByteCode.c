@@ -251,6 +251,11 @@ void interpret_bytecode(struct Method* method)
 				src = *pc++;
 				Array_append((Array*) DEREF(dest), DEREF(src));
 				break;
+			case BC_ARRAY_APPEND_STRINGS:
+				dest = *pc++;
+				src = *pc++;
+				Array_append_strings((Array*) DEREF(dest), DEREF(src));
+				break;
 			case BC_ARRAY_JOIN:
 				src = *pc++;
 				dest = *pc++;
@@ -520,6 +525,11 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 				dest = bytecode[++i];
 				src = bytecode[++i];
 				printf("array_append [%d] into [%d]\n", src, dest);
+				break;
+			case BC_ARRAY_APPEND_STRINGS:
+				dest = bytecode[++i];
+				src = bytecode[++i];
+				printf("array_append_strings [%d] into [%d]\n", src, dest);
 				break;
 			case BC_ARRAY_JOIN:
 				src = bytecode[++i];

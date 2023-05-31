@@ -67,6 +67,28 @@ Object* Array_append(struct Array* self, Object* value)
 }
 
 
+void Array_append_strings(Array* self, Object* value)
+{
+	declare_static_string(string_string, "string");
+
+	if (value->class_ == &Array_class) {
+		// Splice in the array.
+		Array* other = (Array*) value;
+		for (int i = 0; i < other->size; ++i) {
+			Object* item = other->items[i];
+			if (item->class_ != &String_class)
+				item = call_object(item, &string_string, NULL);
+			Array_append(self, item);
+			}
+		}
+	else {
+		if (value->class_ != &String_class)
+			value = call_object(value, &string_string, NULL);
+		Array_append(self, value);
+		}
+}
+
+
 Object* Array_pop_back(Array* self)
 {
 	if (self->size == 0)

@@ -243,6 +243,10 @@ Token Lexer_next_token(struct Lexer* self)
 			result.type = Operator;
 			break;
 
+		case '$':
+			result.type = Identifier;
+			break;
+
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
 		number:
