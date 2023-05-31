@@ -151,21 +151,28 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 		statement->if_block = Parser_parse_block(self);
 		}
 	Token next_token = Lexer_peek(self->lexer);
-	if (next_token.type == Identifier && String_equals_c(next_token.token, "else")) {
-		Lexer_next(self->lexer);
-		next_token = Lexer_peek(self->lexer);
-		if (next_token.type == Identifier && String_equals_c(next_token.token, "if"))
-			statement->else_block = Parser_parse_if_statement(self);
-		else {
-			if (next_token.type != EOL)
-				Error("Extra tokens at end of \"else\" in line %d.", next_token.line_number);
+	if (next_token.type == Identifier) {
+		if (String_equals_c(next_token.token, "else")) {
 			Lexer_next(self->lexer);
-			if (Lexer_peek(self->lexer).type == Indent) {
+			next_token = Lexer_peek(self->lexer);
+			if (next_token.type == Identifier && String_equals_c(next_token.token, "if"))
+				statement->else_block = Parser_parse_if_statement(self);
+			else {
+				if (next_token.type != EOL)
+					Error("Extra tokens at end of \"else\" in line %d.", next_token.line_number);
 				Lexer_next(self->lexer);
-				statement->else_block = Parser_parse_block(self);
+				if (Lexer_peek(self->lexer).type == Indent) {
+					Lexer_next(self->lexer);
+					statement->else_block = Parser_parse_block(self);
+					}
 				}
 			}
+		else if (String_equals_c(next_token.token, "elif")) {
+			// Don't consume the "elif", the recursive call will do that.
+			statement->else_block = Parser_parse_if_statement(self);
+			}
 		}
+
 	return (ParseNode*) statement;
 }
 
