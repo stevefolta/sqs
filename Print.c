@@ -9,21 +9,13 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-static String end_option, file_option;
-static bool Print_initialized = false;
+declare_static_string(end_option, "end");
+declare_static_string(file_option, "file");
+declare_static_string(out_option, "out");
 
-static void Print_init()
-{
-	String_init_static_c(&end_option, "end");
-	String_init_static_c(&file_option, "file");
-	Print_initialized = true;
-}
 
 struct Object* Print(struct Object* self, struct Object** args)
 {
-	if (!Print_initialized)
-		Print_init();
-
 	// Get the options.
 	String* end_string = NULL;
 	Object* file_object = NULL;
@@ -34,8 +26,10 @@ struct Object* Print(struct Object* self, struct Object** args)
 		if (end_string)
 			String_enforce((Object*) end_string, "print() \"end\" option");
 
-		// "file"
+		// "file" or "out"
 		file_object = Dict_at(options, &file_option);
+		if (file_object == NULL)
+			file_object = Dict_at(options, &out_option);
 		}
 
 	if (args[0]) {

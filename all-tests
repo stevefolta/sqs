@@ -154,13 +154,15 @@ with file = File(path, "w")
 
 expected_lines = [ "Hello", "Right on!" ]
 ok = true
+index = 0
 with file = File(path)
-	index = 0
 	for line: file.lines
 		if line != expected_lines[index]
 			ok = false
 			break
 		index += 1
+if index != expected_lines.size
+	ok = false
 test("File write and read", ok)
 
 

@@ -5,7 +5,7 @@ sqs Built-in Functions
 
 <dt> print(<i>[object]</i>, <i>[options]</i>) </dt>
 <dd>
-Prints the object.  If it's not a String, the <code>string</code> method will be called on it.  <i>options</i> is a dictionary.  If a <code>file</code> option is given, the object is written to the file (by calling its <code>write()</code> method) instead of to stdout.  If an <code>end</code> option is given, that is printed at the end instead of a newline (it can be an empty string).  If no arguments are given, a newline is printed to stdout.
+Prints the object.  If it's not a String, the <code>string</code> method will be called on it.  <i>options</i>, if given, must be a Dict.  If a <code>file</code> or <code>out</code> option is given, the object is written to it (by calling its <code>write()</code> method) instead of to stdout.  If an <code>end</code> option is given, that is printed at the end instead of a newline (it can be an empty string).  If no arguments are given, a newline is printed to stdout.
 </dd>
 
 <dt> run(<i>arguments</i>, <i>[options]</i>) </dt>
