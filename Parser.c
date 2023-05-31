@@ -24,7 +24,6 @@ extern ParseNode* Parser_parse_fn_statement(Parser* self);
 extern ParseNode* Parser_parse_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_or_expression(Parser* self);
 extern ParseNode* Parser_parse_logical_and_expression(Parser* self);
-extern ParseNode* Parser_parse_not_expression(Parser* self);
 extern ParseNode* Parser_parse_inclusive_or_expression(Parser* self);
 extern ParseNode* Parser_parse_exclusive_or_expression(Parser* self);
 extern ParseNode* Parser_parse_and_expression(Parser* self);
@@ -389,7 +388,7 @@ ParseNode* Parser_parse_logical_or_expression(Parser* self)
 
 ParseNode* Parser_parse_logical_and_expression(Parser* self)
 {
-	ParseNode* expr = Parser_parse_not_expression(self);
+	ParseNode* expr = Parser_parse_inclusive_or_expression(self);
 	if (expr == NULL)
 		return NULL;
 
@@ -399,32 +398,13 @@ ParseNode* Parser_parse_logical_and_expression(Parser* self)
 			break;
 		Lexer_next(self->lexer);
 
-		ParseNode* expr2 = Parser_parse_not_expression(self);
+		ParseNode* expr2 = Parser_parse_inclusive_or_expression(self);
 		if (expr2 == NULL)
 			Error("Missing expression after \"&&\" (line %d).", next_token.line_number);
 		expr = (ParseNode*) new_ShortCircuitExpr(expr, expr2, true);
 		}
 
 	return expr;
-}
-
-
-ParseNode* Parser_parse_not_expression(Parser* self)
-{
-	ParseNode* expr = NULL;
-
-	Token next_token = Lexer_peek(self->lexer);
-	if (next_token.type == Operator) {
-		if (String_equals_c(next_token.token, "!")) {
-			Lexer_next(self->lexer);
-			expr = Parser_parse_not_expression(self);
-			if (expr == NULL)
-				Error("Expected expression after \"!\" on line %d.", next_token.line_number);
-			return (ParseNode*) new_ShortCircuitNot(expr);
-			}
-		}
-
-	return Parser_parse_inclusive_or_expression(self);
 }
 
 
@@ -546,12 +526,22 @@ ParseNode* Parser_parse_unary_expression(Parser* self)
 	static const char* tokens[] = { "~", "-", NULL };
 
 	Token next_token = Lexer_peek(self->lexer);
-	if (next_token.type == Operator && String_is_one_of(next_token.token, tokens)) {
-		Lexer_next(self->lexer);
-		ParseNode* expr = Parser_parse_unary_expression(self);
-		if (expr == NULL)
-			Error("Expected expression after \"%s\" on line %d.", String_c_str(next_token.token), next_token.line_number);
-		return (ParseNode*) new_CallExpr(expr, next_token.token);
+	if (next_token.type == Operator) {
+		if (String_equals_c(next_token.token, "!")) {
+			Lexer_next(self->lexer);
+			ParseNode* expr = Parser_parse_unary_expression(self);
+			if (expr == NULL)
+				Error("Expected expression after \"!\" on line %d.", next_token.line_number);
+			return (ParseNode*) new_ShortCircuitNot(expr);
+			}
+
+		else if (String_is_one_of(next_token.token, tokens)) {
+			Lexer_next(self->lexer);
+			ParseNode* expr = Parser_parse_unary_expression(self);
+			if (expr == NULL)
+				Error("Expected expression after \"%s\" on line %d.", String_c_str(next_token.token), next_token.line_number);
+			return (ParseNode*) new_CallExpr(expr, next_token.token);
+			}
 		}
 
 	return Parser_parse_postfix_expression(self);
