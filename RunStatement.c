@@ -35,8 +35,8 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 			}
 
 		else if (token.type == Operator) {
+			// Coalesce "-" or "+" with the next identifier, "-", or "+".
 			if (String_equals_c(token.token, "-") || String_equals_c(token.token, "+")) {
-				// Coalesce with the next identifier, "-", or "+".
 				String* arg = token.token;
 				Lexer_next(self->lexer);
 				while (true) {
@@ -59,7 +59,20 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 					}
 				Array_append(arguments, (Object*) new_StringLiteralExpr(arg));
 				}
+
+			// Expression inside "{}" or "()".
+			else if (String_equals_c(token.token, "{") || String_equals_c(token.token, "(")) {
+				char start_char = token.token->str[0];
+				Lexer_next(self->lexer);
+				Array_append(arguments, (Object*) Parser_parse_expression(self));
+				const char* end_char = (start_char == '{' ? "}" : ")");
+				token = Lexer_next(self->lexer);
+				if (token.type != Operator || !String_equals_c(token.token, end_char))
+					Error("Missing \"%s\" on line %d.", end_char, token.line_number);
+				}
+
 			else {
+				// Any other operator: just another argument.
 				Lexer_next(self->lexer);
 				Array_append(arguments, (Object*) new_StringLiteralExpr(token.token));
 				}
@@ -68,6 +81,9 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 
 	if (arguments->size == 0)
 		Error("Empty \"$\" statement on line %d.", line_number);
+	Token token = Lexer_next(self->lexer);
+	if (token.type != EOL)
+		Error("Extra characters at end of line %d.", token.line_number);
 
 	return (ParseNode*) new_RunStatement(arguments);
 }
