@@ -71,6 +71,8 @@ void Array_append_strings(Array* self, Object* value)
 {
 	declare_static_string(string_string, "string");
 
+	if (value == NULL)
+		return;
 	if (value->class_ == &Array_class) {
 		// Splice in the array.
 		Array* other = (Array*) value;
@@ -84,7 +86,8 @@ void Array_append_strings(Array* self, Object* value)
 	else {
 		if (value->class_ != &String_class)
 			value = call_object(value, &string_string, NULL);
-		Array_append(self, value);
+		if (((String*) value)->size != 0)
+			Array_append(self, value);
 		}
 }
 
