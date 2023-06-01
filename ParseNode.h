@@ -23,6 +23,7 @@ enum {
 	PN_FunctionStatement,
 	PN_ClassStatement,
 	PN_Local,
+	PN_RunStatement,
 	};
 
 typedef struct ParseNode {

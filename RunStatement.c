@@ -18,10 +18,8 @@ typedef struct RunStatement {
 extern RunStatement* new_RunStatement(Array* arguments);
 
 
-ParseNode* Parser_parse_run_statement(Parser* self)
+RunStatement* Parser_parse_run_command(Parser* self)
 {
-	int line_number = Lexer_next(self->lexer).line_number;
-
 	Array* arguments = new_Array();
 	while (true) {
 		Token token = Lexer_peek(self->lexer);
@@ -71,6 +69,11 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 					Error("Missing \"%s\" on line %d.", end_char, token.line_number);
 				}
 
+			else if (String_equals_c(token.token, "&&") || String_equals_c(token.token, "||")) {
+				// These end a command.
+				break;
+				}
+
 			else {
 				// Any other operator: just another argument.
 				Lexer_next(self->lexer);
@@ -79,13 +82,47 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 			}
 		}
 
-	if (arguments->size == 0)
+	return new_RunStatement(arguments);
+}
+
+ParseNode* Parser_parse_run_statement(Parser* self)
+{
+	int line_number = Lexer_next(self->lexer).line_number;
+	declare_static_string(ok_string, "ok");
+
+	RunStatement* command = Parser_parse_run_command(self);
+	if (command->arguments->size == 0)
 		Error("Empty \"$\" statement on line %d.", line_number);
+	ParseNode* statement = &command->parse_node;
+
+	while (true) {
+		Token token = Lexer_peek(self->lexer);
+		if (token.type != Operator)
+			break;
+
+		if (String_equals_c(token.token, "&&") || String_equals_c(token.token, "||")) {
+			int line_number = Lexer_next(self->lexer).line_number;
+			RunStatement* command_2 = Parser_parse_run_command(self);
+			if (command_2->arguments->size == 0)
+				Error("Empty command after \"&&\"  on line %d.", line_number);
+			if (statement->type == PN_RunStatement)
+				statement = (ParseNode*) new_CallExpr(statement, &ok_string);
+			statement =
+				(ParseNode*) new_ShortCircuitExpr(
+					statement,
+					(ParseNode*) new_CallExpr((ParseNode*) command_2, &ok_string),
+					token.token->str[0] == '&');
+			}
+
+		else
+			break;
+		}
+
 	Token token = Lexer_next(self->lexer);
 	if (token.type != EOL)
 		Error("Extra characters at end of line %d.", token.line_number);
 
-	return (ParseNode*) new_RunStatement(arguments);
+	return statement;
 }
 
 
@@ -130,7 +167,7 @@ int RunStatement_emit(ParseNode* super, MethodBuilder* method)
 	MethodBuilder_add_bytecode(method, 2);
 	MethodBuilder_add_bytecode(method, args_start);
 
-	method->cur_num_variables = orig_locals;
+	method->cur_num_variables = orig_locals + 1;
 	return orig_locals;
 }
 
@@ -147,6 +184,7 @@ void RunStatement_resolve_names(ParseNode* super, MethodBuilder* method)
 RunStatement* new_RunStatement(Array* arguments)
 {
 	RunStatement* run_statement = alloc_obj(RunStatement);
+	run_statement->parse_node.type = PN_RunStatement;
 	run_statement->parse_node.emit = RunStatement_emit;
 	run_statement->parse_node.resolve_names = RunStatement_resolve_names;
 	run_statement->arguments = arguments;
