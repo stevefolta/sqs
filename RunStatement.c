@@ -11,14 +11,14 @@
 #include "Error.h"
 
 
-typedef struct RunStatement {
+typedef struct RunCommand {
 	ParseNode parse_node;
 	Array* arguments;
-	} RunStatement;
-extern RunStatement* new_RunStatement(Array* arguments);
+	} RunCommand;
+extern RunCommand* new_RunCommand(Array* arguments);
 
 
-RunStatement* Parser_parse_run_command(Parser* self)
+RunCommand* Parser_parse_run_command(Parser* self)
 {
 	Array* arguments = new_Array();
 	while (true) {
@@ -82,7 +82,7 @@ RunStatement* Parser_parse_run_command(Parser* self)
 			}
 		}
 
-	return new_RunStatement(arguments);
+	return new_RunCommand(arguments);
 }
 
 ParseNode* Parser_parse_run_statement(Parser* self)
@@ -90,7 +90,7 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 	int line_number = Lexer_next(self->lexer).line_number;
 	declare_static_string(ok_string, "ok");
 
-	RunStatement* command = Parser_parse_run_command(self);
+	RunCommand* command = Parser_parse_run_command(self);
 	if (command->arguments->size == 0)
 		Error("Empty \"$\" statement on line %d.", line_number);
 	ParseNode* statement = &command->parse_node;
@@ -102,10 +102,10 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 
 		if (String_equals_c(token.token, "&&") || String_equals_c(token.token, "||")) {
 			int line_number = Lexer_next(self->lexer).line_number;
-			RunStatement* command_2 = Parser_parse_run_command(self);
+			RunCommand* command_2 = Parser_parse_run_command(self);
 			if (command_2->arguments->size == 0)
 				Error("Empty command after \"&&\"  on line %d.", line_number);
-			if (statement->type == PN_RunStatement)
+			if (statement->type == PN_RunCommand)
 				statement = (ParseNode*) new_CallExpr(statement, &ok_string);
 			statement =
 				(ParseNode*) new_ShortCircuitExpr(
@@ -127,9 +127,9 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 
 
 
-int RunStatement_emit(ParseNode* super, MethodBuilder* method)
+int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 {
-	RunStatement* self = (RunStatement*) super;
+	RunCommand* self = (RunCommand*) super;
 
 	// Allocate stack space for the new frame.
 	int orig_locals =
@@ -171,9 +171,9 @@ int RunStatement_emit(ParseNode* super, MethodBuilder* method)
 	return orig_locals;
 }
 
-void RunStatement_resolve_names(ParseNode* super, MethodBuilder* method)
+void RunCommand_resolve_names(ParseNode* super, MethodBuilder* method)
 {
-	RunStatement* self = (RunStatement*) super;
+	RunCommand* self = (RunCommand*) super;
 	for (int i = 0; i < self->arguments->size; ++i) {
 		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
 		if (arg->resolve_names)
@@ -181,12 +181,12 @@ void RunStatement_resolve_names(ParseNode* super, MethodBuilder* method)
 		}
 }
 
-RunStatement* new_RunStatement(Array* arguments)
+RunCommand* new_RunCommand(Array* arguments)
 {
-	RunStatement* run_statement = alloc_obj(RunStatement);
-	run_statement->parse_node.type = PN_RunStatement;
-	run_statement->parse_node.emit = RunStatement_emit;
-	run_statement->parse_node.resolve_names = RunStatement_resolve_names;
+	RunCommand* run_statement = alloc_obj(RunCommand);
+	run_statement->parse_node.type = PN_RunCommand;
+	run_statement->parse_node.emit = RunCommand_emit;
+	run_statement->parse_node.resolve_names = RunCommand_resolve_names;
 	run_statement->arguments = arguments;
 	return run_statement;
 }
