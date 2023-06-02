@@ -29,6 +29,10 @@ class Person
     return name
 person = Person("world")
 print("Hello, {person.id}")
+
+object-files = [ "a.o" "b.o" "c.o" ]
+if Path(object-files[0]).exists
+  $ cc {object-files} -o a.out
 ```
 
 See the "nutshell" file for more.
@@ -61,6 +65,8 @@ Nonetheless, sqs fixes some of the annoying things about Python:
 ### Documentation
 
 [Statements](docs/statements.html)
+
+[Expressions](docs/expressions.html)
 
 [Built-in Classes](docs/builtin-classes.md)
 
