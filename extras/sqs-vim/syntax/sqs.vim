@@ -9,6 +9,7 @@ syn keyword sqsBoolean	true false
 syn keyword sqsNil	nil
 
 syn keyword sqsStatement	if else elif while for fn class
+syn match sqsStatement	"\$"
 
 syn match sqsComment	'#.*'
 
