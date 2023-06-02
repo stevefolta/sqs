@@ -2,6 +2,11 @@
 
 <head>
 	<title> sqs Statements </title>
+	<style>
+	span.meta {
+		color: gray;
+		}
+	</style>
 </head>
 
 <body>
@@ -108,13 +113,13 @@ Defines a function.  The <i>arguments</i> can be separated by commas, but don't 
 <h3> class </h3>
 
 <pre>
-class <i>name</i> [: <i>superclass</i>] [(<i>instance-variables</i>)]
+class <i>name</i><span class="meta">[</span>: <i>superclass</i><span class="meta">]</span> <span class="meta">[</span>(<i>instance-variables</i>)<span class="meta">]</span>
   (<i>instance-variables</i>)
-  <i>name</i>[(<i>arguments</i>)]
+  <i>name</i><span class="meta">[</span>(<i>arguments</i>)<span class="meta">]</span>
     <i>statements</i>
-  fn <i>name</i>[(<i>arguments</i>)]
+  fn <i>name</i><span class="meta">[</span>(<i>arguments</i>)<span class="meta">]</span>
     <i>statements</i>
-  class <i>name</i> [<i>etc...</i>]
+  class <i>name</i> <span class="meta">[</span><i>etc...</i><span class="meta">]</span>
     <i>etc...</i>
 </pre>
 
