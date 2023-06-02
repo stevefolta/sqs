@@ -68,7 +68,7 @@ Nonetheless, sqs fixes some of the annoying things about Python:
 
 [Expressions](docs/expressions.html)
 
-[Built-in Classes](docs/builtin-classes.md)
+[Built-in Classes](docs/builtin-classes.html)
 
 [Built-in Functions](docs/builtin-functions.md)
 

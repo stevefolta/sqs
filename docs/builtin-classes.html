@@ -1,14 +1,27 @@
-sqs Built-in Classes
-=====
+<html>
 
-## String
+<head>
+	<title> sqs Built-in Classes </title>
+	<style>
+	span.meta {
+		color: gray;
+		}
+	</style>
+</head>
+
+<body>
+
+<h1> sqs Built-in Classes </h1>
+
+
+<h3> String </h3>
 
 <dl>
 
 <dt> +(<i>other</i>) </dt>
 <dd> Adds the other string and returns the result. <dd>
 
-<dt>==(<i>other</i>), !=(<i>other</i>), <(<i>other</i>), <=(<i>other</i>), >(<i>other</i>), >=(<i>other</i>) </dt>
+<dt>==(<i>other</i>), !=(<i>other</i>), &lt;(<i>other</i>), &lt;=(<i>other</i>), &gt;(<i>other</i>), &gt;=(<i>other</i>) </dt>
 <dd> Comparison operators. </dd>
 
 <dt> strip(<i>other</i>), trim(<i>other</i>) </dt>
@@ -18,7 +31,7 @@ sqs Built-in Classes
 <dt> rstrip(<i>other</i>), rtrim(<i>other</i>) </dt>
 <dd> Returns the string with whitespace removed from the end.  "rstrip" and "rtrim" are synonyms. </dd>
 
-<dt> split(<i>[delimiter]</i>) </dt>
+<dt> split(<span class="meta">[</span><i>delimiter</i><span class="meta">]</span>) </dt>
 <dd>
 If the <i>delimiter</i> is not given, returns an Array of the whitespace-separated words in the string.
 If the <i>delimiter</i> (a String) is given, returns an Array of substrings split at the delimiter.  Unlike the whitespace-based splitting, the result may contain empty strings.
@@ -40,7 +53,7 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 </dl>
 
 
-## Array
+<h3> Array </h3>
 
 <dl>
 
@@ -68,26 +81,27 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dt> back </dt>
 <dd> Returns the last item in the array. </dd>
 
-<dt> slice(<i>start</i>, <i>[end]</i>) </dt>
+<dt> slice(<i>start</i>, <span class="meta">[</span><i>end</i><span class="meta">]</span>) </dt>
 <dd> Return a slice of the array from the start index (inclusive) to the end index (non-inclusive).  If <i>end</i> isn't given, the end of the array is used. </dd>
 
 <dt> copy </dt>
 <dd> Returns a shallow copy of the array. </dd>
 
 <dt> iterator </dt>
-<dd> Returns a new iterator on the array.  Mostly used by the "for" statement. </dd>
+<dd> Returns a new iterator on the array.  Mostly used by the <code>for</code> statement. </dd>
 
 <dt> contains(<i>item</i>) </dt>
 <dd> Returns whether the array contains the item. </dd>
 
 </dl>
 
-# Dict
+
+<h3> Dict </h3>
 
 <dl>
 
 <dt> [](<i>key</i>) </dt>
-<dd> Returns the item at <i>key</i>, which must be a String. </dd>
+<dd> Returns the item at <i>key</i>, which must be a String.  Returns <code>nil</code> if there is no such key.  </dd>
 
 <dt> []=(<i>key</i>, <i>value</i>) </dt>
 <dd> Sets or adds an entry in the Dict.  <i>key</i> must be a String. </dd>
@@ -99,31 +113,33 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dd> Returns whether the Dict contains the key. </dd>
 
 <dt> iterator </dt>
-<dd> Returns an iterator on the Dict.  Mostly used by the "for" statement.  The iterator's "next" method returns an object with "key" and "value" methods (or "nil" when it reaches the end). </dd>
+<dd> Returns an iterator on the Dict.  Mostly used by the <code>for</code> statement.  The iterator's <code>next</code> method returns an object with <code>key</code> and <code>value</code> methods (or <code>nil</code> when it reaches the end). </dd>
 
 </dl>
 
 
-## Regex
+<h3> Regex </h3>
 
-The Regex class supports Posix Extended Regular Expression Syntax.  It also supports named groups with the Python-style "(?P<<i>name</i>>...)" syntax.
+The Regex class supports Posix Extended Regular Expression Syntax.  It also supports named groups with the Python-style <code>(?P<<i>name</i>>...)</code> syntax.
 
 <dl>
 
-<dt> init(<i>regular-expression</i>, <i>[options]</i>) <dt>
-<dd> Raw string literals are helpful for <i>regular-expression</i>.  <i>options</i>, if given, is a Dict.  All options are Booleans; the available options are "extended-syntax" (defaults to "true"), "case-insensitive", and "newline". </dd>
+<dt> init(<i>regular-expression</i>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) <dt>
+<dd>
+Raw string literals are helpful for <i>regular-expression</i>.  <i>options</i>, if given, is a Dict.  All options are Booleans; the available options are <code>extended-syntax</code> (defaults to <code>true</code>), <code>case-insensitive</code>, and <code>newline</code>.
+</dd>
 
-<dt> match(<i>string</i>, <i>[options]</i>) </dt>
-<dd> Matches the regular expression against <i>string</i>.  Returns "nil" if it doesn't match, or a match object if it does.  The match object supports the "[]" method; match[0] is the whole match, and subsequent integers give the matched groups.  Groups can also be accessed by name if they were given names, eg. "match['url']".  <i>options</i> are Booleans, and may specify "not-bol" and/or "not-eol". </dd>
+<dt> match(<i>string</i>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) </dt>
+<dd> Matches the regular expression against <i>string</i>.  Returns <code>nil</code> if it doesn't match, or a match object if it does.  The match object supports the <code>[]</code> method; <code>match[0]</code> is the whole match, and subsequent integers give the matched groups.  Groups can also be accessed by name if they were given names, eg. <code>match['url']</code>.  <i>options</i> are Booleans, and may specify <code>not-bol</code> and/or <code>not-eol</code>. </dd>
 
 </dl>
 
 
-## File
+<h3> File </h3>
 
 <dl>
 
-<dt> init(<i>path</i>, <i>[mode]</i>) </dt>
+<dt> init(<i>path</i>, <span class="meta">[</span><i>mode</i><span class="meta">]</span>) </dt>
 <dd> Opens the file at <i>path</i>.  <i>mode</i> defaults to "r", and must be one of "r" (read), "r+" (open for reading & writing), "w" (create or truncate to zero length and write), "w+" (create or truncate and open for read and write), "a" (append, file is created if it doesn't exist), or "a+" (open for reading and appending, file is created if it doesn't exist). </dd>
 
 <dt> write(<i>data</i>) </dt>
@@ -133,17 +149,19 @@ The Regex class supports Posix Extended Regular Expression Syntax.  It also supp
 <dd> <i>data</i> must be a ByteArray.  This will attempt to read enough to fill the entire ByteArray, and return the number of bytes that it did read.  If it returns zero, the end-of-file has been reached. </dd>
 
 <dt> close() </dt>
-<dd> Closes the file.  Usually called by a "with" statement.  It is an error to call read() or write() on a File after it has been closed. </dd>
+<dd> Closes the file.  Usually called by a <code>with</code> statement.  It is an error to call <code>read()</code> or <code>write()</code> on a File after it has been closed. </dd>
 
 <dt> lines </dt>
-<dd> Returns an iterator that returns the next line in the file when its next() method is called (or "nil" when there are no more lines left). </dd>
+<dd> Returns an iterator that returns the next line in the file when its <code>next()</code> method is called (or <code>nil</code> when there are no more lines left). </dd>
 
 </dl>
 
 
-## Path
+<h3> Path </h3>
 
-Represents the path of a file or directory in the filesystem.  Basic tilde expansion is done (`~`, `~/foo/bar`), but not any more advanced tilde expansion (`~someuser/foo`).
+<p>
+Represents the path of a file or directory in the filesystem.  Basic tilde expansion is done (<code>~</code>, <code>~/foo/bar</code>), but not any more advanced tilde expansion (<code>~someuser/foo</code>).
+</p>
 
 <dt> init(<i>string</i>) </dt>
 <dd> Creates the path, doing basic tilde expansion. </dd>
@@ -167,11 +185,11 @@ Represents the path of a file or directory in the filesystem.  Basic tilde expan
 <dd> For a file, returns the size of the file in bytes. </dd>
 
 
-## ByteArray
+<h3> ByteArray </h3>
 
 <dl>
 
-<dt> init(<i>[size]</i>) <dt>
+<dt> init(<span class="meta">[</span><i>size</i><span class="meta">]</span>) <dt>
 <dd> If size is given, the new ByteArray has the given size.  If not, it starts out empty. </dd>
 
 <dt> size </dt>
@@ -196,6 +214,9 @@ Represents the path of a file or directory in the filesystem.  Basic tilde expan
 <dd> Returns a String (in normal UTF-8 encoding) with the ByteArray's bytes interpreted as being encoded in ISO-8851-1. </dd>
 	
 </dl>
+
+</body>
+</html>
 
 
 
