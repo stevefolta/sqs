@@ -114,7 +114,7 @@ class <i>name</i> [: <i>superclass</i>] [(<i>instance-variables</i>)]
     <i>statements</i>
   fn <i>name</i>[(<i>arguments</i>)]
     <i>statements</i>
-  class <i>name</i> <i>etc...</i>
+  class <i>name</i> [<i>etc...</i>]
     <i>etc...</i>
 </pre>
 
@@ -131,6 +131,10 @@ $ <i>command</i>
 
 <p>
 Runs a command.  <i>command</i> consists of a sequence of words, strings (with string interpolation), expressions surrounded by braces or parentheses, or <code>-</code> or <code>+</code>s which are consolidated with the following word.  Expressions in braces or parentheses are incorporated as follows: if the expression is string (or number), it becomes a single argument; if it is an array, it is incorporated as several arguments; if it is <code>nil</code> it is ignored.
+</p>
+
+<p>
+Commands can be joined by the "&&" and "||" operators.  In this context, they have the same precedence and are evaluated left-to-right.  However, pipes and redirection are not supported.
 </p>
 
 
