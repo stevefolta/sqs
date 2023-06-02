@@ -79,10 +79,33 @@ while index < 10
 
 
 # Functions.
-## COMING SOON.
+fn my-fn(value)
+	if value
+		print(value)
+	else
+		print("-nothing-")
+my-fn("7") 	# Prints "7".
+my-fn("ok", "then") 	# Prints "ok".
+my-fn() 	# Prints "-nothing-".
 
 # Classes.
-## COMING SOON.
+class Person (name)
+  init(initial-name)
+    name = initial-name
+  id
+    return name
+person = Person("world")
+print("Hello, {person.id}")
+
+class Engineer: Person
+	(type)
+	init(initial-name, initial-type)
+		super.init(initial-name)
+		type = initial-type
+	id
+		return "{name} ({type} engineer)"
+engineer = Engineer("Joelle", "software")
+print(engineer.id)
 
 # Files.
 # Writing.
