@@ -1,0 +1,214 @@
+<html>
+
+<head>
+	<title> sqs Expressions </title>
+	<style>
+	span.meta {
+		color: gray;
+		}
+	</style>
+</head>
+
+<body>
+
+<h2> sqs Expressions </h2>
+
+<h3> Object Calls </h3>
+
+<pre>
+<i>object</i>.<i>name</i>
+<i>object</i>.<i>name</i>(<span class="meta">[</span><i>arguments</i><span class="meta">]</span>)
+</pre>
+
+<p>
+Calls the method <i>name</i> on the <i>object</i>, with the <i>arguments</i> if given.  Arguments must be separated by commas.  If the method takes more arguments than are given, "nil" is passed for the remaining arguments.  If it takes fewer arguments than are given, the extra arguments are ignored.
+</p>
+
+
+<h3> Function Calls </h3>
+
+<pre>
+<i>name</i>(<span class="meta">[</span><i>arguments</i><span class="meta">]</span>)
+</pre>
+
+<p>
+Function calls are much like object calls without an object.  (In fact, in the function, <code>self</code> will be available but it will be <code>nil</code>.)  The same rules about the number of arguments apply.  Unlike object calls, you do need to supply a (possibly empty) argument list -- this is just an odd quirk of the language.
+</p>
+
+
+<h3> Class Calls </h3>
+
+<pre>
+<i>class-name</i>(<span class="meta">[</span><i>arguments</i><span class="meta">]</span>)
+</pre>
+
+<p>
+Class calls are much like function calls, but they create a new object that is an instance of the class.  If the class has an <code>init</code> method, it is called with the <i>arguments</i>.
+</p>
+
+
+<h3> String Literals </h3>
+
+<pre>
+"<i>interpolated-string</i>"
+'<i>interpolated-string</i>'
+`<i>interpolated-string</i>`
+r"<i>raw-string</i>"
+r'<i>raw-string</i>'
+r`<i>raw-string</i>`
+</pre>
+
+<p>
+For string interpolation, expressions enclosed in <code>{</code> and <code>}</code> are interpolated.  Double those characters (<code>{{</code> and <code>}}</code>) to include them without interpolation.  The following escape characters are also supported: <code>\n</code>, <code>\t</code>, <code>\r</code>, <code>\e</code>, <code>\b</code>, <code>\a</code>, <code>\v</code>, <code>\f</code>, <code>\x<i>XX</i></code>, <code>\<i>[0-7]XX</i></code>, <code>\u<i>XXXX</i></code>, <code>\u<i>XXXXXXXX</i></code>.  In any other case, a <code>/</code> escapes the next character.  "Raw" strings feature neither string interpolation nor escape sequence processing.  Any string may contain newlines.
+</p>
+
+<p>
+All strings in sqs are assumed to be encoded in UTF-8.
+</p>
+
+
+<h3> Assignment </h3>
+
+<pre>
+<i>name</i> = <i>value</i>
+</pre>
+
+<p>
+If <i>name</i> is not already in scope (in the current block, an enclosing block, or an instance variable), it is automatically declared in the scope of the current indentation block.
+</p>
+
+<pre>
+<i>object</i>.<i>name</i> = <i>value</i>
+<i>object</i>[<i>index</i>] = <i>value</i>
+</pre>
+
+<p>
+An "assignment" to an object call adds <code>=</code> to the <i>name</i>, and an extra argument to the call with the <i>value</i>.  For instance, <code>array[i] = 7</code> calls the <code>[]=</code> method of <code>array</code> with <code>i</code> and <code>7</code> as arguments, and <code>foo.bar = "hello"</code> calls <code>bar=</code> on <code>foo</code> with <code>"hello"</code> as an argument.
+</p>
+
+<pre>
+<i>expression-1</i> += <i>expression-2</i>
+<i>expression-1</i> -= <i>expression-2</i>
+<i>expression-1</i> *= <i>expression-2</i>
+<i>expression-1</i> /= <i>expression-2</i>
+<i>expression-1</i> %= <i>expression-2</i>
+<i>expression-1</i> &lt;&lt;= <i>expression-2</i>
+<i>expression-1</i> &gt;&gt;= <i>expression-2</i>
+<i>expression-1</i> &amp;= <i>expression-2</i>
+<i>expression-1</i> ^= <i>expression-2</i>
+<i>expression-1</i> |= <i>expression-2</i>
+</pre>
+
+<p>
+These are also available as usual.  They also work with object calls on the left-hand side.
+</p>
+
+
+<h3> Other literals </h3>
+
+<pre>
+<i>integer</i>
+true
+false
+nil
+[ <span class="meta">[</span><i>item</i><span class="meta">...]</span> ]
+{ <span class="meta">[</span><i>key</i> = <i>value</i>,<span class="meta">...</span><span class="meta">]</span> <span class="meta">[</span><i>key</i>: <i>value</i>,<span class="meta">...]</span> }
+</pre>
+
+<p>
+Note that sqs currently only supports integers, not floating-point numbers.
+</p>
+<p>
+They items in array literals may be separated by commas, but the commas are not required.
+</p>
+<p>
+On the other hand, commas <i>are</i> required between the elements of a Dict literal.  The <code><i>key</i> = <i>value</i></code> and <code><i>key</i>: <i>value</i></code> syntaxes are both accepted (and may be freely mixed).
+</p>
+
+
+<h3> self and super </h3>
+
+<pre>
+self
+super.<i>name</i><span class="meta">[</span>(<i>argument</i><span class="meta">...</span>)<span class="meta">]</span>
+</pre>
+
+<p>
+<code>super</code> makes a method call on <code>self</code>, except that the method lookup starts with the superclass instead of <code>self</code>'s class.  <i>name</i> can be an operator and/or a setter (eg. <code>[]=</code>).
+</p>
+
+
+<h3> [] </h3>
+
+<pre>
+<i>object</i>[<i>index</i>]
+</pre>
+
+<p>
+This becomes a method call to a method named <code>[]</code>.  Also see the "Assignment" section above.
+</p>
+
+
+<h3> Binary Operators </h3>
+
+<pre>
+<i>object-1</i> + <i>object-2</i>
+<i>object-1</i> - <i>object-2</i>
+<i>object-1</i> * <i>object-2</i>
+<i>object-1</i> / <i>object-2</i>
+<i>object-1</i> % <i>object-2</i>
+<i>object-1</i> | <i>object-2</i>
+<i>object-1</i> &amp; <i>object-2</i>
+<i>object-1</i> ^ <i>object-2</i>
+<i>object-1</i> &lt;&lt; <i>object-2</i>
+<i>object-1</i> &gt;&gt; <i>object-2</i>
+<i>object-1</i> == <i>object-2</i>
+<i>object-1</i> != <i>object-2</i>
+<i>object-1</i> &lt; <i>object-2</i>
+<i>object-1</i> &lt;= <i>object-2</i>
+<i>object-1</i> &gt; <i>object-2</i>
+<i>object-1</i> &gt;= <i>object-2</i>
+<i>object-1</i> &amp;&amp; <i>object-2</i>
+<i>object-1</i> || <i>object-2</i>
+</pre>
+
+<p>
+The usual binary operators from C are available.
+</p>
+
+
+<h3> Unary Operators </h3>
+
+<pre>
+!<i>expression</i>
+-<i>expression</i>
+~<i>expression</i>
+</pre>
+
+
+<h3> Operator Precedence </h3>
+
+<p>
+Operator precedence follows C.  From tightest to loosest binding:
+</p>
+
+<pre>
+<i>literal</i><span class="meta">,</span> <i>name</i><span class="meta">,</span> (<i>expression</i>)
+<i>object</i>.<i>name</i><span class="meta">[</span>(<i>argument</i><span class="meta">...</span>)<span class="meta">]</span><span class="meta">,</span> <i>fn-name</i>(<i>argument</i><span class="meta">...</span>)<span class="meta">,</span> <i>object</i>[<i>index</i>]
+! - ~
+* / %
+<< >>
+< > <= >=
+== !=
+&
+^
+|
+&&
+||
+= += -= *= /= %= <<= >>= |= &= ^=
+</pre>
+
+
+</body>
+</html>
+

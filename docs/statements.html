@@ -26,6 +26,10 @@ else
   <i>statements</i>
 </pre>
 
+<p>
+Note that <code>false</code> and <code>nil</code> are the only falsy values; all other values (including 0 and empty strings and arrays) are truthy.
+</p>
+
 
 <h3> while </h3>
 
@@ -43,7 +47,7 @@ for <i>variable</i>: <i>collection</i>
 </pre>
 
 <p>
-Iterates over a collection.  <i>collection</i> can be any object that responds to the <code>iterator</code> method with an object that responds to the <code>next</code> method.  These two are equivalent:
+Iterates over a collection.  <i>collection</i> can be any object that responds to the <code>iterator</code> method with an object that responds to the <code>next</code> method.  These two are equivalent (except that in the first, there is no variable named <code>iterator</code>):
 </p>
 
 <pre>
