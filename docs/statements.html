@@ -1,0 +1,145 @@
+<html>
+
+<head>
+	<title> sqs Statements </title>
+</head>
+
+<body>
+
+<h2> sqs Statements </h2>
+
+<h3> if </h3>
+
+<pre>
+if <i>expresssion</i>
+  <i>statements</i>
+else if <i>expression</i>
+  <i>statements</i>
+elif <i>expression</i>
+  <i>statements</i>
+else
+  <i>statements</i>
+</pre>
+
+
+<h3> while </h3>
+
+<pre>
+while <i>expression</i>
+  <i>statements</i>
+</pre>
+
+
+<h3> for </h3>
+
+<pre>
+for <i>variable</i>: <i>collection</i>
+  <i>statements</i>
+</pre>
+
+<p>
+Iterates over a collection.  <i>collection</i> can be any object that responds to the <code>iterator</code> method with an object that responds to the <code>next</code> method.  These two are equivalent:
+</p>
+
+<pre>
+for item: array
+  print(item)
+</pre>
+<pre>
+iterator = array.iterator
+while true
+  item = iterator.next
+  if item == nil
+    break
+  print(item)
+</pre>
+
+
+<h3> continue, break </h3>
+
+<pre>
+continue
+break
+</pre>
+
+<p>
+<code>continue</code> and <code>break</code> statements can be used in either <code>while</code> or <code>for</code> loops.
+</p>
+
+
+<h3> return </h3>
+
+<pre>
+return
+return <i>expression</i>
+</pre>
+
+<p>
+If the expression isn't given, <code>nil</code> is returned.
+</p>
+
+
+<h3> with </h3>
+
+<pre>
+with <i>variable</i> = <i>expression</i>
+  <i>statements</i>
+</pre>
+
+<p>
+Creates a new scope with <i>variable</i> set to <i>expression</i>.  At the end of the <i>statements</i>, <code>close</code> is called on <i>variable</i>.
+</p>
+
+
+<h3> fn </h3>
+
+<pre>
+fn <i>name</i>
+  <i>statements</i>
+fn <i>name</i>(<i>arguments</i>)
+  <i>statements</i>
+</pre>
+
+<p>
+Defines a function.  The <i>arguments</i> can be separated by commas, but don't need to be.
+</p>
+
+
+<h3> class </h3>
+
+<pre>
+class <i>name</i> [: <i>superclass</i>] [(<i>instance-variables</i>)]
+  (<i>instance-variables</i>)
+  <i>name</i>[(<i>arguments</i>)]
+    <i>statements</i>
+  fn <i>name</i>[(<i>arguments</i>)]
+    <i>statements</i>
+  class <i>name</i> <i>etc...</i>
+    <i>etc...</i>
+</pre>
+
+<p>
+Defines a class.  Note that instance variables can be declared on the same line as the <code>class</code>, or within its members, or both or neither.  Member functions can be declared with or without the <code>fn</code> keyword.  A member function's name can be an operator (eg. <code>+</code>, <code>-</code>, <code>[]</code>, etc.).  It can also include a trailing <code>=</code> to define a setter (eg. <code>name=</code>, <code>[]=</code>).
+</p>
+
+
+<h3> Run statement ($) </h3>
+
+<pre>
+$ <i>command</i>
+</pre>
+
+<p>
+Runs a command.  <i>command</i> consists of a sequence of words, strings (with string interpolation), expressions surrounded by braces or parentheses, or <code>-</code> or <code>+</code>s which are consolidated with the following word.  Expressions in braces or parentheses are incorporated as follows: if the expression is string (or number), it becomes a single argument; if it is an array, it is incorporated as several arguments; if it is <code>nil</code> it is ignored.
+</p>
+
+
+<h3> Expression statement </h3>
+
+<p>
+Any expression can be a statement.
+</p>
+
+</body>
+</html>
+
