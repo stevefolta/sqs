@@ -76,7 +76,7 @@ Object* File_read(Object* super, Object** args)
 	if (self->file == NULL)
 		Error("Attempt to read from a closed file.");
 	if (args[0] == NULL || args[0]->class_ != &ByteArray_class)
-		Error("File.write() requires a ByteArray.");
+		Error("File.read() requires a ByteArray.");
 	ByteArray* buffer = (ByteArray*) args[0];
 
 	size_t bytes_read = fread(buffer->array, 1, buffer->size, self->file);

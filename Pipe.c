@@ -3,6 +3,7 @@
 #include "Object.h"
 #include "String.h"
 #include "ByteArray.h"
+#include "Int.h"
 #include "Memory.h"
 #include "Error.h"
 #include <unistd.h>
@@ -78,16 +79,58 @@ void close_pipe(void* ptr, void* data)
 }
 
 
-Object* Pipe_close_builtin(Object* super, Object** arg)
+Object* Pipe_close_builtin(Object* super, Object** args)
 {
 	Pipe_close((Pipe*) super);
 	return NULL;
 }
 
-Object* Pipe_capture_builtin(Object* super, Object** arg)
+Object* Pipe_capture_builtin(Object* super, Object** args)
 {
 	Pipe* self = (Pipe*) super;
 	return Pipe_capture(self, true, 0);
+}
+
+Object* Pipe_read(Object* super, Object** args)
+{
+	Pipe* self = (Pipe*) super;
+	if (self->read_fd < 0)
+		Error("Attempt to read from a closed Pipe.");
+	if (args[0] == NULL || args[0]->class_ != &ByteArray_class)
+		Error("Pipe.read() requires a ByteArray.");
+	ByteArray* buffer = (ByteArray*) args[0];
+
+	ssize_t bytes_read = read(self->read_fd, buffer->array, buffer->size);
+	if (bytes_read < 0)
+		Error("Error while reading from a Pipe (%s).", strerror(errno));
+	return (Object*) new_Int(bytes_read);
+}
+
+Object* Pipe_write(Object* super, Object** args)
+{
+	Pipe* self = (Pipe*) super;
+	if (self->write_fd < 0)
+		Error("Attempt to write to a closed Pipe.");
+	if (args[0] == NULL || args[0]->class_ != &ByteArray_class)
+		Error("Pipe.write() requires a ByteArray.");
+	ByteArray* buffer = (ByteArray*) args[0];
+
+	uint8_t* p = buffer->array;
+	size_t bytes_left = buffer->size;
+	size_t total_bytes_written = 0;
+	while (bytes_left > 0) {
+		ssize_t bytes_written = write(self->write_fd, p, bytes_left);
+		if (bytes_written < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				continue;
+			Error("Error while writing to a Pipe (%s).", strerror(errno));
+			}
+		total_bytes_written += bytes_written;
+		bytes_left -= bytes_written;
+		p += bytes_written;
+		}
+
+	return (Object*) new_Int(total_bytes_written);
 }
 
 
@@ -98,6 +141,8 @@ void Pipe_init_class()
 		{ "init", 0, Pipe_init },
 		{ "close", 0, Pipe_close_builtin },
 		{ "capture", 0, Pipe_capture_builtin },
+		{ "read", 1, Pipe_read },
+		{ "write", 1, Pipe_write },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Pipe_class, builtin_methods);
