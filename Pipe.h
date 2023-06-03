@@ -13,5 +13,6 @@ extern Pipe* new_Pipe();
 extern void Pipe_close(Pipe* self);
 extern struct Object* Pipe_capture(Pipe* self, bool as_string, size_t size_limit);
 
+extern struct Class Pipe_class;
 extern void Pipe_init_class();
 

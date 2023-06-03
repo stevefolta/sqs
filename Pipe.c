@@ -141,6 +141,7 @@ void Pipe_init_class()
 		{ "init", 0, Pipe_init },
 		{ "close", 0, Pipe_close_builtin },
 		{ "capture", 0, Pipe_capture_builtin },
+		{ "read-all", 0, Pipe_capture_builtin },
 		{ "read", 1, Pipe_read },
 		{ "write", 1, Pipe_write },
 		{ NULL },

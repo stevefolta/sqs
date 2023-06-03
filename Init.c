@@ -13,6 +13,7 @@
 #include "Environment.h"
 #include "Print.h"
 #include "Run.h"
+#include "Pipe.h"
 #include "Glob.h"
 #include "File.h"
 #include "LinesIterator.h"
@@ -36,6 +37,7 @@ void init_all()
 	BuiltinMethod_init_class();
 	Nil_init_class();
 	File_init_class();
+	Pipe_init_class();
 	LinesIterator_init_class();
 	Regex_init_class();
 	Path_init_class();
@@ -52,6 +54,7 @@ void init_all()
 	GlobalEnvironment_add_class(&ByteArray_class);
 	GlobalEnvironment_add_class(&Dict_class);
 	GlobalEnvironment_add_class(&File_class);
+	GlobalEnvironment_add_class(&Pipe_class);
 	GlobalEnvironment_add_class(&Regex_class);
 	GlobalEnvironment_add_class(&Path_class);
 	GlobalEnvironment_add_c("env", (Object*) &env_obj);
