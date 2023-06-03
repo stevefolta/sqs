@@ -44,10 +44,27 @@ Object* Run(Object* self, Object** args)
 
 	// Options.
 	bool capture = false;
+	Pipe* stdin_pipe = NULL;
+	Pipe* stdout_pipe = NULL;
+	Pipe* stderr_pipe = NULL;
 	declare_static_string(capture_option, "capture");
+	declare_static_string(stdin_pipe_option, "stdin-pipe");
+	declare_static_string(stdout_pipe_option, "stdout-pipe");
+	declare_static_string(stderr_pipe_option, "stderr-pipe");
 	Dict* options = (Dict*) args[1];
 	if (options && options->class_ == &Dict_class) {
 		capture = Dict_option_turned_on(options, &capture_option);
+		stdin_pipe = (Pipe*) Dict_at(options, &stdin_pipe_option);
+		if (stdin_pipe && stdin_pipe->class_ != &Pipe_class)
+			Error("run(): \"stdin-pipe\" must be a Pipe.");
+		stdout_pipe = (Pipe*) Dict_at(options, &stdout_pipe_option);
+		if (stdout_pipe && stdout_pipe->class_ != &Pipe_class)
+			Error("run(): \"stdout-pipe\" must be a Pipe.");
+		if (stdout_pipe && capture)
+			Error("run(): Can't use \"capture\" and \"stdout-pipe\" options at the same time.");
+		stderr_pipe = (Pipe*) Dict_at(options, &stderr_pipe_option);
+		if (stderr_pipe && stderr_pipe->class_ != &Pipe_class)
+			Error("run(): \"stderr-pipe\" must be a Pipe.");
 		}
 
 	// Make the argv.
@@ -61,7 +78,6 @@ Object* Run(Object* self, Object** args)
 	argv[args_array->size] = NULL;
 
 	// Set up to capture.
-	Pipe* stdout_pipe = NULL;
 	if (capture)
 		stdout_pipe = new_Pipe();
 
@@ -73,9 +89,20 @@ Object* Run(Object* self, Object** args)
 		// We're now in the child.
 
 		// If piping, set that up.
+		if (stdin_pipe) {
+			close(stdin_pipe->write_fd);
+			stdin_pipe->write_fd = -1;
+			dup2(stdin_pipe->read_fd, STDIN_FILENO);
+			}
 		if (stdout_pipe) {
 			close(stdout_pipe->read_fd); 	// Close the read end.
+			stdout_pipe->read_fd = -1;
 			dup2(stdout_pipe->write_fd, STDOUT_FILENO);
+			}
+		if (stderr_pipe) {
+			close(stderr_pipe->read_fd);
+			stderr_pipe->read_fd = -1;
+			dup2(stderr_pipe->write_fd, STDERR_FILENO);
 			}
 
 		// Run.
@@ -87,8 +114,18 @@ Object* Run(Object* self, Object** args)
 
 		// Piping and capturing output.
 		Object* captured_output = NULL;
-		if (stdout_pipe)
+		if (stdin_pipe) {
+			close(stdin_pipe->read_fd);
+			stdin_pipe->read_fd = -1;
+			}
+		if (stdout_pipe) {
 			close(stdout_pipe->write_fd);
+			stdout_pipe->write_fd = -1;
+			}
+		if (stderr_pipe) {
+			close(stderr_pipe->write_fd);
+			stderr_pipe->write_fd = -1;
+			}
 		if (capture) {
 			captured_output = Pipe_capture(stdout_pipe, true, 0);
 			Pipe_close(stdout_pipe);
