@@ -32,7 +32,7 @@ print("Hello, {person.id}")
 
 object-files = [ "a.o" "b.o" "c.o" ]
 if Path(object-files[0]).exists
-  $ cc {object-files} -o a.out
+  $ cc {object-files} -o "a.out"
 ```
 
 See the "nutshell" file for more.
@@ -60,6 +60,11 @@ Nonetheless, sqs fixes some of the annoying things about Python:
 - kebab-case.
 - Zero-based arrays.
 - sqs's `run()` function has better control over program arguments than Lua's `system()` function.
+
+
+### Dependencies
+
+There are two: a POSIX-compliant libc (glibc and musl are known to work); and the Boehm garbage collector.
 
 
 ### Documentation
