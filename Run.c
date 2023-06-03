@@ -1,4 +1,5 @@
 #include "Run.h"
+#include "Pipe.h"
 #include "Object.h"
 #include "Class.h"
 #include "Array.h"
@@ -23,8 +24,6 @@ typedef struct RunResult {
 	} RunResult;
 Class RunResult_class;
 static RunResult* new_RunResult(int return_code, Object* captured_output);
-
-static Object* capture_output(int fd, bool as_string, size_t size_limit);
 
 
 Object* Run(Object* self, Object** args)
@@ -62,11 +61,9 @@ Object* Run(Object* self, Object** args)
 	argv[args_array->size] = NULL;
 
 	// Set up to capture.
-	int capture_fds[2] = { -1, -1 };
-	if (capture) {
-		if (pipe(capture_fds) != 0)
-			Error("run(): Couldn't open a pipe to capture output (%s).", strerror(errno));
-		}
+	Pipe* stdout_pipe = NULL;
+	if (capture)
+		stdout_pipe = new_Pipe();
 
 	// Fork.
 	pid_t pid = fork();
@@ -75,10 +72,10 @@ Object* Run(Object* self, Object** args)
 	else if (pid == 0) {
 		// We're now in the child.
 
-		// If capturing, set that up.
-		if (capture) {
-			close(capture_fds[0]); 	// Close the read end.
-			dup2(capture_fds[1], STDOUT_FILENO);
+		// If piping, set that up.
+		if (stdout_pipe) {
+			close(stdout_pipe->read_fd); 	// Close the read end.
+			dup2(stdout_pipe->write_fd, STDOUT_FILENO);
 			}
 
 		// Run.
@@ -88,12 +85,13 @@ Object* Run(Object* self, Object** args)
 	else {
 		// This is still the parent process.
 
-		// Capture output.
+		// Piping and capturing output.
 		Object* captured_output = NULL;
+		if (stdout_pipe)
+			close(stdout_pipe->write_fd);
 		if (capture) {
-			close(capture_fds[1]); 	// Close the write end.
-			captured_output = capture_output(capture_fds[0], true, 0);
-			close(capture_fds[0]);
+			captured_output = Pipe_capture(stdout_pipe, true, 0);
+			Pipe_close(stdout_pipe);
 			}
 
 		// Wait for child to exit.
@@ -141,29 +139,6 @@ void Run_init()
 		{ NULL },
 		};
 	Class_add_builtin_methods(&RunResult_class, run_result_methods);
-}
-
-
-static Object* capture_output(int fd, bool as_string, size_t size_limit)
-{
-	ByteArray* bytes = new_ByteArray();
-
-	int buf_size = 1024;
-	uint8_t* buffer = alloc_mem_no_pointers(buf_size);
-	while (true) {
-		ssize_t bytes_read = read(fd, buffer, buf_size);
-		if (bytes_read < 0)
-			Error("Error while capturing run() output (%s).", strerror(errno));
-		else if (bytes_read == 0) {
-			// EOF.
-			break;
-			}
-		ByteArray_append_bytes(bytes, buffer, bytes_read);
-		if (size_limit != 0 && bytes->size >= size_limit)
-			Error("Capturing too much output in run().");
-		}
-
-	return (as_string ? (Object*) ByteArray_as_string(bytes) : (Object*) bytes);
 }
 
 
