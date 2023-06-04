@@ -47,16 +47,20 @@ Object* Run(Object* self, Object** args)
 
 	// Options.
 	bool capture = false;
+	bool wait = true;
 	Pipe* stdin_pipe = NULL;
 	Pipe* stdout_pipe = NULL;
 	Pipe* stderr_pipe = NULL;
 	declare_static_string(capture_option, "capture");
+	declare_static_string(wait_option, "wait");
 	declare_static_string(stdin_pipe_option, "stdin-pipe");
 	declare_static_string(stdout_pipe_option, "stdout-pipe");
 	declare_static_string(stderr_pipe_option, "stderr-pipe");
 	Dict* options = (Dict*) args[1];
 	if (options && options->class_ == &Dict_class) {
 		capture = Dict_option_turned_on(options, &capture_option);
+		if (Dict_option_turned_off(options, &wait_option))
+			wait = false;
 		stdin_pipe = (Pipe*) Dict_at(options, &stdin_pipe_option);
 		if (stdin_pipe && stdin_pipe->class_ != &Pipe_class)
 			Error("run(): \"stdin-pipe\" must be a Pipe.");
@@ -136,7 +140,8 @@ Object* Run(Object* self, Object** args)
 
 		// Wait for child to exit.
 		Object* run_result = (Object*) new_RunResult(pid, captured_output);
-		RunResult_wait((Object*) run_result, NULL);
+		if (wait)
+			RunResult_wait((Object*) run_result, NULL);
 		return run_result;
 		}
 
