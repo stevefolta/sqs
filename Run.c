@@ -19,11 +19,14 @@
 
 typedef struct RunResult {
 	Class* class_;
+	pid_t pid;
+	bool done;
 	int return_code;
 	Object* captured_output;
 	} RunResult;
 Class RunResult_class;
-static RunResult* new_RunResult(int return_code, Object* captured_output);
+static RunResult* new_RunResult(pid_t pid, Object* captured_output);
+Object* RunResult_wait(Object* super, Object** args);
 
 
 Object* Run(Object* self, Object** args)
@@ -132,20 +135,20 @@ Object* Run(Object* self, Object** args)
 			}
 
 		// Wait for child to exit.
-		int status = 0;
-		waitpid(pid, &status, 0);
-		return (Object*) new_RunResult(WEXITSTATUS(status), captured_output);
+		Object* run_result = (Object*) new_RunResult(pid, captured_output);
+		RunResult_wait((Object*) run_result, NULL);
+		return run_result;
 		}
 
 	return NULL;
 }
 
 
-static RunResult* new_RunResult(int return_code, Object* captured_output)
+static RunResult* new_RunResult(pid_t pid, Object* captured_output)
 {
 	RunResult* self = alloc_obj(RunResult);
 	self->class_ = &RunResult_class;
-	self->return_code = return_code;
+	self->pid = pid;
 	self->captured_output = captured_output;
 	return self;
 }
@@ -158,13 +161,28 @@ Object* RunResult_return_code(Object* super, Object** args)
 
 Object* RunResult_ok(Object* super, Object** args)
 {
+	RunResult_wait(super, NULL);
 	return make_bool(((RunResult*) super)->return_code == 0);
 }
 
 Object* RunResult_output(Object* super, Object** args)
 {
+	RunResult_wait(super, NULL);
 	return ((RunResult*) super)->captured_output;
 }
+
+Object* RunResult_wait(Object* super, Object** args)
+{
+	RunResult* self = (RunResult*) super;
+	if (!self->done) {
+		int status = 0;
+		waitpid(self->pid, &status, 0);
+		self->return_code = WEXITSTATUS(status);
+		self->done = true;
+		}
+	return (Object*) self;
+}
+
 
 void Run_init()
 {
@@ -173,6 +191,7 @@ void Run_init()
 		{ "return-code", 0, RunResult_return_code },
 		{ "ok", 0, RunResult_ok },
 		{ "output", 0, RunResult_output },
+		{ "wait", 0, RunResult_wait },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&RunResult_class, run_result_methods);
