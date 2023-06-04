@@ -24,6 +24,7 @@ enum {
 	PN_ClassStatement,
 	PN_Local,
 	PN_RunCommand,
+	PN_RunPipeline,
 	};
 
 typedef struct ParseNode {

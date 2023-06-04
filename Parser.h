@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdbool.h>
 
 struct Lexer;
 struct ParseNode;
@@ -26,5 +27,6 @@ extern struct ParseNode* Parser_parse_string_literal(Parser* self);
 extern struct String* Parser_parse_fn_name(Parser* self);
 extern struct Array* Parser_parse_names_list(Parser* self, const char* type);
 
+extern bool String_is_one_of(struct String* str, const char** values);
 
 

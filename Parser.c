@@ -9,7 +9,6 @@
 #include "Memory.h"
 #include "UTF8.h"
 #include "Error.h"
-#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 

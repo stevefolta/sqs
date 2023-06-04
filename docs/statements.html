@@ -145,7 +145,7 @@ Runs a command.  <i>command</i> consists of a sequence of words, strings (with s
 </p>
 
 <p>
-Commands can be joined by the "&&" and "||" operators.  In this context, they have the same precedence and are evaluated left-to-right.  However, pipes and redirection are not supported.
+Commands can be joined into pipelines by the <code>|</code> operator.  Pipelines and commands can be joined by the <code>&gt;&gt;</code> and <code>||</code> operators.  In this context, those operators have the same precedence and are evaluated left-to-right.  However, redirection and capture are not supported.
 </p>
 
 
