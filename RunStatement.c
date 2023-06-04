@@ -212,6 +212,17 @@ int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 			MethodBuilder_add_bytecode(method, options_loc);
 			MethodBuilder_add_bytecode(method, key_loc);
 			MethodBuilder_add_bytecode(method, self->out_pipe_loc);
+			// Don't wait for this process, only wait for the last process in the pipeline.
+			declare_static_string(wait_string, "wait");
+			key_loc = -MethodBuilder_add_literal(method, (Object*) &wait_string) - 1;
+			int false_loc = MethodBuilder_reserve_locals(method, 1);
+			MethodBuilder_add_bytecode(method, BC_FALSE);
+			MethodBuilder_add_bytecode(method, false_loc);
+			MethodBuilder_add_bytecode(method, BC_DICT_ADD);
+			MethodBuilder_add_bytecode(method, options_loc);
+			MethodBuilder_add_bytecode(method, key_loc);
+			MethodBuilder_add_bytecode(method, false_loc);
+			method->cur_num_variables = false_loc;
 			}
 		}
 	else {
