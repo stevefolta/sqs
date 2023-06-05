@@ -145,7 +145,7 @@ Raw string literals are helpful for <i>regular-expression</i>.  <i>options</i>, 
 <dd> Opens the file at <i>path</i>.  <i>mode</i> defaults to "r", and must be one of "r" (read), "r+" (open for reading & writing), "w" (create or truncate to zero length and write), "w+" (create or truncate and open for read and write), "a" (append, file is created if it doesn't exist), or "a+" (open for reading and appending, file is created if it doesn't exist). </dd>
 
 <dt> write(<i>data</i>) </dt>
-<dd> <i>data</i> must be either a String or a ByteArray. </dd>
+<dd> Writes the <i>data</i> to the file.  <i>data</i> must be either a String or a ByteArray. </dd>
 
 <dt> read(<i>data</i>) </dt>
 <dd> <i>data</i> must be a ByteArray.  This will attempt to read enough to fill the entire ByteArray, and return the number of bytes that it did read.  If it returns zero, the end-of-file has been reached. </dd>
@@ -216,6 +216,33 @@ Represents the path of a file or directory in the filesystem.  Basic tilde expan
 <dd> Returns a String (in normal UTF-8 encoding) with the ByteArray's bytes interpreted as being encoded in ISO-8851-1. </dd>
 	
 </dl>
+
+
+<h3> Pipe </h3>
+
+<p>
+Used for piping data between <code>run()</code> functions.
+</p>
+
+<dl>
+
+<dt> init </dt>
+<dd> Creates the pipe. </dd>
+
+<dt> close </dt>
+<dd> Closes the pipe. </dd>
+
+<dt> capture, read-all </dt>
+<dd> Returns a string with all the text that was sent into the pipe.  <code>capture</code> and <code>read-all</code> are synonyms. </dd>
+
+<dt> read(<i>buffer</i>) </dt>
+<dd> Reads from the pipe, filling up the <i>buffer</i> (which must be a ByteArray) as much as possible.  Returns the number of bytes read, which will be zero if the write side of the pipe has been closed. </dd>
+
+<dt> write(<i>data</i>) </dt>
+<dd> Writes the <i>data</i>, which must be a ByteArray or a String, to the pipe. </dd>
+
+</dl>
+
 
 </body>
 </html>

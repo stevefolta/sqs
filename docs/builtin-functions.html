@@ -8,6 +8,9 @@
 	span.meta {
 		color: gray;
 		}
+	dd.fn {
+		margin-bottom: 1em;
+		}
 	</style>
 </head>
 
@@ -18,22 +21,44 @@
 <dl>
 
 <dt> print(<span class="meta">[</span><i>object</i><span class="meta">]</span>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) </dt>
-<dd>
+<dd class="fn">
 Prints the object.  If it's not a String, the <code>string</code> method will be called on it.  <i>options</i>, if given, must be a Dict.  If a <code>file</code> or <code>out</code> option is given, the object is written to it (by calling its <code>write()</code> method) instead of to stdout.  If an <code>end</code> option is given, that is printed at the end instead of a newline (it can be an empty string).  If no arguments are given, a newline is printed to stdout.
 </dd>
 
 <dt> run(<i>arguments</i>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) </dt>
-<dd>
-Runs a program.  Normally, <i>arguments</i> should be an Array, with the program name or path as the first (zeroth) argument, and the command-line arguments to the program as the rest of the arguments.  <i>arguments</i> can also be a String; in that case it will be run through a shell.  <i>options</i>, if given, must be a Dict.  The only supported option is <code>capture</code>; if true, the stdout of the program will be captured as a String.  Returns an object that supports these methods: <code>return-code</code> (the integer exit code); <code>ok</code> (equivalent to <code>return-code == 0</code>); and <code>output</code> (the captured output if the <code>capture</code> option was turned on).
-</dd>
+<dd class="fn">
+Runs a program.  Normally, <i>arguments</i> should be an Array, with the program name or path as the first (zeroth) argument, and the command-line arguments to the program as the rest of the arguments.  <i>arguments</i> can also be a String; in that case it will be run through a shell. 
+<p> <i>options</i>, if given, must be a Dict.  These options are supported: </p>
+<dl>
+	<dt> <code> capture </code> </dt>
+	<dd> If true, the stdout of the program will be captured as a String. </ddt>
+	<dt> <code>wait</code> </dt>
+	<dd> If true, <code>run()</code> will wait until the program returns before it returns.  Defaults to <code>true</code>. </dd>
+	<dt> <code> stdin-pipe </code> </dt>
+	<dt> <code> stdout-pipe </code> </dt>
+	<dt> <code> stderr-pipe </code> </dt>
+	<dd> This supply a Pipe object to be used for the given stream. </dd>
+</dt>
+</dl>
+<p> Returns an object that supports these methods: </p>
+<dl>
+	<dt> <code>return-code</code> </dt>
+	<dd> The integer exit code.  If the process is still running, this will wait for it to finish. </dd>
+	<dt> <code>ok</code> </dt>
+	<dd> Equivalent to <code>return-code == 0</code>. </dd>
+	<dt> <code>output</code> </dt>
+	<dd> The captured output if the <code>capture</code> option was turned on. </dd>
+	<dt> <code> wait() </code> </dt>
+	<dd> Waits until the process exits. </dd>
+</dl>
 
 <dt> sleep(<i>seconds</i>) </dt>
-<dd>
+<dd class="fn">
 Sleeps for the given number of seconds.  <i>seconds</i> must be an integer, since sqs only supports integers currently.
 </dd>
 
 <dt> glob(<i>pattern</i>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) </dt>
-<dd>
+<dd class="fn">
 Returns an Array of paths of files in the filesystem matching the glob-style pattern.  <i>options</i>, if given, must be a Dict.  Supported options are <code>mark-directories</code> (appends "/" to directories), <code>sort</code> (defaults to <code>true</code>), <code>escape</code> (allows escaping characters with a backslash; defaults to <code>true</code>), and <code>tilde</code> (allows tilde-expansion).
 </dd>
 
