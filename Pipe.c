@@ -111,12 +111,24 @@ Object* Pipe_write(Object* super, Object** args)
 	Pipe* self = (Pipe*) super;
 	if (self->write_fd < 0)
 		Error("Attempt to write to a closed Pipe.");
-	if (args[0] == NULL || args[0]->class_ != &ByteArray_class)
-		Error("Pipe.write() requires a ByteArray.");
-	ByteArray* buffer = (ByteArray*) args[0];
 
-	uint8_t* p = buffer->array;
-	size_t bytes_left = buffer->size;
+	const uint8_t* p = NULL;
+	size_t bytes_left = 0;
+	if (args[0] == NULL)
+		Error("Missing argument to Pipe.write().");
+	else if (args[0]->class_ == &ByteArray_class) {
+		ByteArray* buffer = (ByteArray*) args[0];
+		p = buffer->array;
+		bytes_left = buffer->size;
+		}
+	else if (args[0]->class_ == &String_class) {
+		String* str = (String*) args[0];
+		p = (const uint8_t*) str->str;
+		bytes_left = str->size;
+		}
+	else
+		Error("Pipe.write() requires a ByteArray or a String.");
+
 	size_t total_bytes_written = 0;
 	while (bytes_left > 0) {
 		ssize_t bytes_written = write(self->write_fd, p, bytes_left);
