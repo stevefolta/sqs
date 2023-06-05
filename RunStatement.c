@@ -16,14 +16,22 @@ typedef struct RunCommand {
 	ParseNode parse_node;
 	Array* arguments;
 	int in_pipe_loc, out_pipe_loc;
+	bool capture;
 	} RunCommand;
 extern RunCommand* new_RunCommand(Array* arguments);
 
 typedef struct RunPipeline {
 	ParseNode parse_node;
 	Array* commands;
+	bool capture;
 	} RunPipeline;
 extern RunPipeline* new_RunPipeline();
+
+typedef struct RunCapture {
+	ParseNode parse_node;
+	ParseNode* pipeline;
+	} RunCapture;
+extern RunCapture* new_RunCapture(ParseNode* pipeline);
 
 
 RunCommand* Parser_parse_run_command(Parser* self)
@@ -41,7 +49,7 @@ RunCommand* Parser_parse_run_command(Parser* self)
 			}
 
 		else if (token.type == Operator) {
-			static const char* terminating_operators[] = { "&&", "||", "|", NULL };
+			static const char* terminating_operators[] = { "&&", "||", "|", ")", NULL };
 
 			// Coalesce "-" or "+" with the next identifier, "-", or "+".
 			if (String_equals_c(token.token, "-") || String_equals_c(token.token, "+")) {
@@ -161,6 +169,22 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 }
 
 
+ParseNode* Parser_parse_capture(Parser* self)
+{
+	// Consume '('.
+	Token token = Lexer_next(self->lexer);
+
+	ParseNode* pipeline = Parser_parse_run_pipeline(self);
+	if (pipeline == NULL)
+		Error("Expected a command or pipeline in \"$()\" on line %d.", token.line_number);
+	token = Lexer_next(self->lexer);
+	if (token.type != Operator || !String_equals_c(token.token, ")"))
+		Error("Missing \")\" at end of \"$()\" on line %d.", token.line_number);
+
+	return (ParseNode*) new_RunCapture(pipeline);
+}
+
+
 
 int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 {
@@ -193,7 +217,7 @@ int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 		}
 
 	// Emit options.
-	if (self->in_pipe_loc || self->out_pipe_loc) {
+	if (self->in_pipe_loc || self->out_pipe_loc || self->capture) {
 		int options_loc = args_start + 2;
 		MethodBuilder_add_bytecode(method, BC_NEW_DICT);
 		MethodBuilder_add_bytecode(method, options_loc);
@@ -223,6 +247,18 @@ int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 			MethodBuilder_add_bytecode(method, key_loc);
 			MethodBuilder_add_bytecode(method, false_loc);
 			method->cur_num_variables = false_loc;
+			}
+		else if (self->capture) {
+			declare_static_string(capture_string, "capture");
+			int key_loc = -MethodBuilder_add_literal(method, (Object*) &capture_string) - 1;
+			int true_loc = MethodBuilder_reserve_locals(method, 1);
+			MethodBuilder_add_bytecode(method, BC_TRUE);
+			MethodBuilder_add_bytecode(method, true_loc);
+			MethodBuilder_add_bytecode(method, BC_DICT_ADD);
+			MethodBuilder_add_bytecode(method, options_loc);
+			MethodBuilder_add_bytecode(method, key_loc);
+			MethodBuilder_add_bytecode(method, true_loc);
+			method->cur_num_variables = true_loc;
 			}
 		}
 	else {
@@ -298,6 +334,8 @@ int RunPipeline_emit(ParseNode* super, MethodBuilder* method)
 		bool is_last_command = (i == self->commands->size - 1);
 		if (!is_last_command)
 			command->out_pipe_loc = pipes_locs + i;
+		else if (self->capture)
+			command->capture = true;
 
 		int command_result_loc = command->parse_node.emit(&command->parse_node, method);
 
@@ -326,9 +364,80 @@ void RunPipeline_resolve_names(ParseNode* super, MethodBuilder* method)
 RunPipeline* new_RunPipeline()
 {
 	RunPipeline* self = alloc_obj(RunPipeline);
+	self->parse_node.type = PN_RunPipeline;
 	self->parse_node.emit = RunPipeline_emit;
 	self->parse_node.resolve_names = RunPipeline_resolve_names;
 	self->commands = new_Array();
+	return self;
+}
+
+
+int RunCapture_emit(ParseNode* super, MethodBuilder* method)
+{
+	RunCapture* self = (RunCapture*) super;
+
+	int result_loc = MethodBuilder_reserve_locals(method, 1);
+
+	int run_result_loc = self->pipeline->emit(self->pipeline, method);
+
+	// Emit "output" call.
+	int output_result_loc =
+		MethodBuilder_reserve_locals(
+			method,
+			frame_saved_area_size + 1 /* receiver's "self" */);
+	int args_start = output_result_loc + frame_saved_area_size;
+	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
+	MethodBuilder_add_bytecode(method, run_result_loc);
+	MethodBuilder_add_bytecode(method, args_start);
+	declare_static_string(output_string, "output");
+	int output_string_loc = -MethodBuilder_add_literal(method, (Object*) &output_string) - 1;
+	MethodBuilder_add_bytecode(method, BC_CALL_0);
+	MethodBuilder_add_bytecode(method, output_string_loc);
+	MethodBuilder_add_bytecode(method, args_start);
+	method->cur_num_variables = output_result_loc + 1;
+
+	// Emit "trim" call.
+	int trim_result_loc =
+		MethodBuilder_reserve_locals(
+			method,
+			frame_saved_area_size + 1 /* receiver's "self" */);
+	args_start = trim_result_loc + frame_saved_area_size;
+	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
+	MethodBuilder_add_bytecode(method, output_result_loc);
+	MethodBuilder_add_bytecode(method, args_start);
+	declare_static_string(trim_string, "trim");
+	int trim_string_loc = -MethodBuilder_add_literal(method, (Object*) &trim_string) - 1;
+	MethodBuilder_add_bytecode(method, BC_CALL_0);
+	MethodBuilder_add_bytecode(method, trim_string_loc);
+	MethodBuilder_add_bytecode(method, args_start);
+	method->cur_num_variables = trim_result_loc + 1;
+
+	// Return result.
+	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
+	MethodBuilder_add_bytecode(method, trim_result_loc);
+	MethodBuilder_add_bytecode(method, result_loc);
+
+	method->cur_num_variables = result_loc + 1;
+	return result_loc;
+}
+
+void RunCapture_resolve_names(ParseNode* super, MethodBuilder* method)
+{
+	RunCapture* self = (RunCapture*) super;
+	self->pipeline->resolve_names(self->pipeline, method);
+}
+
+RunCapture* new_RunCapture(ParseNode* pipeline)
+{
+	if (pipeline->type == PN_RunPipeline)
+		((RunPipeline*) pipeline)->capture = true;
+	else
+		((RunCommand*) pipeline)->capture = true;
+
+	RunCapture* self = alloc_obj(RunCapture);
+	self->parse_node.emit = RunCapture_emit;
+	self->parse_node.resolve_names = RunCapture_resolve_names;
+	self->pipeline = pipeline;
 	return self;
 }
 

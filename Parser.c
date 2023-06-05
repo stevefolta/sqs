@@ -693,6 +693,11 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 			return (ParseNode*) new_SelfExpr();
 		else if (String_equals_c(next_token.token, "super"))
 			return Parser_parse_super_call(self);
+		else if (String_equals_c(next_token.token, "$")) {
+			Token next_token = Lexer_peek(self->lexer);
+			if (next_token.type == Operator && String_equals_c(next_token.token, "("))
+				return Parser_parse_capture(self);
+			}
 		return (ParseNode*) new_Variable(next_token.token, next_token.line_number);
 		}
 
