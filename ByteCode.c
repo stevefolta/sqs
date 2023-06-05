@@ -391,6 +391,16 @@ void print_object(Object* object)
 		}
 }
 
+void print_loc(int loc, Array* literals)
+{
+	printf("[%d", loc);
+	if (loc < 0) {
+		printf(": ");
+		print_object(literals->items[-loc - 1]);
+		}
+	printf("]");
+}
+
 void dump_bytecode(struct Method* method, String* class_name, String* function_name)
 {
 	if (function_name) {
@@ -419,12 +429,8 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 			case BC_SET_LOCAL:
 				src = bytecode[++i];
 				dest = bytecode[++i];
-				printf("[%d", src);
-				if (src < 0) {
-					printf(": ");
-					print_object(method->literals->items[-src - 1]);
-					}
-				printf("] -> [%d]\n", dest);
+				print_loc(src, method->literals);
+				printf(" -> [%d]\n", dest);
 				break;
 			case BC_GET_IVAR:
 				src = bytecode[++i];
@@ -497,24 +503,18 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 			case BC_CALL_11: case BC_CALL_12: case BC_CALL_13: case BC_CALL_14: case BC_CALL_15:
 				src = bytecode[++i];
 				dest = bytecode[++i];
-				printf("call_%d [%d", opcode - BC_CALL_0, src);
-				if (src < 0) {
-					printf(": ");
-					print_object(method->literals->items[-src - 1]);
-					}
-				printf("] stack-adjust: %d\n", (uint8_t) dest);
+				printf("call_%d ", opcode - BC_CALL_0);
+				print_loc(src, method->literals);
+				printf(" stack-adjust: %d\n", (uint8_t) dest);
 				break;
 			case BC_FN_CALL:
 				{
 				int8_t fn_loc = bytecode[++i];
 				uint8_t num_args = bytecode[++i];
 				uint8_t frame_adjustment = bytecode[++i];
-				printf("fn_call [%d", fn_loc);
-				if (fn_loc < 0) {
-					printf(": ");
-					print_object(method->literals->items[-fn_loc - 1]);
-					}
-				printf("](%d args) stack-adjust: %d\n", num_args, frame_adjustment);
+				printf("fn_call ");
+				print_loc(fn_loc, method->literals);
+				printf("(%d args) stack-adjust: %d\n", num_args, frame_adjustment);
 				}
 				break;
 			case BC_NEW_ARRAY:
@@ -524,12 +524,16 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 			case BC_ARRAY_APPEND:
 				dest = bytecode[++i];
 				src = bytecode[++i];
-				printf("array_append [%d] into [%d]\n", src, dest);
+				printf("array_append ");
+				print_loc(src, method->literals);
+				printf(" into [%d]\n", dest);
 				break;
 			case BC_ARRAY_APPEND_STRINGS:
 				dest = bytecode[++i];
 				src = bytecode[++i];
-				printf("array_append_strings [%d] into [%d]\n", src, dest);
+				printf("array_append_strings ");
+				print_loc(src, method->literals);
+				printf(" into [%d]\n", dest);
 				break;
 			case BC_ARRAY_JOIN:
 				src = bytecode[++i];
@@ -545,7 +549,11 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 				dest = bytecode[++i];
 				int8_t key = bytecode[++i];
 				src = bytecode[++i];
-				printf("dict_add ([%d] => [%d]) to [%d]\n", key, src, dest);
+				printf("dict_add (");
+				print_loc(key, method->literals);
+				printf(" => ");
+				print_loc(src, method->literals);
+				printf(") to [%d]\n", dest);
 				}
 				break;
 			case BC_GET_UPVAL:
@@ -564,14 +572,11 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 			case BC_SET_UPVAL:
 				{
 				src = bytecode[++i];
-				printf("set_upval ([%d", src);
-				if (src < 0) {
-					printf(": ");
-					print_object(method->literals->items[-src - 1]);
-					}
+				printf("set_upval (");
+				print_loc(src, method->literals);
 				dest = bytecode[++i];
 				src = bytecode[++i];
-				printf("], %d) <- [%d]\n", dest, src);
+				printf(", %d) <- [%d]\n", dest, src);
 				}
 				break;
 			default:
