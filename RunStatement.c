@@ -45,6 +45,13 @@ RunCommand* Parser_parse_run_command(Parser* self)
 			Array_append(arguments, (Object*) Parser_parse_string_literal(self));
 		else if (token.type == Identifier || token.type == RawStringLiteral || token.type == IntLiteral) {
 			Lexer_next(self->lexer);
+			if (token.type == Identifier && String_equals_c(token.token, "$")) {
+				Token next_token = Lexer_peek(self->lexer);
+				if (next_token.type == Operator && String_equals_c(next_token.token, "(")) {
+					Array_append(arguments, (Object*) Parser_parse_capture(self));
+					continue;
+					}
+				}
 			Array_append(arguments, (Object*) new_StringLiteralExpr(token.token));
 			}
 
