@@ -133,6 +133,11 @@ Object* Object_is_a(Object* self, Object** args)
 	return &false_obj;
 }
 
+Object* Object_class_builtin(Object* self, Object** args)
+{
+	return (Object*) self->class_;
+}
+
 
 Class Object_class;
 void Object_init_class()
@@ -145,6 +150,7 @@ void Object_init_class()
 		{ "==", 1, Object_equals },
 		{ "!=", 1, Object_not_equals },
 		{ "is-a", 1, Object_is_a },
+		{ "class", 0, Object_class_builtin },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&Object_class, builtin_methods);
