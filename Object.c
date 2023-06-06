@@ -120,6 +120,19 @@ Object* Object_not_equals(Object* self, Object** args)
 	return make_bool(self != args[0]);
 }
 
+Object* Object_is_a(Object* self, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &Class_class)
+		return &false_obj;
+	Class* test_class = (Class*) args[0];
+	Class* cur_class = self->class_;
+	for (; cur_class; cur_class = cur_class->superclass) {
+		if (cur_class == test_class)
+			return &true_obj;
+		}
+	return &false_obj;
+}
+
 
 Class Object_class;
 void Object_init_class()
@@ -131,6 +144,7 @@ void Object_init_class()
 		{ "string", 0, Object_string },
 		{ "==", 1, Object_equals },
 		{ "!=", 1, Object_not_equals },
+		{ "is-a", 1, Object_is_a },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&Object_class, builtin_methods);

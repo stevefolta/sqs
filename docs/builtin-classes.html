@@ -16,6 +16,26 @@
 <h1> sqs Built-in Classes </h1>
 
 
+<h3> Object </h3>
+
+<p>
+<code>Object</code> is the ultimate superclass of all objects.
+</p>
+
+<dl>
+<dt> string </dt>
+<dd>
+Returns a string briefly describing the object.  The default method on <code>Object</code> just returns a string showing the object's class, eg. "a Dict" or "an ArrayIterator".  <code>String.string</code> returns the string itself, without surrounding quotes.  <code>Array.string</code> returns a representation of the array with all items listed.
+</dd>
+<dt> ==(<i>other</i>), !=(<i>other</i>) </dt>
+<dd>
+By default, these just check if <i>other</i> is the exact same object or not.  This is often overridden, eg. by <code>String</code> or <code>Int</code> to return value equivalence.
+</dd>
+<dt> is-a(<i>class</i>) </dt>
+<dd> Returns whether the object is an instance of <i>class</i>, including the case where <i>class</i> is a superclass of the object's class. </dd>
+</dl>
+
+
 <h3> String </h3>
 
 <dl>

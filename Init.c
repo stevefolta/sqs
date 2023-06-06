@@ -55,6 +55,7 @@ void init_all()
 	GlobalEnvironment_add_class(&Array_class);
 	GlobalEnvironment_add_class(&ByteArray_class);
 	GlobalEnvironment_add_class(&Dict_class);
+	GlobalEnvironment_add_class(&String_class);
 	GlobalEnvironment_add_class(&File_class);
 	GlobalEnvironment_add_class(&Pipe_class);
 	GlobalEnvironment_add_class(&Regex_class);
