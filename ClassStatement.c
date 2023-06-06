@@ -93,6 +93,7 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 					for (int i = 0; i < arg_names->size; ++i)
 						Array_append(class_statement->ivars, Array_at(arg_names, i));
 					}
+				continue;
 				}
 
 			// "class"
