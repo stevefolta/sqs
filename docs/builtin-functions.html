@@ -64,6 +64,11 @@ Sleeps for the given number of seconds.  <i>seconds</i> must be an integer, sinc
 Returns an Array of paths of files in the filesystem matching the glob-style pattern.  <i>options</i>, if given, must be a Dict.  Supported options are <code>mark-directories</code> (appends "/" to directories), <code>sort</code> (defaults to <code>true</code>), <code>escape</code> (allows escaping characters with a backslash; defaults to <code>true</code>), and <code>tilde</code> (allows tilde-expansion).
 </dd>
 
+<dt> fail(<span class="meta">[</span><i>message</i><span class="meta">]</span>) </dt>
+<dd>
+Prints out the <i>message</i> (if given) to stderr, and returns 1 as the process return value.
+</dd>
+
 </dl>
 
 
