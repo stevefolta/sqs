@@ -17,6 +17,12 @@
 #include <errno.h>
 
 
+declare_string(capture_string, "capture");
+declare_string(wait_string, "wait");
+declare_string(stdin_pipe_string, "stdin-pipe");
+declare_string(stdout_pipe_string, "stdout-pipe");
+declare_string(stderr_pipe_string, "stderr-pipe");
+
 typedef struct RunResult {
 	Class* class_;
 	pid_t pid;
@@ -51,25 +57,20 @@ Object* Run(Object* self, Object** args)
 	Pipe* stdin_pipe = NULL;
 	Pipe* stdout_pipe = NULL;
 	Pipe* stderr_pipe = NULL;
-	declare_static_string(capture_option, "capture");
-	declare_static_string(wait_option, "wait");
-	declare_static_string(stdin_pipe_option, "stdin-pipe");
-	declare_static_string(stdout_pipe_option, "stdout-pipe");
-	declare_static_string(stderr_pipe_option, "stderr-pipe");
 	Dict* options = (Dict*) args[1];
 	if (options && options->class_ == &Dict_class) {
-		capture = Dict_option_turned_on(options, &capture_option);
-		if (Dict_option_turned_off(options, &wait_option))
+		capture = Dict_option_turned_on(options, &capture_string);
+		if (Dict_option_turned_off(options, &wait_string))
 			wait = false;
-		stdin_pipe = (Pipe*) Dict_at(options, &stdin_pipe_option);
+		stdin_pipe = (Pipe*) Dict_at(options, &stdin_pipe_string);
 		if (stdin_pipe && stdin_pipe->class_ != &Pipe_class)
 			Error("run(): \"stdin-pipe\" must be a Pipe.");
-		stdout_pipe = (Pipe*) Dict_at(options, &stdout_pipe_option);
+		stdout_pipe = (Pipe*) Dict_at(options, &stdout_pipe_string);
 		if (stdout_pipe && stdout_pipe->class_ != &Pipe_class)
 			Error("run(): \"stdout-pipe\" must be a Pipe.");
 		if (stdout_pipe && capture)
 			Error("run(): Can't use \"capture\" and \"stdout-pipe\" options at the same time.");
-		stderr_pipe = (Pipe*) Dict_at(options, &stderr_pipe_option);
+		stderr_pipe = (Pipe*) Dict_at(options, &stderr_pipe_string);
 		if (stderr_pipe && stderr_pipe->class_ != &Pipe_class)
 			Error("run(): \"stderr-pipe\" must be a Pipe.");
 		}

@@ -8,6 +8,7 @@
 #include "Array.h"
 #include "Object.h"
 #include "Pipe.h"
+#include "Run.h"
 #include "Memory.h"
 #include "Error.h"
 
@@ -229,7 +230,6 @@ int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 		MethodBuilder_add_bytecode(method, BC_NEW_DICT);
 		MethodBuilder_add_bytecode(method, options_loc);
 		if (self->in_pipe_loc) {
-			declare_static_string(stdin_pipe_string, "stdin-pipe");
 			int key_loc = -MethodBuilder_add_literal(method, (Object*) &stdin_pipe_string) - 1;
 			MethodBuilder_add_bytecode(method, BC_DICT_ADD);
 			MethodBuilder_add_bytecode(method, options_loc);
@@ -237,14 +237,12 @@ int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 			MethodBuilder_add_bytecode(method, self->in_pipe_loc);
 			}
 		if (self->out_pipe_loc) {
-			declare_static_string(stdout_pipe_string, "stdout-pipe");
 			int key_loc = -MethodBuilder_add_literal(method, (Object*) &stdout_pipe_string) - 1;
 			MethodBuilder_add_bytecode(method, BC_DICT_ADD);
 			MethodBuilder_add_bytecode(method, options_loc);
 			MethodBuilder_add_bytecode(method, key_loc);
 			MethodBuilder_add_bytecode(method, self->out_pipe_loc);
 			// Don't wait for this process, only wait for the last process in the pipeline.
-			declare_static_string(wait_string, "wait");
 			key_loc = -MethodBuilder_add_literal(method, (Object*) &wait_string) - 1;
 			int false_loc = MethodBuilder_reserve_locals(method, 1);
 			MethodBuilder_add_bytecode(method, BC_FALSE);
@@ -256,7 +254,6 @@ int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 			method->cur_num_variables = false_loc;
 			}
 		else if (self->capture) {
-			declare_static_string(capture_string, "capture");
 			int key_loc = -MethodBuilder_add_literal(method, (Object*) &capture_string) - 1;
 			int true_loc = MethodBuilder_reserve_locals(method, 1);
 			MethodBuilder_add_bytecode(method, BC_TRUE);
