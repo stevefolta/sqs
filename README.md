@@ -20,6 +20,8 @@ fn capture(command)
   return run(command, { capture = true }).output.trim()
 today = capture([ "date", "+%Y-%m-%d" ])
 print("Today: {today}")
+# But actually, there's sh-style syntactic sugar for that:
+print("Today: {$(date '+%Y-%m-%d')}")
 
 class Person
   (name)
