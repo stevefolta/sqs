@@ -44,3 +44,8 @@ extern struct Class String_class;
 	static const char name##_chars[] = value; 	\
 	String name = { &String_class, name##_chars, sizeof(value) - 1 };
 
+// A few widely-used strings.
+extern String iterator_string;
+extern String next_string;
+
+

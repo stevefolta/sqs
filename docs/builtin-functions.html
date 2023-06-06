@@ -37,7 +37,9 @@ Runs a program.  Normally, <i>arguments</i> should be an Array, with the program
 	<dt> <code> stdin-pipe </code> </dt>
 	<dt> <code> stdout-pipe </code> </dt>
 	<dt> <code> stderr-pipe </code> </dt>
-	<dd> This supply a Pipe object to be used for the given stream. </dd>
+	<dd> These supply a Pipe object to be used for the given stream. </dd>
+	<dt> <code> env </code> </dt>
+	<dd> Gives the environment for the new process.  <code>env</code> must be a Dict; its values must be strings (or <code>nil</code>).  Note that this gives the <i>whole</i> environment; any values from the current environment must be explicitly copied from the <code>env</code> global object.  Any entries in <code>env</code> with a value of <code>nil</code> will be ignored.  If <code>env</code> is not given, the new process gets a copy of the parent process's environment. </dd>
 </dt>
 </dl>
 <p> Returns an object that supports these methods: </p>
@@ -60,6 +62,18 @@ Sleeps for the given number of seconds.  <i>seconds</i> must be an integer, sinc
 <dt> glob(<i>pattern</i>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) </dt>
 <dd class="fn">
 Returns an Array of paths of files in the filesystem matching the glob-style pattern.  <i>options</i>, if given, must be a Dict.  Supported options are <code>mark-directories</code> (appends "/" to directories), <code>sort</code> (defaults to <code>true</code>), <code>escape</code> (allows escaping characters with a backslash; defaults to <code>true</code>), and <code>tilde</code> (allows tilde-expansion).
+</dd>
+
+</dl>
+
+
+<h2> Global objects </h2>
+
+<dl>
+
+<dt><code>env</code></dt>
+<dd class="fn">
+Gives read-only access to the environment variables via the <code>[]</code> method.  <code>env[<i>name</i>]</code> will return <code>nil</code> if there is no environment variable with the given name.
 </dd>
 
 </dl>

@@ -12,4 +12,5 @@ extern struct String wait_string;
 extern struct String stdin_pipe_string;
 extern struct String stdout_pipe_string;
 extern struct String stderr_pipe_string;
+extern struct String env_string;
 

@@ -6,6 +6,7 @@
 #include "String.h"
 #include "Dict.h"
 #include "ByteArray.h"
+#include "ByteCode.h"
 #include "Int.h"
 #include "Boolean.h"
 #include "Memory.h"
@@ -16,12 +17,15 @@
 #include <stdbool.h>
 #include <errno.h>
 
-
 declare_string(capture_string, "capture");
 declare_string(wait_string, "wait");
 declare_string(stdin_pipe_string, "stdin-pipe");
 declare_string(stdout_pipe_string, "stdout-pipe");
 declare_string(stderr_pipe_string, "stderr-pipe");
+declare_string(env_string, "env");
+
+extern char** build_environ(Dict* env);
+
 
 typedef struct RunResult {
 	Class* class_;
@@ -57,6 +61,7 @@ Object* Run(Object* self, Object** args)
 	Pipe* stdin_pipe = NULL;
 	Pipe* stdout_pipe = NULL;
 	Pipe* stderr_pipe = NULL;
+	Dict* env = NULL;
 	Dict* options = (Dict*) args[1];
 	if (options && options->class_ == &Dict_class) {
 		capture = Dict_option_turned_on(options, &capture_string);
@@ -73,6 +78,9 @@ Object* Run(Object* self, Object** args)
 		stderr_pipe = (Pipe*) Dict_at(options, &stderr_pipe_string);
 		if (stderr_pipe && stderr_pipe->class_ != &Pipe_class)
 			Error("run(): \"stderr-pipe\" must be a Pipe.");
+		env = (Dict*) Dict_at(options, &env_string);
+		if (env && env->class_ != &Dict_class)
+			Error("run(): \"env\" must be a Dict.");
 		}
 
 	// Make the argv.
@@ -111,6 +119,13 @@ Object* Run(Object* self, Object** args)
 			close(stderr_pipe->read_fd);
 			stderr_pipe->read_fd = -1;
 			dup2(stderr_pipe->write_fd, STDERR_FILENO);
+			}
+
+		// Environment.
+		// We'd use execvpe(), but that's not part of POSIX.
+		if (env) {
+			extern char** environ;
+			environ = build_environ(env);
 			}
 
 		// Run.
@@ -201,6 +216,31 @@ void Run_init()
 		{ NULL },
 		};
 	Class_add_builtin_methods(&RunResult_class, run_result_methods);
+}
+
+
+
+char** build_environ(Dict* env)
+{
+	char** environ = (char**) alloc_mem((env->size + 1) * sizeof(char*));
+	DictIterator* iterator = new_DictIterator(env);
+	declare_static_string(equals_string, "=");
+
+	char** next_env_entry = environ;
+	while (true) {
+		DictIteratorResult kv = DictIterator_next(iterator);
+		if (kv.key == NULL)
+			break;
+		if (kv.value == NULL)
+			continue;
+		String* value = String_enforce(kv.value, "run(): \"env\" values must be strings.");
+		String* entry = String_add(kv.key, String_add(&equals_string, value));
+		*next_env_entry++ = (char*) String_c_str(entry);
+		}
+	// Null-terminate the list.
+	*next_env_entry++ = NULL;
+
+	return environ;
 }
 
 

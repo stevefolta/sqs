@@ -11,6 +11,8 @@
 #include <stdbool.h>
 
 Class String_class;
+declare_string(iterator_string, "iterator");
+declare_string(next_string, "next");
 
 extern void String_init(String* self, const char* str, size_t size);
 
