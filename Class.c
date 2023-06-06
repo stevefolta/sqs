@@ -57,9 +57,35 @@ void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* specs)
 }
 
 
+Object* Class_string(Object* super, Object** args)
+{
+	Class* self = (Class*) super;
+	declare_static_string(class_suffix_string, " class");
+	return (Object*) String_add(self->name, &class_suffix_string);
+}
+
+Object* Class_name(Object* super, Object** args)
+{
+	return (Object*) ((Class*) super)->name;
+}
+
+Object* Class_superclass(Object* super, Object** args)
+{
+	return (Object*) ((Class*) super)->superclass;
+}
+
+
 void Class_init_class()
 {
 	init_static_class(Class);
+
+	static BuiltinMethodSpec builtin_methods[] = {
+		{ "string", 0, Class_string },
+		{ "name", 0, Class_name },
+		{ "superclass", 0, Class_superclass },
+		{ NULL, 0, NULL },
+		};
+	Class_add_builtin_methods(&Class_class, builtin_methods);
 }
 
 
