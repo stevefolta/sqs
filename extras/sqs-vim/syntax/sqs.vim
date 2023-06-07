@@ -8,7 +8,8 @@ if exists("b:current_syntax")
 syn keyword sqsBoolean	true false
 syn keyword sqsNil	nil
 
-syn keyword sqsStatement	if else elif while for fn class
+syn keyword sqsStatement	if else elif while for with fn class
+syn keyword sqsStatement	return break continue
 syn match sqsStatement	"\$"
 
 syn match sqsComment	'#.*'
