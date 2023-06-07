@@ -262,6 +262,17 @@ static Object* Array_pop_back_builtin(Object* super, Object** args)
 	return Array_pop_back((Array*) super);
 }
 
+static Object* Array_pop_front_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	if (self->size == 0)
+		return NULL;
+	Object* item = self->items[0];
+	self->items += 1;
+	self->size -= 1;
+	return item;
+}
+
 static Object* Array_back_builtin(Object* super, Object** args)
 {
 	return Array_back((Array*) super);
@@ -324,6 +335,7 @@ void Array_init_class()
 		{ "join", 1, Array_join_builtin },
 		{ "pop", 0, Array_pop_back_builtin },
 		{ "pop-back", 0, Array_pop_back_builtin },
+		{ "pop-front", 0, Array_pop_front_builtin },
 		{ "back", 0, Array_back_builtin },
 		{ "copy", 0, Array_copy_builtin },
 		{ "slice", 2, Array_slice_builtin },
