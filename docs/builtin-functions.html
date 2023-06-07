@@ -65,8 +65,17 @@ Returns an Array of paths of files in the filesystem matching the glob-style pat
 </dd>
 
 <dt> fail(<span class="meta">[</span><i>message</i><span class="meta">]</span>) </dt>
-<dd>
+<dd class="fn">
 Prints out the <i>message</i> (if given) to stderr, and returns 1 as the process return value.
+</dd>
+
+<dt> cwd() </dt>
+<dd>
+Returns the current working directory as a string.  Note that because this is a function, you need the parentheses when calling it.
+</dd>
+<dt> chdir(<i>path</i>) </dt>
+<dd class="fn">
+Changes the working directory to <i>path</i> (a string).
 </dd>
 
 </dl>
