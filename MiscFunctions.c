@@ -1,8 +1,9 @@
-#include "Sleep.h"
+#include "MiscFunctions.h"
 #include "Int.h"
 #include "Object.h"
 #include "Error.h"
 #include <time.h>
+#include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
@@ -21,6 +22,14 @@ Object* Sleep(Object* self, Object** args)
 		}
 	return NULL;
 }
+
+
+Object* Getpid(Object* self, Object** args)
+{
+	return (Object*) new_Int(getpid());
+}
+
+
 
 
 

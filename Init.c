@@ -20,7 +20,7 @@
 #include "Regex.h"
 #include "Path.h"
 #include "Env.h"
-#include "Sleep.h"
+#include "MiscFunctions.h"
 #include "Fail.h"
 
 
@@ -51,6 +51,7 @@ void init_all()
 	GlobalEnvironment_add_fn("run", 2, Run);
 	GlobalEnvironment_add_fn("glob", 2, Glob);
 	GlobalEnvironment_add_fn("sleep", 1, Sleep);
+	GlobalEnvironment_add_fn("getpid", 1, Getpid);
 	GlobalEnvironment_add_fn("fail", 1, Fail);
 	GlobalEnvironment_add_class(&Array_class);
 	GlobalEnvironment_add_class(&ByteArray_class);
