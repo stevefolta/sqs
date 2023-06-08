@@ -146,7 +146,13 @@ Token Lexer_next_token(struct Lexer* self)
 		while (true) {
 			// Skip whitespace since the previous token.
 			char c = *self->p;
-			if (c != ' ' && c != '\t' && c != '\r' && !(c == '\n' && self->paren_level > 0))
+			if (c == '\n') {
+				if (self->paren_level > 0)
+					self->line_number += 1;
+				else
+					break;
+				}
+			else if (c != ' ' && c != '\t' && c != '\r')
 				break;
 			self->p += 1;
 			if (self->p >= self->end)
