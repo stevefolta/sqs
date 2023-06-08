@@ -4,6 +4,7 @@
 #include "Object.h"
 #include "Boolean.h"
 #include "Nil.h"
+#include "ByteArray.h"
 #include "Memory.h"
 #include "UTF8.h"
 #include "Error.h"
@@ -373,6 +374,15 @@ Object* String_decode_8859_1_builtin(Object* super, Object** args)
 	return (Object*) decode_8859_1((uint8_t*) self->str, self->size);
 }
 
+Object* String_bytes(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	ByteArray* byte_array = new_ByteArray();
+	byte_array->size = byte_array->capacity = self->size;
+	byte_array->array = (uint8_t*) self->str;
+	return (Object*) byte_array;
+}
+
 
 void String_init_class()
 {
@@ -399,6 +409,7 @@ void String_init_class()
 		{ "contains", 1, String_contains_builtin },
 		{ "is-valid", 0, String_is_valid_builtin },
 		{ "decode-8859-1", 0, String_decode_8859_1_builtin },
+		{ "bytes", 0, String_bytes },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);
