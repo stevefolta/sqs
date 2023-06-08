@@ -121,7 +121,9 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dd> Returns the last item in the array. </dd>
 
 <dt> slice(<i>start</i>, <span class="meta">[</span><i>end</i><span class="meta">]</span>) </dt>
-<dd> Return a slice of the array from the start index (inclusive) to the end index (non-inclusive).  If <i>end</i> isn't given, the end of the array is used. </dd>
+<dd>
+Return a slice of the array from the start index (inclusive) to the end index (non-inclusive).  If <i>end</i> isn't given, the end of the array is used.  Negative numbers can be used to index relative to the end of the Array.
+</dd>
 
 <dt> copy </dt>
 <dd> Returns a shallow copy of the array. </dd>
@@ -244,7 +246,9 @@ Represents the path of a file or directory in the filesystem.  Basic tilde expan
 <dd> Returns a String with the bytes in the ByteArray.  Assumes UTF-8 encoding. </dd>
 
 <dt> slice(<i>start</i>, <i>size</i>) </dt>
-<dd> Returns a new ByteArray that's a slice of the original ByteArray.  Setting a byte within the slice will modify the original ByteArray, but setting a byte outside it will cause the slice to be "detached" and become a copy. </dd>
+<dd>
+Returns a new ByteArray that's a slice of the original ByteArray.  Setting a byte within the slice will modify the original ByteArray, but setting a byte outside it will cause the slice to be "detached" and become a copy.  <i>start</i> can be negative to index from the end of the ByteArray.  If <i>size</i> is not given, all the bytes starting at <i>start</i> are included.  Note that ByteArray.slice() differs from Array.slice(), in that it uses a <i>size</i> rather than and <i>end</i> as its second argument.
+</dd>
 
 <dt> is-valid-utf8 </dt>
 <dd> Returns whether the bytes represent valid UTF-8. </dd>

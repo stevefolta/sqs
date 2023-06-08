@@ -131,8 +131,10 @@ Object* ByteArray_slice(Object* super, Object** args)
 {
 	ByteArray* self = (ByteArray*) super;
 
-	int start = Int_enforce(args[0], "ByteArray.slice");
-	int size = Int_enforce(args[1], "ByteArray.slice");
+	int start = args[0] ? Int_enforce(args[0], "ByteArray.slice") : 0;
+	int size = args[1] ? Int_enforce(args[1], "ByteArray.slice") : self->size;
+	if (start < 0)
+		start += self->size;
 	if (start + size > self->size) {
 		size = self->size - start;
 		if (size < 0)
