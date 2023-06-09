@@ -30,6 +30,24 @@ int Int_enforce(Object* object, const char* name)
 }
 
 
+Object* Int_init(Object* super, Object** args)
+{
+	Int* self = (Int*) super;
+	if (args[0] == NULL)
+		self->value = 0;
+	else if (args[0]->class_ == &Int_class)
+		self->value = ((Int*) args[0])->value;
+	else if (args[0]->class_ == &String_class) {
+		char* end_ptr = NULL;
+		self->value = strtol(String_c_str((String*) args[0]), &end_ptr, 0);
+		if (*end_ptr == 0)
+			Error("Invalid conversion from string \"%s\" to Int.", String_c_str((String*) args[0]));
+		}
+	else
+		Error("Int.init() takes a String or another Int.");
+	return (Object*) self;
+}
+
 Object* Int_string(Object* super, Object** args)
 {
 	char str[64];
@@ -146,6 +164,7 @@ void Int_init_class()
 	init_static_class(Int);
 
 	BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 1, Int_init },
 		{ "string", 0, Int_string },
 		{ "+", 1, Int_plus },
 		{ "-", 1, Int_minus },
