@@ -270,6 +270,7 @@ static Object* Array_pop_front_builtin(Object* super, Object** args)
 	Object* item = self->items[0];
 	self->items += 1;
 	self->size -= 1;
+	self->capacity -= 1;
 	return item;
 }
 
