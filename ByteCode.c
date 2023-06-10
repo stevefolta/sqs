@@ -508,11 +508,12 @@ void dump_bytecode(struct Method* method, String* class_name, String* function_n
 				printf(" stack-adjust: %d\n", (uint8_t) dest);
 				break;
 			case BC_FN_CALL:
+			case BC_SUPER_CALL:
 				{
 				int8_t fn_loc = bytecode[++i];
 				uint8_t num_args = bytecode[++i];
 				uint8_t frame_adjustment = bytecode[++i];
-				printf("fn_call ");
+				printf(opcode == BC_SUPER_CALL ? "super_call " : "fn_call ");
 				print_loc(fn_loc, method->literals);
 				printf("(%d args) stack-adjust: %d\n", num_args, frame_adjustment);
 				}
