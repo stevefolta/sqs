@@ -182,6 +182,10 @@ test("run() return code 1", run([ "false" ]).ok != true)
 test("run() return code 2", run([ "true" ]).ok)
 
 
+### Capture expressions ###
+test("Capture expression", $(echo echo) == "echo")
+
+
 ### Short-circuits ###
 
 test("Short-circuit && 1", (nil && "yeh") == nil)

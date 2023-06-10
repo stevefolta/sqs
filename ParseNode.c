@@ -30,6 +30,13 @@ int emit_literal(int literal_num, struct MethodBuilder* method)
 	return loc;
 }
 
+int emit_string_literal(String* literal, MethodBuilder* method)
+{
+	int literal_num = MethodBuilder_add_literal(method, (Object*) literal);
+	return emit_literal(literal_num, method);
+}
+
+
 int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 {
 	Block* self = (Block*) super;

@@ -1,5 +1,6 @@
 #include "Run.h"
 #include "Pipe.h"
+#include "File.h"
 #include "Object.h"
 #include "Class.h"
 #include "Array.h"
@@ -19,9 +20,9 @@
 
 declare_string(capture_string, "capture");
 declare_string(wait_string, "wait");
-declare_string(stdin_pipe_string, "stdin-pipe");
-declare_string(stdout_pipe_string, "stdout-pipe");
-declare_string(stderr_pipe_string, "stderr-pipe");
+declare_string(stdin_string, "stdin");
+declare_string(stdout_string, "stdout");
+declare_string(stderr_string, "stderr");
 declare_string(env_string, "env");
 
 extern char** build_environ(Dict* env);
@@ -58,6 +59,7 @@ Object* Run(Object* self, Object** args)
 	// Options.
 	bool capture = false;
 	bool wait = true;
+	int stdin_fd = -1, stdout_fd = -1, stderr_fd = -1;
 	Pipe* stdin_pipe = NULL;
 	Pipe* stdout_pipe = NULL;
 	Pipe* stderr_pipe = NULL;
@@ -67,17 +69,45 @@ Object* Run(Object* self, Object** args)
 		capture = Dict_option_turned_on(options, &capture_string);
 		if (Dict_option_turned_off(options, &wait_string))
 			wait = false;
-		stdin_pipe = (Pipe*) Dict_at(options, &stdin_pipe_string);
-		if (stdin_pipe && stdin_pipe->class_ != &Pipe_class)
-			Error("run(): \"stdin-pipe\" must be a Pipe.");
-		stdout_pipe = (Pipe*) Dict_at(options, &stdout_pipe_string);
-		if (stdout_pipe && stdout_pipe->class_ != &Pipe_class)
-			Error("run(): \"stdout-pipe\" must be a Pipe.");
-		if (stdout_pipe && capture)
-			Error("run(): Can't use \"capture\" and \"stdout-pipe\" options at the same time.");
-		stderr_pipe = (Pipe*) Dict_at(options, &stderr_pipe_string);
-		if (stderr_pipe && stderr_pipe->class_ != &Pipe_class)
-			Error("run(): \"stderr-pipe\" must be a Pipe.");
+		Object* option = Dict_at(options, &stdin_string);
+		if (option) {
+			if (option->class_ == &Pipe_class) {
+				stdin_pipe = (Pipe*) option;
+				stdin_fd = stdin_pipe->read_fd;
+				}
+			else if (option->class_ == &File_class)
+				stdin_fd = File_fd((struct File*) option);
+			else
+				Error("run(): \"stdin\" must be a Pipe or a File.");
+			}
+		option = Dict_at(options, &stdout_string);
+		if (option) {
+			if (capture)
+				Error("run(): Can't use \"capture\" and \"stdout\" options at the same time.");
+			if (option->class_ == &Pipe_class) {
+				stdout_pipe = (Pipe*) option;
+				stdout_fd = stdout_pipe->write_fd;
+				}
+			else if (option->class_ == &File_class) {
+				stdout_fd = File_fd((struct File*) option);
+				File_flush(option, NULL);
+				}
+			else
+				Error("run(): \"stdout\" must be a Pipe or a File.");
+			}
+		option = Dict_at(options, &stderr_string);
+		if (option) {
+			if (option->class_ == &Pipe_class) {
+				stderr_pipe = (Pipe*) option;
+				stderr_fd = stderr_pipe->write_fd;
+				}
+			else if (option->class_ == &File_class) {
+				stderr_fd = File_fd((struct File*) option);
+				File_flush(option, NULL);
+				}
+			else
+				Error("run(): \"stderr\" must be a Pipe or a File.");
+			}
 		env = (Dict*) Dict_at(options, &env_string);
 		if (env && env->class_ != &Dict_class)
 			Error("run(): \"env\" must be a Dict.");
@@ -94,8 +124,10 @@ Object* Run(Object* self, Object** args)
 	argv[args_array->size] = NULL;
 
 	// Set up to capture.
-	if (capture)
+	if (capture) {
 		stdout_pipe = new_Pipe();
+		stdout_fd = stdout_pipe->write_fd;
+		}
 
 	// Fork.
 	pid_t pid = fork();
@@ -104,21 +136,27 @@ Object* Run(Object* self, Object** args)
 	else if (pid == 0) {
 		// We're now in the child.
 
-		// If piping, set that up.
-		if (stdin_pipe) {
-			close(stdin_pipe->write_fd);
-			stdin_pipe->write_fd = -1;
-			dup2(stdin_pipe->read_fd, STDIN_FILENO);
+		// If piping or redirecting, set that up.
+		if (stdin_fd >= 0) {
+			dup2(stdin_fd, STDIN_FILENO);
+			if (stdin_pipe) {
+				close(stdin_pipe->write_fd);
+				stdin_pipe->write_fd = -1;
+				}
 			}
-		if (stdout_pipe) {
-			close(stdout_pipe->read_fd); 	// Close the read end.
-			stdout_pipe->read_fd = -1;
-			dup2(stdout_pipe->write_fd, STDOUT_FILENO);
+		if (stdout_fd >= 0) {
+			dup2(stdout_fd, STDOUT_FILENO);
+			if (stdout_pipe) {
+				close(stdout_pipe->read_fd); 	// Close the read end.
+				stdout_pipe->read_fd = -1;
+				}
 			}
-		if (stderr_pipe) {
-			close(stderr_pipe->read_fd);
-			stderr_pipe->read_fd = -1;
-			dup2(stderr_pipe->write_fd, STDERR_FILENO);
+		if (stderr_fd >= 0) {
+			dup2(stderr_fd, STDERR_FILENO);
+			if (stderr_pipe) {
+				close(stderr_pipe->read_fd);
+				stderr_pipe->read_fd = -1;
+				}
 			}
 
 		// Environment.

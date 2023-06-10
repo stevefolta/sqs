@@ -34,10 +34,10 @@ Runs a program.  Normally, <i>arguments</i> should be an Array, with the program
 	<dd> If true, the stdout of the program will be captured as a String. </ddt>
 	<dt> <code>wait</code> </dt>
 	<dd> If true, <code>run()</code> will wait until the program returns before it returns.  Defaults to <code>true</code>. </dd>
-	<dt> <code> stdin-pipe </code> </dt>
-	<dt> <code> stdout-pipe </code> </dt>
-	<dt> <code> stderr-pipe </code> </dt>
-	<dd> These supply a Pipe object to be used for the given stream. </dd>
+	<dt> <code> stdin </code> </dt>
+	<dt> <code> stdout </code> </dt>
+	<dt> <code> stderr </code> </dt>
+	<dd> These supply a Pipe or File object to be used for the given stream. </dd>
 	<dt> <code> env </code> </dt>
 	<dd> Gives the environment for the new process.  <code>env</code> must be a Dict; its values must be strings (or <code>nil</code>).  Note that this gives the <i>whole</i> environment; any values from the current environment must be explicitly copied from the <code>env</code> global object.  Any entries in <code>env</code> with a value of <code>nil</code> will be ignored.  If <code>env</code> is not given, the new process gets a copy of the parent process's environment. </dd>
 </dt>

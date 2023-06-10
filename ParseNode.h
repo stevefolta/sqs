@@ -256,4 +256,5 @@ extern void SuperCallExpr_add_argument(SuperCallExpr* self, ParseNode* arg);
 
 
 extern int emit_literal(int literal_num, struct MethodBuilder* method);
+extern int emit_string_literal(struct String* literal, struct MethodBuilder* method);
 

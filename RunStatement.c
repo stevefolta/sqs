@@ -230,20 +230,20 @@ int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 		MethodBuilder_add_bytecode(method, BC_NEW_DICT);
 		MethodBuilder_add_bytecode(method, options_loc);
 		if (self->in_pipe_loc) {
-			int key_loc = -MethodBuilder_add_literal(method, (Object*) &stdin_pipe_string) - 1;
+			int key_loc = emit_string_literal(&stdin_string, method);
 			MethodBuilder_add_bytecode(method, BC_DICT_ADD);
 			MethodBuilder_add_bytecode(method, options_loc);
 			MethodBuilder_add_bytecode(method, key_loc);
 			MethodBuilder_add_bytecode(method, self->in_pipe_loc);
 			}
 		if (self->out_pipe_loc) {
-			int key_loc = -MethodBuilder_add_literal(method, (Object*) &stdout_pipe_string) - 1;
+			int key_loc = emit_string_literal(&stdout_string, method);
 			MethodBuilder_add_bytecode(method, BC_DICT_ADD);
 			MethodBuilder_add_bytecode(method, options_loc);
 			MethodBuilder_add_bytecode(method, key_loc);
 			MethodBuilder_add_bytecode(method, self->out_pipe_loc);
 			// Don't wait for this process, only wait for the last process in the pipeline.
-			key_loc = -MethodBuilder_add_literal(method, (Object*) &wait_string) - 1;
+			key_loc = emit_string_literal(&wait_string, method);
 			int false_loc = MethodBuilder_reserve_locals(method, 1);
 			MethodBuilder_add_bytecode(method, BC_FALSE);
 			MethodBuilder_add_bytecode(method, false_loc);
@@ -254,7 +254,7 @@ int RunCommand_emit(ParseNode* super, MethodBuilder* method)
 			method->cur_num_variables = false_loc;
 			}
 		else if (self->capture) {
-			int key_loc = -MethodBuilder_add_literal(method, (Object*) &capture_string) - 1;
+			int key_loc = emit_string_literal(&capture_string, method);
 			int true_loc = MethodBuilder_reserve_locals(method, 1);
 			MethodBuilder_add_bytecode(method, BC_TRUE);
 			MethodBuilder_add_bytecode(method, true_loc);
@@ -394,7 +394,7 @@ int RunCapture_emit(ParseNode* super, MethodBuilder* method)
 	MethodBuilder_add_bytecode(method, run_result_loc);
 	MethodBuilder_add_bytecode(method, args_start);
 	declare_static_string(output_string, "output");
-	int output_string_loc = -MethodBuilder_add_literal(method, (Object*) &output_string) - 1;
+	int output_string_loc = emit_string_literal(&output_string, method);
 	MethodBuilder_add_bytecode(method, BC_CALL_0);
 	MethodBuilder_add_bytecode(method, output_string_loc);
 	MethodBuilder_add_bytecode(method, args_start);
@@ -410,7 +410,7 @@ int RunCapture_emit(ParseNode* super, MethodBuilder* method)
 	MethodBuilder_add_bytecode(method, output_result_loc);
 	MethodBuilder_add_bytecode(method, args_start);
 	declare_static_string(trim_string, "trim");
-	int trim_string_loc = -MethodBuilder_add_literal(method, (Object*) &trim_string) - 1;
+	int trim_string_loc = emit_string_literal(&trim_string, method);
 	MethodBuilder_add_bytecode(method, BC_CALL_0);
 	MethodBuilder_add_bytecode(method, trim_string_loc);
 	MethodBuilder_add_bytecode(method, args_start);

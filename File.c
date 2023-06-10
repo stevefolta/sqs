@@ -88,6 +88,15 @@ Object* File_read(Object* super, Object** args)
 	return (Object*) new_Int(bytes_read);
 }
 
+Object* File_flush(Object* super, Object** args)
+{
+	File* self = (File*) super;
+	if (self->file)
+		fflush(self->file);
+
+	return (Object*) self;
+}
+
 Object* File_close(Object* super, Object** args)
 {
 	File* self = (File*) super;
@@ -113,6 +122,7 @@ void File_init_class()
 		{ "init", 2, File_init },
 		{ "write", 1, File_write },
 		{ "read", 1, File_read },
+		{ "flush", 0, File_flush },
 		{ "close", 0, File_close },
 		{ "lines", 0, File_lines },
 		{ NULL },
@@ -124,6 +134,12 @@ void File_init_class()
 FILE* File_get_file(File* file)
 {
 	return file->file;
+}
+
+
+int File_fd(struct File* file)
+{
+	return fileno(file->file);
 }
 
 
