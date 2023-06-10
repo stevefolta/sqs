@@ -21,6 +21,9 @@ extern MethodBuilder* new_MethodBuilder(struct Array* arguments, struct Environm
 extern void MethodBuilder_finish(MethodBuilder* self);
 extern void MethodBuilder_finish_init(MethodBuilder* self);
 
+extern int MethodBuilder_emit_literal(MethodBuilder* self, struct Object* literal);
+extern int MethodBuilder_emit_literal_by_num(MethodBuilder* self, int literal_num);
+extern int MethodBuilder_emit_string_literal(MethodBuilder* self, struct String* literal);
 extern int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal);
 extern int MethodBuilder_reserve_literal(MethodBuilder* self);
 extern void MethodBuilder_set_literal(MethodBuilder* self, int literal, struct Object* value);

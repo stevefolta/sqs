@@ -11,8 +11,7 @@ int UpvalueLocal_emit(ParseNode* super, MethodBuilder* method)
 	UpvalueLocal* self = (UpvalueLocal*) super;
 
 	int loc = MethodBuilder_reserve_locals(method, 1);
-	int literal_num = MethodBuilder_add_literal(method, (Object*) self->method);
-	int literal_loc = emit_literal(literal_num, method);
+	int literal_loc = MethodBuilder_emit_literal(method, (Object*) self->method);
 
 	MethodBuilder_add_bytecode(method, BC_GET_UPVAL);
 	MethodBuilder_add_bytecode(method, literal_loc);
@@ -30,8 +29,7 @@ int UpvalueLocal_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* met
 	int value_loc = value->emit(value, method);
 	int orig_locals = method->cur_num_variables;
 
-	int literal_num = MethodBuilder_add_literal(method, (Object*) self->method);
-	int literal_loc = emit_literal(literal_num, method);
+	int literal_loc = MethodBuilder_emit_literal(method, (Object*) self->method);
 
 	MethodBuilder_add_bytecode(method, BC_SET_UPVAL);
 	MethodBuilder_add_bytecode(method, literal_loc);

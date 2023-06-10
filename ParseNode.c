@@ -16,27 +16,6 @@
 #include <stdio.h>
 
 
-int emit_literal(int literal_num, struct MethodBuilder* method)
-{
-	if (literal_num < -INT8_MIN)
-		return -literal_num - 1;
-
-	// Won't fit in seven bits, need to move it to a temporary local.
-	int loc = MethodBuilder_reserve_locals(method, 1);
-	MethodBuilder_add_bytecode(method, BC_GET_LITERAL);
-	MethodBuilder_add_bytecode(method, literal_num >> 8);
-	MethodBuilder_add_bytecode(method, literal_num & 0xFF);
-	MethodBuilder_add_bytecode(method, loc);
-	return loc;
-}
-
-int emit_string_literal(String* literal, MethodBuilder* method)
-{
-	int literal_num = MethodBuilder_add_literal(method, (Object*) literal);
-	return emit_literal(literal_num, method);
-}
-
-
 int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 {
 	Block* self = (Block*) super;
@@ -295,8 +274,7 @@ int emit_call(int receiver_loc, char* name, int num_args, int* args_locs, Method
 	// Make the name.
 	// If it needs a temporary local, it's okay for it to be in the callee's
 	// frame since it'll be consumed right away.
-	int name_literal = MethodBuilder_add_literal(method, (Object*) new_c_String(name));
-	int name_loc = emit_literal(name_literal, method);
+	int name_loc = MethodBuilder_emit_string_literal(method, new_c_String(name));
 
 	// Emit the call itself.
 	MethodBuilder_add_bytecode(method, BC_CALL_0 + num_args);
@@ -539,7 +517,7 @@ int UpvalueFunction_emit(ParseNode* super, MethodBuilder* method)
 		FunctionStatement_add_reference(self->function, self);
 		}
 
-	return emit_literal(self->literal, method);
+	return MethodBuilder_emit_literal_by_num(method, self->literal);
 }
 
 UpvalueFunction* new_UpvalueFunction(FunctionStatement* function)
@@ -697,8 +675,7 @@ ShortCircuitNot* new_ShortCircuitNot(ParseNode* expr)
 int StringLiteralExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	StringLiteralExpr* self = (StringLiteralExpr*) super;
-	int literal_num = MethodBuilder_add_literal(method, (Object*) self->str);
-	return emit_literal(literal_num, method);
+	return MethodBuilder_emit_string_literal(method, self->str);
 }
 
 StringLiteralExpr* new_StringLiteralExpr(struct String* str)
@@ -763,8 +740,7 @@ InterpolatedStringLiteral* new_InterpolatedStringLiteral(struct Array* component
 int IntLiteralExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	IntLiteralExpr* self = (IntLiteralExpr*) super;
-	int literal_num = MethodBuilder_add_literal(method, (Object*) new_Int(self->value));
-	return emit_literal(literal_num, method);
+	return MethodBuilder_emit_literal(method, (Object*) new_Int(self->value));
 }
 
 IntLiteralExpr* new_IntLiteralExpr(String* value_str)
@@ -813,8 +789,7 @@ ParseNode* new_NilLiteral()
 int GlobalExpr_emit(ParseNode* super, MethodBuilder* method)
 {
 	GlobalExpr* self = (GlobalExpr*) super;
-	int name_literal = MethodBuilder_add_literal(method, self->object);
-	return emit_literal(name_literal, method);
+	return MethodBuilder_emit_literal(method, self->object);
 }
 
 GlobalExpr* new_GlobalExpr(struct Object* object)
@@ -1015,8 +990,7 @@ int DictLiteral_emit(ParseNode* super, MethodBuilder* method)
 		ParseNode* value = (ParseNode*) item.value;
 
 		int value_loc = value->emit(value, method);
-		int name_literal = MethodBuilder_add_literal(method, (Object*) item.key);
-		int name_loc = emit_literal(name_literal, method);
+		int name_loc = MethodBuilder_emit_string_literal(method, item.key);
 
 		MethodBuilder_add_bytecode(method, BC_DICT_ADD);
 		MethodBuilder_add_bytecode(method, dict_loc);
@@ -1086,8 +1060,7 @@ int CallExpr_emit(ParseNode* super, MethodBuilder* method)
 	// Emit the name.
 	// If it needs a temporary local, it's okay for it to be in the callee's
 	// frame, since it'll be consumed right away.
-	int name_literal = MethodBuilder_add_literal(method, (Object*) self->name);
-	int name_loc = emit_literal(name_literal, method);
+	int name_loc = MethodBuilder_emit_string_literal(method, self->name);
 
 	// Emit the call itself.
 	MethodBuilder_add_bytecode(method, BC_CALL_0 + num_args);
@@ -1246,8 +1219,7 @@ int SuperCallExpr_emit(ParseNode* super, MethodBuilder* method)
 	// Emit the name.
 	// If it needs a temporary local, it's okay for it to be in the callee's
 	// frame, since it'll be consumed right away.
-	int name_literal = MethodBuilder_add_literal(method, (Object*) self->name);
-	int name_loc = emit_literal(name_literal, method);
+	int name_loc = MethodBuilder_emit_string_literal(method, self->name);
 
 	// Emit the call itself.
 	MethodBuilder_add_bytecode(method, BC_SUPER_CALL);

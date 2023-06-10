@@ -38,6 +38,31 @@ void MethodBuilder_finish_init(MethodBuilder* self)
 }
 
 
+int MethodBuilder_emit_literal(MethodBuilder* self, Object* literal)
+{
+	int literal_num = MethodBuilder_add_literal(self, literal);
+	return MethodBuilder_emit_literal_by_num(self, literal_num);
+}
+
+int MethodBuilder_emit_literal_by_num(MethodBuilder* self, int literal_num)
+{
+	if (literal_num < -INT8_MIN)
+		return -literal_num - 1;
+
+	// Won't fit in seven bits, need to move it to a temporary local.
+	int loc = MethodBuilder_reserve_locals(self, 1);
+	MethodBuilder_add_bytecode(self, BC_GET_LITERAL);
+	MethodBuilder_add_bytecode(self, literal_num >> 8);
+	MethodBuilder_add_bytecode(self, literal_num & 0xFF);
+	MethodBuilder_add_bytecode(self, loc);
+	return loc;
+}
+
+int MethodBuilder_emit_string_literal(MethodBuilder* self, String* literal)
+{
+	return MethodBuilder_emit_literal(self, (Object*) literal);
+}
+
 int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
 {
 	Array_append(self->method->literals, literal);
