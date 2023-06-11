@@ -509,12 +509,18 @@ int UpvalueFunction_emit(ParseNode* super, MethodBuilder* method)
 {
 	UpvalueFunction* self = (UpvalueFunction*) super;
 
-	if (self->function->compiled_method)
-		self->literal = MethodBuilder_add_literal(method, self->function->compiled_method);
+	int existing_literal_num = MethodBuilder_get_reserved_literal_for(method, (Object*) self->function);
+	if (existing_literal_num >= 0)
+		self->literal = existing_literal_num;
 	else {
-		self->method_builder = method;
-		self->literal = MethodBuilder_reserve_literal(method);
-		FunctionStatement_add_reference(self->function, self);
+		self->literal = MethodBuilder_reserve_literal_for(method, (Object*) self->function);
+		if (self->function->compiled_method)
+			MethodBuilder_set_literal(method, self->literal, self->function->compiled_method);
+		else {
+			self->method_builder = method;
+			self->literal = MethodBuilder_reserve_literal_for(method, (Object*) self->function);
+			FunctionStatement_add_reference(self->function, self);
+			}
 		}
 
 	return MethodBuilder_emit_literal_by_num(method, self->literal);

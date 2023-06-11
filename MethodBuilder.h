@@ -28,7 +28,8 @@ extern int MethodBuilder_emit_literal(MethodBuilder* self, struct Object* litera
 extern int MethodBuilder_emit_literal_by_num(MethodBuilder* self, int literal_num);
 extern int MethodBuilder_emit_string_literal(MethodBuilder* self, struct String* literal);
 extern int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal);
-extern int MethodBuilder_reserve_literal(MethodBuilder* self);
+extern int MethodBuilder_reserve_literal_for(MethodBuilder* self, struct Object* literal);
+extern int MethodBuilder_get_reserved_literal_for(MethodBuilder* self, struct Object* literal);
 extern void MethodBuilder_set_literal(MethodBuilder* self, int literal, struct Object* value);
 
 extern void MethodBuilder_add_bytecode(MethodBuilder* self, uint8_t bytecode);

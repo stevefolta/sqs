@@ -98,15 +98,28 @@ int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)
 	return self->method->literals->size - 1;
 }
 
-int MethodBuilder_reserve_literal(MethodBuilder* self)
+int MethodBuilder_reserve_literal_for(MethodBuilder* self, Object* literal)
 {
-	Array_append(self->method->literals, NULL);
-	if (self->method->literals->size > UINT16_MAX)
-		Error("Internal error: Too many literals.");
-	return self->method->literals->size - 1;
+	int literal_number;
+	Object* value = IdentityDict_at(self->object_literals, literal);
+	if (value)
+		literal_number = Int_enforce(value, "Internal error: MethodBuilder_reserve_literal_for");
+	else {
+		literal_number = MethodBuilder_add_literal(self, NULL);
+		IdentityDict_set_at(self->object_literals, literal, (Object*) new_Int(literal_number));
+		}
+	return literal_number;
 }
 
-void MethodBuilder_set_literal(MethodBuilder* self, int literal, struct Object* value)
+int MethodBuilder_get_reserved_literal_for(MethodBuilder* self, Object* literal)
+{
+	Object* value = IdentityDict_at(self->object_literals, literal);
+	if (value == NULL)
+		return -1;
+	return Int_enforce(value, "Internal error: MethodBuilder_get_reserved_literal_for");
+}
+
+void MethodBuilder_set_literal(MethodBuilder* self, int literal, Object* value)
 {
 	Array_set_at(self->method->literals, literal, value);
 }
