@@ -17,6 +17,7 @@ typedef struct MethodBuilder {
 	struct Environment* environment;
 	struct LoopPoints* loop_points;
 	struct Dict* string_literals;
+	struct Dict* object_literals;
 	} MethodBuilder;
 
 extern MethodBuilder* new_MethodBuilder(struct Array* arguments, struct Environment* environment);

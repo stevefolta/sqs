@@ -23,6 +23,7 @@ MethodBuilder* new_MethodBuilder(Array* arguments, Environment* environment)
 		environment = &global_environment.environment;
 	self->environment = (Environment*) new_MethodEnvironment(self, environment);
 	self->string_literals = new_Dict();
+	self->object_literals = new_Dict();
 	return self;
 }
 
@@ -43,22 +44,18 @@ void MethodBuilder_finish_init(MethodBuilder* self)
 
 int MethodBuilder_emit_literal(MethodBuilder* self, Object* literal)
 {
-	int literal_num = MethodBuilder_add_literal(self, literal);
-	return MethodBuilder_emit_literal_by_num(self, literal_num);
-}
+	// Deduplicate literals by object identity.  Often a method will refer to a
+	// class or a function multiple times.
+	int literal_number;
+	Object* value = IdentityDict_at(self->object_literals, literal);
+	if (value)
+		literal_number = Int_enforce(value, "Internal error: MethodBuilder object_literals");
+	else {
+		literal_number = MethodBuilder_add_literal(self, literal);
+		IdentityDict_set_at(self->object_literals, literal, (Object*) new_Int(literal_number));
+		}
 
-int MethodBuilder_emit_literal_by_num(MethodBuilder* self, int literal_num)
-{
-	if (literal_num < -INT8_MIN)
-		return -literal_num - 1;
-
-	// Won't fit in seven bits, need to move it to a temporary local.
-	int loc = MethodBuilder_reserve_locals(self, 1);
-	MethodBuilder_add_bytecode(self, BC_GET_LITERAL);
-	MethodBuilder_add_bytecode(self, literal_num >> 8);
-	MethodBuilder_add_bytecode(self, literal_num & 0xFF);
-	MethodBuilder_add_bytecode(self, loc);
-	return loc;
+	return MethodBuilder_emit_literal_by_num(self, literal_number);
 }
 
 int MethodBuilder_emit_string_literal(MethodBuilder* self, String* literal)
@@ -77,6 +74,20 @@ int MethodBuilder_emit_string_literal(MethodBuilder* self, String* literal)
 		}
 
 	return MethodBuilder_emit_literal_by_num(self, literal_number);
+}
+
+int MethodBuilder_emit_literal_by_num(MethodBuilder* self, int literal_num)
+{
+	if (literal_num < -INT8_MIN)
+		return -literal_num - 1;
+
+	// Won't fit in seven bits, need to move it to a temporary local.
+	int loc = MethodBuilder_reserve_locals(self, 1);
+	MethodBuilder_add_bytecode(self, BC_GET_LITERAL);
+	MethodBuilder_add_bytecode(self, literal_num >> 8);
+	MethodBuilder_add_bytecode(self, literal_num & 0xFF);
+	MethodBuilder_add_bytecode(self, loc);
+	return loc;
 }
 
 int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)

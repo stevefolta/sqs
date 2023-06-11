@@ -23,6 +23,9 @@ extern struct String* Dict_key_at(Dict* self, struct String* key);
 	// Useful to avoid proliferations of the same string.
 extern void Dict_dump(Dict* self);
 
+extern struct Object* IdentityDict_at(Dict* self, struct Object* key);
+extern void IdentityDict_set_at(Dict* self, struct Object* key, struct Object* value);
+
 
 typedef struct DictIteratorResult {
 	struct String* key;

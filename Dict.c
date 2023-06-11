@@ -123,6 +123,30 @@ static Dict_index_t Dict_insert(Dict* self, struct String* key, struct Object* v
 	return node;
 }
 
+static Dict_index_t IdentityDict_insert(Dict* self, Object* key, Object* value, Dict_index_t node)
+{
+	if (node == 0)
+		return Dict_create_node(self, (String*) key, value);
+	DictNode* t = &Node(node);
+	// Note: "t" can be invalidated by IdentityDict_insert().
+	ptrdiff_t cmp = key - (Object*) t->key;
+	if (cmp < 0) {
+		// Stupid GCC caches the address of self->tree[node], even at -O0!
+		Dict_index_t new_left = IdentityDict_insert(self, key, value, t->left);
+		self->tree[node].left = new_left;
+		}
+	else if (cmp > 0) {
+		Dict_index_t new_right = IdentityDict_insert(self, key, value, t->right);
+		self->tree[node].right = new_right;
+		}
+	else
+		self->tree[node].value = value;
+
+	node = Dict_skew(self, node);
+	node = Dict_split(self, node);
+	return node;
+}
+
 
 Dict* new_Dict()
 {
@@ -142,10 +166,16 @@ void Dict_init(Dict* self)
 }
 
 
-void Dict_set_at(Dict* self, struct String* key, struct Object* value)
+void Dict_set_at(Dict* self, String* key, Object* value)
 {
 	Node(0).left = Dict_insert(self, key, value, Node(0).left);
 }
+
+void IdentityDict_set_at(Dict* self, Object* key, Object* value)
+{
+	Node(0).left = IdentityDict_insert(self, key, value, Node(0).left);
+}
+
 
 
 struct Object* Dict_at(Dict* self, String* key)
@@ -184,6 +214,26 @@ struct String* Dict_key_at(Dict* self, struct String* key)
 			node = t->right;
 		else
 			return t->key;
+		}
+
+	return NULL;
+}
+
+Object* IdentityDict_at(Dict* self, Object* key)
+{
+	if (self->size == 0)
+		return NULL;
+
+	int node = Node(0).left;
+	while (node != 0) {
+		DictNode* t = &Node(node);
+		ptrdiff_t cmp = key - (Object*) t->key;
+		if (cmp < 0)
+			node = t->left;
+		else if (cmp > 0)
+			node = t->right;
+		else
+			return t->value;
 		}
 
 	return NULL;
