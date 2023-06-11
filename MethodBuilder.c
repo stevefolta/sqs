@@ -2,7 +2,9 @@
 #include "Method.h"
 #include "Environment.h"
 #include "Array.h"
+#include "Dict.h"
 #include "String.h"
+#include "Int.h"
 #include "ByteArray.h"
 #include "ByteCode.h"
 #include "Memory.h"
@@ -20,6 +22,7 @@ MethodBuilder* new_MethodBuilder(Array* arguments, Environment* environment)
 	if (environment == NULL)
 		environment = &global_environment.environment;
 	self->environment = (Environment*) new_MethodEnvironment(self, environment);
+	self->string_literals = new_Dict();
 	return self;
 }
 
@@ -60,7 +63,20 @@ int MethodBuilder_emit_literal_by_num(MethodBuilder* self, int literal_num)
 
 int MethodBuilder_emit_string_literal(MethodBuilder* self, String* literal)
 {
-	return MethodBuilder_emit_literal(self, (Object*) literal);
+	// Deduplicate string literals.
+	int literal_number;
+	Object* value = Dict_at(self->string_literals, literal);
+	if (value)
+		literal_number = Int_enforce(value, "Internal error: MethodBuilder string_literals");
+	else {
+		// Copy the string.  It might be a slice of source file, and we don't want
+		// to make the garbage collector hold on to the whole source file.
+		String* literal_string = String_copy(literal);
+		literal_number = MethodBuilder_add_literal(self, (Object*) literal_string);
+		Dict_set_at(self->string_literals, literal_string, (Object*) new_Int(literal_number));
+		}
+
+	return MethodBuilder_emit_literal_by_num(self, literal_number);
 }
 
 int MethodBuilder_add_literal(MethodBuilder* self, struct Object* literal)

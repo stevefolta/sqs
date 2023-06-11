@@ -7,6 +7,7 @@ struct Environment;
 struct Array;
 struct Object;
 struct String;
+struct Dict;
 
 
 typedef struct MethodBuilder {
@@ -15,6 +16,7 @@ typedef struct MethodBuilder {
 	int cur_num_variables, max_num_variables;
 	struct Environment* environment;
 	struct LoopPoints* loop_points;
+	struct Dict* string_literals;
 	} MethodBuilder;
 
 extern MethodBuilder* new_MethodBuilder(struct Array* arguments, struct Environment* environment);

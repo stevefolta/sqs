@@ -125,6 +125,12 @@ String* String_enforce(Object* object, const char* name)
 }
 
 
+String* String_copy(String* other)
+{
+	return new_String(other->str, other->size);
+}
+
+
 String* String_add(String* self, String* other)
 {
 	String* result = alloc_obj(String);

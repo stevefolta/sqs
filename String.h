@@ -25,6 +25,7 @@ extern bool String_starts_with(String* self, String* other);
 extern bool String_ends_with(String* self, String* other);
 extern const char* String_c_str(String* self);
 extern String* String_enforce(struct Object* object, const char* name);
+extern String* String_copy(String* other);
 
 extern String* String_add(String* self, String* other);
 
