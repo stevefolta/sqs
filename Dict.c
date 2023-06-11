@@ -6,10 +6,12 @@
 #include "Boolean.h"
 #include "Int.h"
 #include "Memory.h"
+#include "Error.h"
 #include <string.h>
 #include <stdio.h>
 
 typedef uint16_t Dict_index_t;
+#define MAX_NODES UINT16_MAX
 
 typedef struct DictNode {
 	Dict_index_t left, right;
@@ -79,7 +81,12 @@ static Dict_index_t Dict_create_node(Dict* self, struct String* key, struct Obje
 	if (self->size + 1 >= self->capacity) {
 		int old_capacity = self->capacity;
 		self->capacity += capacity_increment;
-		self->tree = realloc_mem(self->tree, self->capacity * sizeof(DictNode));
+		if (self->capacity > MAX_NODES)
+			Error("Dictionary overflow!  Dicts only support up to %d entries.", MAX_NODES);
+		// There seems to be a bug in GC_realloc(), so do it by hand.
+		DictNode* new_tree = alloc_mem(self->capacity * sizeof(DictNode));
+		memcpy(new_tree, self->tree, old_capacity * sizeof(DictNode));
+		self->tree = new_tree;
 		memset(self->tree + old_capacity, 0, capacity_increment * sizeof(DictNode));
 		}
 
