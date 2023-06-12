@@ -342,7 +342,7 @@ Token Lexer_next_token(struct Lexer* self)
 		identifier:
 			// Identifier.
 			if (!is_identifier_character(c))
-				Error("Unknown character");
+				Error("Unknown character on line %d.", self->line_number);
 			while (self->p < self->end) {
 				c = *self->p;
 				if (is_identifier_character(c)) {
