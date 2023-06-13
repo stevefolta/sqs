@@ -12,6 +12,7 @@
 #define capacity_increment 16
 
 Class ByteArray_class;
+ByteArray empty_byte_array = { &ByteArray_class, 0, 0, NULL };
 
 
 ByteArray* new_ByteArray()
@@ -132,20 +133,22 @@ Object* ByteArray_slice(Object* super, Object** args)
 	ByteArray* self = (ByteArray*) super;
 
 	int start = args[0] ? Int_enforce(args[0], "ByteArray.slice") : 0;
-	int size = args[1] ? Int_enforce(args[1], "ByteArray.slice") : self->size;
+	int end = args[1] ? Int_enforce(args[1], "ByteArray.slice") : self->size;
 	if (start < 0)
 		start += self->size;
-	if (start + size > self->size) {
-		size = self->size - start;
-		if (size < 0)
-			start = size = 0;
-		}
+	if (start >= self->size)
+		return (Object*) &empty_byte_array;
+	if (end < 0)
+		end += self->size;
+	if (end < start)
+		return (Object*) &empty_byte_array;
+	else if (end > self->size)
+		end = self->size;
 
 	ByteArray* result = alloc_obj(ByteArray);
 	result->class_ = &ByteArray_class;
-	result->size = result->capacity = size;
-	if (size > 0)
-		result->array = self->array + start;
+	result->size = result->capacity = end - start;
+	result->array = self->array + start;
 	return (Object*) result;
 }
 

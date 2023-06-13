@@ -293,6 +293,13 @@ it = Accessed()
 test("External ivar access", it.x == 12 && it.y == 13)
 
 
+# ByteArray.
+
+a = "abcde".bytes
+slices = [ [ nil nil "abcde" ], [ 1 nil "bcde" ], [ 2 3 "c" ], [ 3 7 "de" ], [ -1 nil "e" ], [ -2 -1 "d" ], [ 3 2 "" ], [ 6 nil "" ] ]
+for slice: slices
+	test("ByteArray.slice({slice[0]}, {slice[1]})", a.slice(slice[0], slice[1]).as-string == slice[2])
+
 # Errors.
 
 fn test-error(name, code)
