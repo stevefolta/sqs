@@ -131,6 +131,11 @@ test("Array negative index", foo[-2] == "yuhuh")
 foo[-1] = "nuhuh"
 test("Array negative index set", foo[2] == "nuhuh")
 
+foo = [
+	# Comment in array literal.
+	"foo" "bar" "baz"
+	]
+
 
 ### Dicts ###
 

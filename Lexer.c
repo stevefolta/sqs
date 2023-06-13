@@ -143,27 +143,34 @@ Token Lexer_next_token(struct Lexer* self)
 			}
 		}
 	else {
-		while (true) {
-			// Skip whitespace since the previous token.
-			char c = *self->p;
-			if (c == '\n') {
-				if (self->paren_level > 0)
-					self->line_number += 1;
-				else
-					break;
-				}
-			else if (c != ' ' && c != '\t' && c != '\r')
-				break;
-			self->p += 1;
-			if (self->p >= self->end)
-				return result;
-			}
+		bool done = false;
+		while (!done) {
+			done = true;
 
-		// Comment?
-		if (Lexer_skip_comment(self)) {
-			if (self->paren_level == 0) {
-				result.type = EOL;
-				return result;
+			// Skip whitespace since the previous token.
+			while (true) {
+				char c = *self->p;
+				if (c == '\n') {
+					if (self->paren_level > 0)
+						self->line_number += 1;
+					else
+						break;
+					}
+				else if (c != ' ' && c != '\t' && c != '\r')
+					break;
+				self->p += 1;
+				if (self->p >= self->end)
+					return result;
+				}
+
+			// Comment?
+			if (Lexer_skip_comment(self)) {
+				if (self->paren_level == 0) {
+					result.type = EOL;
+					return result;
+					}
+				else
+					done = false;
 				}
 			}
 		}
@@ -373,7 +380,8 @@ bool Lexer_skip_comment(struct Lexer* self)
 			}
 		self->p += 1;
 		self->line_number += 1;
-		self->at_line_start = true;
+		if (self->paren_level == 0)
+			self->at_line_start = true;
 		return true;
 		}
 
