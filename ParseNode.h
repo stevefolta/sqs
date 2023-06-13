@@ -18,6 +18,7 @@ enum {
 	// their type as PN_Undefined.
 	PN_Undefined,
 	PN_IfStatement,
+	PN_WithStatement,
 	PN_CallExpr,
 	PN_Variable,
 	PN_FunctionStatement,
@@ -98,8 +99,10 @@ typedef struct WithStatement {
 	struct String* name;
 	ParseNode* value;
 	ParseNode* body;
+	int variable_loc;
 	} WithStatement;
 extern WithStatement* new_WithStatement(struct String* name, ParseNode* value, ParseNode* body);
+extern void WithStatement_emit_close(WithStatement* self, struct MethodBuilder* method);
 
 
 typedef struct FunctionStatement {

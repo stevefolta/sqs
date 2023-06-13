@@ -300,6 +300,39 @@ slices = [ [ nil nil "abcde" ], [ 1 nil "bcde" ], [ 2 3 "c" ], [ 3 7 "de" ], [ -
 for slice: slices
 	test("ByteArray.slice({slice[0]}, {slice[1]})", a.slice(slice[0], slice[1]).as-string == slice[2])
 
+
+# Unwinding "with" statement.
+
+class CloseTester
+	(name open)
+
+	init(name-in)
+		name = name-in
+		open = true
+	close
+		open = false
+
+saved-closer = nil
+fn close-test(value)
+	a = [ "a" "b" "c" "d" "e" ]
+	for item: a
+		with closer = CloseTester(item)
+			if item == "d"
+				continue
+			else if item == "e"
+				break
+			else if item != "c"
+				saved-closer = closer
+			if item == value
+				return
+	return nil
+
+test("No unwind", close-test("xxx") || !saved-closer.open)
+test("Return unwind", close-test("a") || !saved-closer.open)
+test("Continue unwind", close-test("d") || !saved-closer.open)
+test("Break unwind", close-test("e") || !saved-closer.open)
+
+
 # Errors.
 
 fn test-error(name, code)

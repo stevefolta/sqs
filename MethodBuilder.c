@@ -1,6 +1,7 @@
 #include "MethodBuilder.h"
 #include "Method.h"
 #include "Environment.h"
+#include "ParseNode.h"
 #include "Array.h"
 #include "Dict.h"
 #include "String.h"
@@ -22,6 +23,7 @@ MethodBuilder* new_MethodBuilder(Array* arguments, Environment* environment)
 	if (environment == NULL)
 		environment = &global_environment.environment;
 	self->environment = (Environment*) new_MethodEnvironment(self, environment);
+	self->unwindings = new_Array();
 	self->string_literals = new_Dict();
 	self->object_literals = new_Dict();
 	return self;
@@ -322,5 +324,41 @@ void MethodBuilder_add_break_offset16(MethodBuilder* self)
 		(Object*) (size_t) MethodBuilder_add_offset16(self));
 }
 
+
+
+void MethodBuilder_push_unwind_point(MethodBuilder* self, ParseNode* node)
+{
+	Array_append(self->unwindings, (Object*) node);
+}
+
+void MethodBuilder_pop_unwind_point(MethodBuilder* self, ParseNode* node)
+{
+	ParseNode* popped_node = (ParseNode*) Array_pop_back(self->unwindings);
+	if (popped_node != node)
+		Error("Internal error: mismatch unwinding points.");
+}
+
+void MethodBuilder_unwind_all(MethodBuilder* self)
+{
+	for (int index = self->unwindings->size - 1; index >= 0; --index) {
+		ParseNode* node = (ParseNode*) Array_at(self->unwindings, index);
+		if (node->type == PN_WithStatement)
+			WithStatement_emit_close((WithStatement*) node, self);
+		}
+}
+
+void MethodBuilder_unwind_loop(MethodBuilder* self)
+{
+	for (int index = self->unwindings->size - 1; index >= 0; --index) {
+		ParseNode* node = (ParseNode*) Array_at(self->unwindings, index);
+		if (node->type == PN_WithStatement)
+			WithStatement_emit_close((WithStatement*) node, self);
+		else {
+			// Anything else is a loop statement, so we're done unwinding the
+			// innermost loop.
+			break;
+			}
+		}
+}
 
 

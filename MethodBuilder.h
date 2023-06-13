@@ -8,6 +8,7 @@ struct Array;
 struct Object;
 struct String;
 struct Dict;
+struct ParseNode;
 
 
 typedef struct MethodBuilder {
@@ -16,6 +17,7 @@ typedef struct MethodBuilder {
 	int cur_num_variables, max_num_variables;
 	struct Environment* environment;
 	struct LoopPoints* loop_points;
+	struct Array* unwindings;
 	struct Dict* string_literals;
 	struct Dict* object_literals;
 	} MethodBuilder;
@@ -57,4 +59,12 @@ extern void MethodBuilder_add_continue_offset8(MethodBuilder* self);
 extern void MethodBuilder_add_break_offset8(MethodBuilder* self);
 extern void MethodBuilder_add_continue_offset16(MethodBuilder* self);
 extern void MethodBuilder_add_break_offset16(MethodBuilder* self);
+
+extern void MethodBuilder_push_unwind_point(MethodBuilder* self, struct ParseNode* node);
+	// "node" can either be a "with" statement that needs to (potentially) be
+	// unwound, or a loop statement ("while" or "for") that marks where an
+	// unwinding might stop for a "break" or "continue" statement.
+extern void MethodBuilder_pop_unwind_point(MethodBuilder* self, struct ParseNode* node);
+extern void MethodBuilder_unwind_all(MethodBuilder* self);
+extern void MethodBuilder_unwind_loop(MethodBuilder* self);
 

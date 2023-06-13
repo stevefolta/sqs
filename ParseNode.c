@@ -216,6 +216,7 @@ int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 	// Start the loop.
 	int loop_point = MethodBuilder_get_offset(method);
 	MethodBuilder_push_loop_points(method);
+	MethodBuilder_push_unwind_point(method, &self->parse_node);
 
 	// Condition.
 	int orig_locals = method->cur_num_variables;
@@ -237,6 +238,7 @@ int WhileStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	// Finish.
 	MethodBuilder_patch_offset16(method, end_patch_point);
+	MethodBuilder_pop_unwind_point(method, &self->parse_node);
 	MethodBuilder_pop_loop_points(method, loop_point, MethodBuilder_get_offset(method));
 	return 0;
 }
@@ -299,6 +301,7 @@ int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	// Start the loop.
 	MethodBuilder_push_loop_points(method);
+	MethodBuilder_push_unwind_point(method, &self->parse_node);
 	int loop_point = MethodBuilder_get_offset(method);
 
 	// "next" call.
@@ -325,6 +328,7 @@ int ForStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	MethodBuilder_patch_offset16(method, end_patch_point);
 	MethodBuilder_pop_loop_points(method, loop_point, MethodBuilder_get_offset(method));
+	MethodBuilder_pop_unwind_point(method, &self->parse_node);
 	MethodBuilder_pop_environment(method);
 	method->cur_num_variables = result_loc + 1;
 	return result_loc;
@@ -348,6 +352,7 @@ ForStatement* new_ForStatement()
 
 int ContinueStatement_emit(ParseNode* self, MethodBuilder* method)
 {
+	MethodBuilder_unwind_loop(method);
 	MethodBuilder_add_bytecode(method, BC_BRANCH);
 	MethodBuilder_add_continue_offset16(method);
 	return 0;
@@ -363,6 +368,7 @@ ParseNode* new_ContinueStatement()
 
 int BreakStatement_emit(ParseNode* self, MethodBuilder* method)
 {
+	MethodBuilder_unwind_loop(method);
 	MethodBuilder_add_bytecode(method, BC_BRANCH);
 	MethodBuilder_add_break_offset16(method);
 	return 0;
@@ -382,11 +388,14 @@ int ReturnStatement_emit(ParseNode* super, MethodBuilder* method)
 
 	if (self->value) {
 		int value_loc = self->value->emit(self->value, method);
+		MethodBuilder_unwind_all(method);
 		MethodBuilder_add_bytecode(method, BC_RETURN);
 		MethodBuilder_add_bytecode(method, value_loc);
 		}
-	else
+	else {
+		MethodBuilder_unwind_all(method);
 		MethodBuilder_add_bytecode(method, BC_RETURN_NIL);
+		}
 
 	return 0;
 }
@@ -412,29 +421,31 @@ int WithStatement_emit(ParseNode* super, MethodBuilder* method)
 {
 	WithStatement* self = (WithStatement*) super;
 
-	int variable_loc = MethodBuilder_reserve_locals(method, 1);
+	self->variable_loc = MethodBuilder_reserve_locals(method, 1);
 
 	int value_loc = self->value->emit(self->value, method);
 	MethodBuilder_add_bytecode(method, BC_SET_LOCAL);
 	MethodBuilder_add_bytecode(method, value_loc);
-	MethodBuilder_add_bytecode(method, variable_loc);
-	method->cur_num_variables = variable_loc + 1;
+	MethodBuilder_add_bytecode(method, self->variable_loc);
+	method->cur_num_variables = self->variable_loc + 1;
 
 	// Our context is just like a ForStatement_emit, we'll just leech off of that.
 	ForStatementContext context;
-	ForStatementContext_init(&context, self->name, variable_loc);
+	ForStatementContext_init(&context, self->name, self->variable_loc);
 	MethodBuilder_push_environment(method, &context.environment);
+	MethodBuilder_push_unwind_point(method, &self->parse_node);
 
 	// Emit the body.
 	if (self->body)
 		self->body->emit(self->body, method);
 
 	// Emit the "close" call.
-	emit_call(variable_loc, "close", 0, NULL, method);
+	emit_call(self->variable_loc, "close", 0, NULL, method);
 
+	MethodBuilder_pop_unwind_point(method, &self->parse_node);
 	MethodBuilder_pop_environment(method);
-	method->cur_num_variables = variable_loc + 1;
-	return variable_loc;
+	method->cur_num_variables = self->variable_loc + 1;
+	return self->variable_loc;
 }
 
 void WithStatement_resolve_names(ParseNode* super, MethodBuilder* method)
@@ -447,12 +458,18 @@ void WithStatement_resolve_names(ParseNode* super, MethodBuilder* method)
 WithStatement* new_WithStatement(String* name, ParseNode* value, ParseNode* body)
 {
 	WithStatement* self = alloc_obj(WithStatement);
+	self->parse_node.type = PN_WithStatement;
 	self->parse_node.emit = WithStatement_emit;
 	self->parse_node.resolve_names = WithStatement_resolve_names;
 	self->name = name;
 	self->value = value;
 	self->body = body;
 	return self;
+}
+
+void WithStatement_emit_close(WithStatement* self, MethodBuilder* method)
+{
+	emit_call(self->variable_loc, "close", 0, NULL, method);
 }
 
 
