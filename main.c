@@ -138,6 +138,6 @@ int main(int argc, char* argv[])
 			return Int_value(result);
 		}
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 

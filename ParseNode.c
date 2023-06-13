@@ -838,6 +838,8 @@ int Variable_emit(ParseNode* super, MethodBuilder* method)
 int Variable_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
 {
 	Variable* self = (Variable*) super;
+	if (self->resolved->emit_set == NULL)
+		Error("Attempt to set \"%s\", which isn't settable.", String_c_str(self->name));
 	return self->resolved->emit_set(self->resolved, value, method);
 }
 

@@ -293,6 +293,21 @@ it = Accessed()
 test("External ivar access", it.x == 12 && it.y == 13)
 
 
+# Errors.
+
+fn test-error(name, code)
+	test-file-path = "/tmp/sqs-test"
+	with file = File(test-file-path, "w")
+		file.write(code)
+		file.write("\n") 	# For one-liners.
+	result = nil
+	with dev-null = File("/dev/null", "w")
+		result = run([ "sqs", test-file-path], { stdout = dev-null, stderr = dev-null })
+	test(name, !result.ok)
+	$ rm {test-file-path}
+
+test-error("Unsettable global", "env = 'foo'")
+
 
 ### FINAL ###
 

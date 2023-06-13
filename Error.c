@@ -13,7 +13,7 @@ void Error(const char* message, ...)
 	fprintf(stderr, "\n");
 
 	va_end(args);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 
