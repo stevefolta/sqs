@@ -33,11 +33,13 @@ typedef struct RunResult {
 	pid_t pid;
 	bool done;
 	int return_code;
+	Pipe* capture_pipe;
 	Object* captured_output;
 	} RunResult;
 Class RunResult_class;
-static RunResult* new_RunResult(pid_t pid, Object* captured_output);
+static RunResult* new_RunResult(pid_t pid, Pipe* capture_pipe);
 Object* RunResult_wait(Object* super, Object** args);
+void RunResult_capture(RunResult* self);
 
 
 Object* Run(Object* self, Object** args)
@@ -174,7 +176,6 @@ Object* Run(Object* self, Object** args)
 		// This is still the parent process.
 
 		// Piping and capturing output.
-		Object* captured_output = NULL;
 		if (stdin_pipe) {
 			close(stdin_pipe->read_fd);
 			stdin_pipe->read_fd = -1;
@@ -187,28 +188,27 @@ Object* Run(Object* self, Object** args)
 			close(stderr_pipe->write_fd);
 			stderr_pipe->write_fd = -1;
 			}
-		if (capture) {
-			captured_output = Pipe_capture(stdout_pipe, true, 0);
-			Pipe_close(stdout_pipe);
-			}
 
 		// Wait for child to exit.
-		Object* run_result = (Object*) new_RunResult(pid, captured_output);
-		if (wait)
+		RunResult* run_result = new_RunResult(pid, stdout_pipe);
+		if (wait) {
+			if (capture)
+				RunResult_capture(run_result);
 			RunResult_wait((Object*) run_result, NULL);
-		return run_result;
+			}
+		return (Object*) run_result;
 		}
 
 	return NULL;
 }
 
 
-static RunResult* new_RunResult(pid_t pid, Object* captured_output)
+static RunResult* new_RunResult(pid_t pid, Pipe* capture_pipe)
 {
 	RunResult* self = alloc_obj(RunResult);
 	self->class_ = &RunResult_class;
 	self->pid = pid;
-	self->captured_output = captured_output;
+	self->capture_pipe = capture_pipe;
 	return self;
 }
 
@@ -226,6 +226,7 @@ Object* RunResult_ok(Object* super, Object** args)
 
 Object* RunResult_output(Object* super, Object** args)
 {
+	RunResult_capture((RunResult*) super);
 	RunResult_wait(super, NULL);
 	return ((RunResult*) super)->captured_output;
 }
@@ -240,6 +241,15 @@ Object* RunResult_wait(Object* super, Object** args)
 		self->done = true;
 		}
 	return (Object*) self;
+}
+
+void RunResult_capture(RunResult* self)
+{
+	if (self->capture_pipe == NULL || self->captured_output)
+		return;
+
+	self->captured_output = Pipe_capture(self->capture_pipe, true, 0);
+	Pipe_close(self->capture_pipe);
 }
 
 
