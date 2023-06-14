@@ -189,8 +189,10 @@ void interpret_bytecode(struct Method* method)
 				frame[frame_adjustment] = NULL; 	// receiver is "nil"
 
 				// Make sure it's really a function.
-				if (value == NULL || (value->class_ != &Method_class && value->class_ != &BuiltinMethod_class && value->class_ != &Class_class))
-					Error("Attempt to call a non-function.");
+				if (value == NULL)
+					Error("Attempt to call \"nil\" as a function.");
+				if (value->class_ != &Method_class && value->class_ != &BuiltinMethod_class && value->class_ != &Class_class)
+					Error("Attempt to call a non-function (a %s).", String_c_str(value->class_->name));
 
 				// Turn calling a class into object instantiation.
 				if (value->class_ == &Class_class) {
