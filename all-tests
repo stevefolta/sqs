@@ -243,6 +243,7 @@ test("3 - 4", 3 - 4 == -1)
 test("~1", ~1 == -2)
 test("~0", ~0 == -1)
 test("-(-3)", -(-3) == 3)
+test("Int(String)", Int("1") == 1)
 
 
 ### Upvalue locals ###
@@ -347,6 +348,7 @@ fn test-error(name, code)
 	$ rm {test-file-path}
 
 test-error("Unsettable global", "env = 'foo'")
+test-error("Bad Int conversion", 'Int("1xx")')
 
 
 ### FINAL ###

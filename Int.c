@@ -40,7 +40,7 @@ Object* Int_init(Object* super, Object** args)
 	else if (args[0]->class_ == &String_class) {
 		char* end_ptr = NULL;
 		self->value = strtol(String_c_str((String*) args[0]), &end_ptr, 0);
-		if (*end_ptr == 0)
+		if (*end_ptr != 0)
 			Error("Invalid conversion from string \"%s\" to Int.", String_c_str((String*) args[0]));
 		}
 	else
