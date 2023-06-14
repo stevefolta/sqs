@@ -75,7 +75,15 @@ Returns the current working directory as a string.  Note that because this is a 
 </dd>
 <dt> chdir(<i>path</i>) </dt>
 <dd class="fn">
-Changes the working directory to <i>path</i> (a string).
+Changes the working directory to <i>path</i> (a string or a Path).
+</dd>
+
+<dt> rename(<i>old-path</i>, <i>new-path</i>) </dt>
+<dd class="fn">
+Renames the file, directory, or symlink at <i>old-path</i> to <i>new-path</i>.
+<p>
+It's idiomatic in sqs to call other programs to manipulate the filesystem (eg. <code>$ rm -rf {some-path}</code>).  But <code>rename()</code> has an important capability that is not available from the Posix <code>mv</code> command (eg. as implemented by Busybox): atomically replacing a link to a directory.
+</p>
 </dd>
 
 </dl>

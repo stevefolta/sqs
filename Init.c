@@ -55,6 +55,7 @@ void init_all()
 	GlobalEnvironment_add_fn("fail", 1, Fail);
 	GlobalEnvironment_add_fn("cwd", 0, Get_cwd);
 	GlobalEnvironment_add_fn("chdir", 1, Chdir);
+	GlobalEnvironment_add_fn("rename", 1, Rename);
 	GlobalEnvironment_add_class(&Array_class);
 	GlobalEnvironment_add_class(&ByteArray_class);
 	GlobalEnvironment_add_class(&Dict_class);

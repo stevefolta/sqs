@@ -1,11 +1,15 @@
 #include "MiscFunctions.h"
 #include "Int.h"
 #include "Object.h"
+#include "Class.h"
 #include "String.h"
+#include "Path.h"
+#include "Nil.h"
 #include "Memory.h"
 #include "Error.h"
 #include <time.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
@@ -50,13 +54,40 @@ Object* Get_cwd(Object* self, Object** args)
 }
 
 
+const char* enforce_path(Object* object, const char* where)
+{
+	const char* c_str = NULL;
+	if (object) {
+		if (object->class_ == &String_class)
+			c_str = String_c_str((String*) object);
+		else if (object->class_ == &Path_class)
+			c_str = ((Path*) object)->path;
+		}
+	if (c_str == NULL) {
+		Class* class_ = (object ? object->class_ : &Nil_class);
+		Error("String required, but got a %s, in \"%s\".", String_c_str(class_->name), where);
+		}
+	return c_str;
+}
+
 Object* Chdir(Object* self, Object** args)
 {
-	String* new_wd = String_enforce(args[0], "chdir()");
-	int result = chdir(String_c_str(new_wd));
+	const char* new_wd = enforce_path(args[0], "chdir()");
+	int result = chdir(new_wd);
 	if (result != 0)
 		Error("Failure to set working directory (%s).", strerror(errno));
 	return args[0];
+}
+
+
+Object* Rename(Object* self, Object** args)
+{
+	const char* old_path = enforce_path(args[0], "rename old-path");
+	const char* new_path = enforce_path(args[1], "rename new-path");
+	int result = rename(old_path, new_path);
+	if (result != 0)
+		Error("rename() failed (%s)\n", strerror(errno));
+	return NULL;
 }
 
 
