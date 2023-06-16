@@ -349,6 +349,12 @@ fn test-error(name, code)
 
 test-error("Unsettable global", "env = 'foo'")
 test-error("Bad Int conversion", 'Int("1xx")')
+overflow-test = "
+fn overflow()
+	overflow()
+overflow()
+"
+test-error("Stack overflow", overflow-test)
 
 
 ### FINAL ###

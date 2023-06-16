@@ -17,7 +17,9 @@
 static Object** stack = NULL;
 static Object** stack_limit;
 static Object** suspended_fp;
-#define stack_size 1024
+enum {
+	stack_size = 1024,
+	};
 
 bool dump_requested = false;
 
@@ -163,6 +165,8 @@ void interpret_bytecode(struct Method* method)
 
 				// Call the method.
 				if (value->class_ == &Method_class) {
+					if (frame + ((Method*) value)->stack_size >= stack_limit)
+						Error("Stack overflow!");
 					pc = (int8_t*) ((Method*) value)->bytecode->array;
 					literals = ((Method*) value)->literals->items;
 					}
