@@ -121,7 +121,7 @@ Token Lexer_next_token(struct Lexer* self)
 			result.type = Indent;
 			return result;
 			}
-		else if (indentation < self->indent_stack[self->indent_stack_size - 1]) {
+		else if (self->indent_stack_size > 0 && indentation < self->indent_stack[self->indent_stack_size - 1]) {
 			self->unindent_to = indentation;
 			self->indent_stack_size -= 1;
 			result.type = Unindent;
