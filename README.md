@@ -6,7 +6,7 @@ sqs
 
 ### Tiny?
 
-It's meant to be useful and capable, yet it compiles in under half a second on my unexceptional hardware.  Lua compiles in about 3s, Python takes about 1m45s.  The executable is about half the size of Lua's.
+It's meant to be useful and capable, yet it compiles in under half a second on my unexceptional hardware.  Lua compiles in about 3s, Python takes about 1m45s.  The executable is about half the size of Lua's, and even a little smaller than that of dash (a Posix shell that's meant to be as small as possible).
 
 
 ### What's it look like?
