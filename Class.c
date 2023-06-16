@@ -29,7 +29,7 @@ Class* new_Class(struct String* name)
 
 Object* Class_instantiate(Class* self)
 {
-	Object* object = alloc_mem(self->num_ivars * sizeof(Object*));
+	Object* object = alloc_mem((self->num_ivars + 1) * sizeof(Object*));
 	object->class_ = self;
 	return object;
 }
