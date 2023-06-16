@@ -148,6 +148,23 @@ for kv: e
 	d[kv.key] = kv.value
 test("Dict loop", d.size == 7 && d['baz'] == "rebaz")
 
+# Large-ish Dict.
+fn test-big-dict()
+	size = 300
+	# Fill it.
+	i = 0
+	d = {}
+	while i < size
+		d[i.string] = i
+		i += 1
+	# Check it.
+	i = 0
+	while i < size
+		if d[i.string] != i
+			return false
+		i += 1
+	return true
+test("Big Dict", test-big-dict())
 
 ### File ###
 

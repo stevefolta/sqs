@@ -83,10 +83,7 @@ static Dict_index_t Dict_create_node(Dict* self, struct String* key, struct Obje
 		self->capacity += capacity_increment;
 		if (self->capacity > MAX_NODES)
 			Error("Dictionary overflow!  Dicts only support up to %d entries.", MAX_NODES);
-		// There seems to be a bug in GC_realloc(), so do it by hand.
-		DictNode* new_tree = alloc_mem(self->capacity * sizeof(DictNode));
-		memcpy(new_tree, self->tree, old_capacity * sizeof(DictNode));
-		self->tree = new_tree;
+		self->tree = realloc_mem(self->tree, self->capacity * sizeof(DictNode));
 		memset(self->tree + old_capacity, 0, capacity_increment * sizeof(DictNode));
 		}
 
@@ -95,7 +92,7 @@ static Dict_index_t Dict_create_node(Dict* self, struct String* key, struct Obje
 	DictNode* t = &Node(node);
 	t->key = key;
 	t->value = value;
-	return node;;
+	return node;
 }
 
 
@@ -168,12 +165,14 @@ void Dict_init(Dict* self)
 
 void Dict_set_at(Dict* self, String* key, Object* value)
 {
-	Node(0).left = Dict_insert(self, key, value, Node(0).left);
+	Dict_index_t new_left = Dict_insert(self, key, value, Node(0).left);
+	Node(0).left = new_left;
 }
 
 void IdentityDict_set_at(Dict* self, Object* key, Object* value)
 {
-	Node(0).left = IdentityDict_insert(self, key, value, Node(0).left);
+	Dict_index_t new_left = IdentityDict_insert(self, key, value, Node(0).left);
+	Node(0).left = new_left;
 }
 
 
@@ -245,11 +244,21 @@ static void Dict_dump_node(Dict* self, Dict_index_t node, int level)
 	DictNode* t = &Node(node);
 	for (int i = level; i > 0; --i)
 		printf("  ");
-	printf("\"%s\" (%d)\n", String_c_str(t->key), t->level);
+	printf("\"%s\" (%d) [%d]\n", String_c_str(t->key), t->level, node);
 	if (t->left)
 		Dict_dump_node(self, t->left, level + 1);
+	else if (t->right) {
+		for (int i = level + 1; i > 0; --i)
+			printf("  ");
+		printf("-\n");
+		}
 	if (t->right)
 		Dict_dump_node(self, t->right, level + 1);
+	else if (t->left) {
+		for (int i = level + 1; i > 0; --i)
+			printf("  ");
+		printf("-\n");
+		}
 }
 
 
