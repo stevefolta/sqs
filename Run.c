@@ -215,6 +215,7 @@ static RunResult* new_RunResult(pid_t pid, Pipe* capture_pipe)
 
 Object* RunResult_return_code(Object* super, Object** args)
 {
+	RunResult_wait(super, NULL);
 	return (Object*) new_Int(((RunResult*) super)->return_code);
 }
 
