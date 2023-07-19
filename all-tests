@@ -253,6 +253,10 @@ test("Raw string literal", r"{moustache}" == "{{moustache}}")
 test("String comparison", ("foo" > "foo") == false)
 test("String comparison", "foo" >= "foo")
 
+s = "ab\u00adde"
+slices = [ [ nil nil "ab­de" ], [ 1 nil "b­de" ], [ 2 3 "­" ], [ 3 7 "de" ], [ -1 nil "e" ], [ -2 -1 "d" ], [ 3 2 "" ], [ 6 nil "" ] ]
+for slice: slices
+	test("String.slice({slice[0]}, {slice[1]})", s.slice(slice[0], slice[1]) == slice[2])
 
 ### Int operations ###
 

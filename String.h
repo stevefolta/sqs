@@ -46,6 +46,7 @@ extern struct Class String_class;
 	String name = { &String_class, name##_chars, sizeof(value) - 1 };
 
 // A few widely-used strings.
+extern String empty_string;
 extern String iterator_string;
 extern String next_string;
 

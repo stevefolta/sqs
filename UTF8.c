@@ -23,6 +23,38 @@ int bytes_in_utf8_character(uint8_t byte)
 }
 
 
+int bytes_in_n_characters(const char* bytes, int num_characters)
+{
+	int total_bytes = 0;
+	for (; num_characters > 0; --num_characters) {
+		int char_bytes = bytes_in_utf8_character(*bytes);
+		if (char_bytes < 0)
+			return -1;
+		total_bytes += char_bytes;
+		bytes += char_bytes;
+		}
+	return total_bytes;
+}
+
+
+int chars_in_utf8(const char* bytes_in, int num_bytes)
+{
+	int total_chars = 0;
+	const uint8_t* bytes = (const uint8_t*) bytes_in;
+	const uint8_t* end = bytes + num_bytes;
+	while (bytes < end) {
+		int char_bytes = bytes_in_utf8_character(*bytes);
+		if (char_bytes < 0)
+			return -1;
+		total_chars += 1;
+		bytes += char_bytes;
+		if (bytes > end)
+			return -1;
+		}
+	return total_chars;
+}
+
+
 bool is_valid_utf8(const char* bytes, int num_bytes)
 {
 	const uint8_t* p = (const uint8_t*) bytes;

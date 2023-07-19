@@ -3,6 +3,7 @@
 #include "Array.h"
 #include "Object.h"
 #include "Boolean.h"
+#include "Int.h"
 #include "Nil.h"
 #include "ByteArray.h"
 #include "Memory.h"
@@ -12,6 +13,7 @@
 #include <stdbool.h>
 
 Class String_class;
+String empty_string = { &String_class, NULL, 0 };
 declare_string(iterator_string, "iterator");
 declare_string(next_string, "next");
 
@@ -389,6 +391,41 @@ Object* String_bytes(Object* super, Object** args)
 	return (Object*) byte_array;
 }
 
+Object* String_size(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	int num_chars = chars_in_utf8(self->str, self->size);
+	if (num_chars < 0)
+		Error("Invalid UTF-8 (in string.size).");
+	return (Object*) new_Int(num_chars);
+}
+
+Object* String_slice(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	int num_chars = chars_in_utf8(self->str, self->size);
+	if (num_chars < 0)
+		Error("Invalid UTF-8 (in string.slice())");
+	int start = args[0] ? Int_enforce(args[0], "String.slice") : 0;
+	int end = args[1] ? Int_enforce(args[1], "String.slice") : num_chars;
+	if (start < 0)
+		start += num_chars;
+	if (start >= num_chars)
+		return (Object*) &empty_string;
+	if (end < 0)
+		end += num_chars;
+	if (end < start)
+		return (Object*) &empty_string;
+	else if (end > num_chars)
+		end = num_chars;
+
+	String* result = alloc_obj(String);
+	result->class_ = &String_class;
+	result->str = self->str + bytes_in_n_characters(self->str, start);
+	result->size = bytes_in_n_characters(result->str, end - start);
+	return (Object*) result;
+}
+
 
 void String_init_class()
 {
@@ -416,6 +453,8 @@ void String_init_class()
 		{ "is-valid", 0, String_is_valid_builtin },
 		{ "decode-8859-1", 0, String_decode_8859_1_builtin },
 		{ "bytes", 0, String_bytes },
+		{ "size", 0, String_size },
+		{ "slice", 0, String_slice },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);
