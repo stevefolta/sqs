@@ -258,6 +258,11 @@ slices = [ [ nil nil "ab­de" ], [ 1 nil "b­de" ], [ 2 3 "­" ], [ 3 7 "de" ], 
 for slice: slices
 	test("String.slice({slice[0]}, {slice[1]})", s.slice(slice[0], slice[1]) == slice[2])
 
+test("String contains", "foo bar baz".contains("bar"))
+test("String contains at end", "foo bar baz".contains("baz"))
+test("String doesn't contain", !"foo bar baz".contains("bax"))
+test("String replace", "foo bar baz".replace("ba", "@") == "foo @r @z")
+
 ### Int operations ###
 
 test("3 - 4", 3 - 4 == -1)

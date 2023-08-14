@@ -350,24 +350,29 @@ Object* String_ends_with_builtin(Object* super, Object** args)
 	return make_bool(String_ends_with((String*) super, other));
 }
 
-Object* String_contains_builtin(Object* super, Object** args)
+int index_of(const char* haystack, size_t haystack_size, const char* needle, size_t needle_size)
 {
-	String* self = (String*) super;
-	String* other = String_enforce(args[0], "String.contains");
 	// memmem() is not part of Posix, so we have to do it ourself.
-	const char* haystack_end = self->str + self->size - other->size + 1;
-	const char* needle_end = other->str + other->size;
-	for (const char* haystack_p = self->str; haystack_p < haystack_end; ++haystack_p) {
-		const char* needle_p = other->str;
+	const char* haystack_end = haystack + haystack_size - needle_size + 1;
+	const char* needle_end = needle + needle_size;
+	for (const char* haystack_p = haystack; haystack_p < haystack_end; ++haystack_p) {
+		const char* needle_p = needle;
 		const char* cur_haystack_p = haystack_p;
 		for (; needle_p < needle_end; ++needle_p, ++cur_haystack_p) {
 			if (*cur_haystack_p != *needle_p)
 				break;
 			}
 		if (needle_p == needle_end)
-			return &true_obj;
+			return haystack_p - haystack;
 		}
-	return &false_obj;
+	return -1;
+}
+
+Object* String_contains_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	String* other = String_enforce(args[0], "String.contains");
+	return make_bool(index_of(self->str, self->size, other->str, other->size) >= 0);
 }
 
 Object* String_is_valid_builtin(Object* super, Object** args)
@@ -426,6 +431,44 @@ Object* String_slice(Object* super, Object** args)
 	return (Object*) result;
 }
 
+Object* String_replace(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	String* old_str = String_enforce(args[0], "String.replace");
+	String* new_str = String_enforce(args[1], "String.replace");
+	Array* segments = NULL;
+	const char* remainder = self->str;
+	size_t remainder_size = self->size;
+	while (true) {
+		// Where is the old string?
+		int index = index_of(remainder, remainder_size, old_str->str, old_str->size);
+		if (index < 0) {
+			// No old string.
+			if (segments && remainder_size > 0) {
+				// Add in the last segment.
+				Array_append(segments, (Object*) new_static_String(remainder, remainder_size));
+				}
+			break;
+			}
+
+		// Add the bit leading up to the old string.
+		if (segments == NULL)
+			segments = new_Array();
+		if (index > 0)
+			Array_append(segments, (Object*) new_static_String(remainder, index));
+
+		// Add the replaced string.
+		Array_append(segments, (Object*) new_str);
+
+		// Go around again.
+		size_t taken = index + old_str->size;
+		remainder += taken;
+		remainder_size -= taken;
+		}
+
+	return segments ? (Object*) Array_join(segments, NULL) : (Object*) self;
+}
+
 
 void String_init_class()
 {
@@ -455,6 +498,7 @@ void String_init_class()
 		{ "bytes", 0, String_bytes },
 		{ "size", 0, String_size },
 		{ "slice", 0, String_slice },
+		{ "replace", 2, String_replace },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&String_class, specs);
