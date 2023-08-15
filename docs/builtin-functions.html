@@ -95,7 +95,7 @@ It's idiomatic in sqs to call other programs to manipulate the filesystem (eg. <
 
 <dt><code>env</code></dt>
 <dd class="fn">
-Gives read-only access to the environment variables via the <code>[]</code> method.  <code>env[<i>name</i>]</code> will return <code>nil</code> if there is no environment variable with the given name.
+Gives read-only access to the environment variables via the <code>[]</code> method.  <code>env[<i>name</i>]</code> will return <code>nil</code> if there is no environment variable with the given name.  There is also a <code>env.as-dict</code> function to get the environment as a Dict.
 </dd>
 
 </dl>
