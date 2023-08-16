@@ -87,6 +87,9 @@ Object* LinesIterator_next(Object* super, Object** args)
 				return NULL;
 			else {
 				// Last line didn't have a line ending.
+				String* last_line = new_String(self->buffer, self->bytes_read);
+				self->bytes_read = 0;
+				return (Object*) last_line;
 				}
 			}
 		self->bytes_read += bytes_read;
