@@ -166,8 +166,16 @@ Object* RegexMatch_at(Object* super, Object** args)
 		return NULL;
 	regmatch_t* match = &self->matches[index];
 	if (match->rm_so == -1)
-		return (Object*) new_static_String(NULL, 0);
+		return (Object*) &empty_string;
 	return (Object*) new_static_String(self->str->str + match->rm_so, match->rm_eo - match->rm_so);
+}
+
+Object* RegexMatch_remainder(Object* super, Object** args)
+{
+	RegexMatch* self = (RegexMatch*) super;
+
+	regoff_t remainder_start = self->matches[0].rm_eo;
+	return (Object*) new_static_String(self->str->str + remainder_start, self->str->size - remainder_start);
 }
 
 
@@ -190,6 +198,7 @@ void Regex_init_class()
 	init_static_class(RegexMatch);
 	static const BuiltinMethodSpec match_methods[] = {
 		{ "[]", 1, RegexMatch_at },
+		{ "remainder", 0, RegexMatch_remainder },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&RegexMatch_class, match_methods);

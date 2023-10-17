@@ -174,7 +174,7 @@ Raw string literals are helpful for <i>regular-expression</i>.  <i>options</i>, 
 </dd>
 
 <dt> match(<i>string</i>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) </dt>
-<dd> Matches the regular expression against <i>string</i>.  Returns <code>nil</code> if it doesn't match, or a match object if it does.  The match object supports the <code>[]</code> method; <code>match[0]</code> is the whole match, and subsequent integers give the matched groups.  Groups can also be accessed by name if they were given names, eg. <code>match['url']</code>.  <i>options</i> are Booleans, and may specify <code>not-bol</code> and/or <code>not-eol</code>. </dd>
+<dd> Matches the regular expression against <i>string</i>.  Returns <code>nil</code> if it doesn't match, or a match object if it does.  The match object supports the <code>[]</code> method; <code>match[0]</code> is the whole match, and subsequent integers give the matched groups.  Groups can also be accessed by name if they were given names, eg. <code>match['url']</code>.  The match object also supports a <code>remainder</code> function, which returns the rest of the string after the match.  <i>options</i> are Booleans, and may specify <code>not-bol</code> and/or <code>not-eol</code>. </dd>
 
 </dl>
 

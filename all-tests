@@ -194,6 +194,7 @@ r = Regex(r"foo (?P<word>\w+) baz")
 test("Regex non-match", r.match("foo bar blech") == nil)
 test("Regex match 1", r.match("foo bar baz")['word'] == "bar")
 test("Regex match 2", r.match("foo blech baz")['word'] == "blech")
+test("Regex remainder", r.match("foo bar baz belugah").remainder == " belugah")
 
 
 ### run() ###
