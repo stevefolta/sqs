@@ -175,7 +175,7 @@ int IfStatement_emit(ParseNode* super, MethodBuilder* method)
 			MethodBuilder_patch_offset16(method, false_patch_point);
 		}
 
-	else {
+	else if (self->else_block) {
 		// *Only* an "else" block!
 		MethodBuilder_add_bytecode(method, BC_BRANCH_IF_TRUE);
 		MethodBuilder_add_bytecode(method, condition_reg);
