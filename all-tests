@@ -384,6 +384,18 @@ overflow()
 test-error("Stack overflow", overflow-test)
 
 
+# Corner cases.
+
+foo = "a"
+ok = false
+if foo == "nope"
+else if foo == "no way"
+# This should work:
+else if foo == "a"
+	ok = true
+test('Comment before "else"', ok)
+
+
 ### FINAL ###
 
 print()

@@ -150,6 +150,10 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 		statement->if_block = Parser_parse_block(self);
 		}
 	Token next_token = Lexer_peek(self->lexer);
+	while (next_token.type == EOL) {
+		Lexer_next(self->lexer);
+		next_token = Lexer_peek(self->lexer);
+		}
 	if (next_token.type == Identifier) {
 		if (String_equals_c(next_token.token, "else")) {
 			Lexer_next(self->lexer);
