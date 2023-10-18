@@ -5,6 +5,7 @@
 #include "Nil.h"
 #include "Boolean.h"
 #include "Memory.h"
+#include "UTF8.h"
 #include "Error.h"
 #include <stdio.h>
 
@@ -79,6 +80,12 @@ Object* Int_divide(Object* super, Object** args)
 {
 	Int_enforce(args[0], "Int./");
 	return (Object*) new_Int(Int_value(super) / Int_value(args[0]));
+}
+
+Object* Int_mod(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.%");
+	return (Object*) new_Int(Int_value(super) % Int_value(args[0]));
 }
 
 Object* Int_or(Object* super, Object** args)
@@ -158,6 +165,13 @@ Object* Int_greater_than_or_equal(Object* super, Object** args)
 	return make_bool(Int_value(super) >= Int_value(args[0]));
 }
 
+Object* Int_as_utf8(Object* super, Object** args)
+{
+	char utf8[32];
+	int size = put_utf8(Int_value(super), utf8);
+	return (Object*) new_String(utf8, size);
+}
+
 
 void Int_init_class()
 {
@@ -170,6 +184,7 @@ void Int_init_class()
 		{ "-", 1, Int_minus },
 		{ "*", 1, Int_times },
 		{ "/", 1, Int_divide },
+		{ "%", 1, Int_mod },
 		{ "|", 1, Int_or },
 		{ "^", 1, Int_exclusive_or },
 		{ "&", 1, Int_and },
@@ -182,6 +197,7 @@ void Int_init_class()
 		{ ">=", 1, Int_greater_than_or_equal },
 		{ "<<", 1, Int_left_shift },
 		{ ">>", 1, Int_right_shift },
+		{ "as-utf8", 0, Int_as_utf8 },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Int_class, builtin_methods);

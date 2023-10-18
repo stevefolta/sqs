@@ -90,6 +90,22 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 </dl>
 
 
+<h3> Int </h3>
+
+<dl>
+
+<dt> + - * / % | &amp; ^ ~ &lt; &gt; &lt;= &gt;= &lt;&lt; &gt;&gt; == != </dt>
+<dd> The usual operators are supported. </dt>
+
+<dt> init(<i>value</i>) </dt>
+<dd> <i>value</i> can either be another Int, or a String representing an integer. </dd>
+
+<dt> as-utf8 </dt>
+<dd> Returns a string of the character at the codepoint represented by the integer. </dd>
+
+</dl>
+
+
 <h3> Array </h3>
 
 <dl>
@@ -244,6 +260,9 @@ Represents the path of a file or directory in the filesystem.  Basic tilde expan
 
 <dt> []=(<i>index</i>, <i>value</i>) </dt>
 <dd> Sets the byte at <i>index</i>. Grows the ByteArray if needed. </dd>
+
+<dt> append(<i>value</i>) </dt>
+<dd> Appends the byte. </dd>
 
 <dt> as-string </dt>
 <dd> Returns a String with the bytes in the ByteArray.  Assumes UTF-8 encoding. </dd>
