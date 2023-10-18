@@ -123,6 +123,12 @@ Object* ByteArray_set_at_builtin(Object* super, Object** args)
 	return args[1];
 }
 
+Object* ByteArray_append_builtin(Object* super, Object** args)
+{
+	ByteArray_append((ByteArray*) super, Int_enforce(args[0], "ByteArray.append"));
+	return NULL;
+}
+
 Object* ByteArray_as_string_builtin(Object* super, Object** args)
 {
 	return (Object*) ByteArray_as_string((ByteArray*) super);
@@ -173,6 +179,7 @@ void ByteArray_init_class()
 		{ "size", 0, ByteArray_size_builtin },
 		{ "[]", 1, ByteArray_at_builtin },
 		{ "[]=", 1, ByteArray_set_at_builtin },
+		{ "append", 1, ByteArray_append_builtin },
 		{ "as-string", 0, ByteArray_as_string_builtin },
 		{ "slice", 2, ByteArray_slice },
 		{ "is-valid-utf8", 0, ByteArray_is_valid_utf8 },
