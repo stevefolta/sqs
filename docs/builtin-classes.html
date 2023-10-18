@@ -65,6 +65,14 @@ By default, these just check if <i>other</i> is the exact same object or not.  T
 <dt> rstrip(<i>other</i>), rtrim(<i>other</i>) </dt>
 <dd> Returns the string with whitespace removed from the end.  "rstrip" and "rtrim" are synonyms. </dd>
 
+<dt> slice(<i> start </i>, <i> end </i>) </dt>
+<dd>
+Returns a slice of the string from the start index (inclusive) to the end index
+(non-inclusive).  Indices represent Unicode characters.  If <i>end</i> isn't
+given, the end of the string is used.  Negative numbers can be used to index
+relative to the end of the string.
+</dd>
+
 <dt> split(<span class="meta">[</span><i>delimiter</i><span class="meta">]</span>) </dt>
 <dd>
 If the <i>delimiter</i> is not given, returns an Array of the whitespace-separated words in the string.
@@ -86,6 +94,11 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 
 <dt> bytes </dt>
 <dd> Returns a ByteArray containing the bytes of the string, which are assumed to be encoded in UTF-8. </dd>
+
+<dt> size </dt>
+<dd> Returns the size, in Unicode characters, of the string. </dd>
+<dt> is-empty </dt>
+<dd> Returns whether the string is empty.  This is faster than checking if the size is zero. </dd>
 
 </dl>
 

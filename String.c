@@ -405,6 +405,12 @@ Object* String_size(Object* super, Object** args)
 	return (Object*) new_Int(num_chars);
 }
 
+Object* String_is_empty(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	return make_bool(self->size > 0);
+}
+
 Object* String_slice(Object* super, Object** args)
 {
 	String* self = (String*) super;
@@ -497,6 +503,7 @@ void String_init_class()
 		{ "decode-8859-1", 0, String_decode_8859_1_builtin },
 		{ "bytes", 0, String_bytes },
 		{ "size", 0, String_size },
+		{ "is-empty", 0, String_is_empty },
 		{ "slice", 0, String_slice },
 		{ "replace", 2, String_replace },
 		{ NULL, 0, NULL },
