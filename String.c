@@ -408,7 +408,7 @@ Object* String_size(Object* super, Object** args)
 Object* String_is_empty(Object* super, Object** args)
 {
 	String* self = (String*) super;
-	return make_bool(self->size > 0);
+	return make_bool(self->size <= 0);
 }
 
 Object* String_slice(Object* super, Object** args)
@@ -504,7 +504,7 @@ void String_init_class()
 		{ "bytes", 0, String_bytes },
 		{ "size", 0, String_size },
 		{ "is-empty", 0, String_is_empty },
-		{ "slice", 0, String_slice },
+		{ "slice", 2, String_slice },
 		{ "replace", 2, String_replace },
 		{ NULL, 0, NULL },
 		};
