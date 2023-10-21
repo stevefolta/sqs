@@ -17,7 +17,7 @@ syn match sqsComment	'#.*'
 syn region sqsString matchgroup=sqsStringDelimiter start='"' skip='\\"' end='"' contains=sqsInterpolation
 syn region sqsString matchgroup=sqsStringDelimiter start="'" skip="\\'" end="'" contains=sqsInterpolation
 syn region sqsString matchgroup=sqsStringDelimiter start='`' skip='\\`' end='`' contains=sqsInterpolation
-syn region sqsInterpolation matchgroup=sqsInterpolationDelimter start="{" end="}" contained
+syn region sqsInterpolation matchgroup=sqsInterpolationDelimiter start="{" end="}" contained oneline
 
 syn region sqsRawString matchgroup=sqsStringDelimiter start='r"' skip='\\"' end='"'
 syn region sqsRawString matchgroup=sqsStringDelimiter start="r'" skip="\\'" end="'"
@@ -31,5 +31,5 @@ hi def link sqsStringDelimiter	Delimiter
 hi def link sqsString	String
 hi def link sqsRawString	String
 hi def link sqsInterpolation	Macro
-hi def link sqsInterpolationDelimter	Delimiter
+hi def link sqsInterpolationDelimiter	Delimiter
 
