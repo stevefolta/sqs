@@ -3,6 +3,7 @@
 #include "String.h"
 #include "Dict.h"
 #include "Object.h"
+#include "Int.h"
 #include "Memory.h"
 
 Class Class_class;
@@ -74,6 +75,11 @@ Object* Class_superclass(Object* super, Object** args)
 	return (Object*) ((Class*) super)->superclass;
 }
 
+Object* Class_num_ivars(Object* super, Object** args)
+{
+	return (Object*) new_Int(((Class*) super)->num_ivars);
+}
+
 
 void Class_init_class()
 {
@@ -83,6 +89,7 @@ void Class_init_class()
 		{ "string", 0, Class_string },
 		{ "name", 0, Class_name },
 		{ "superclass", 0, Class_superclass },
+		{ "num-ivars", 0, Class_num_ivars },
 		{ NULL, 0, NULL },
 		};
 	Class_add_builtin_methods(&Class_class, builtin_methods);
