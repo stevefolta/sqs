@@ -892,8 +892,15 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 				}
 			}
 
-		else if (*p == '}' && unescaped_out) {
+		else if (*p == '}') {
 			p += 1;
+			if (unescaped_out == NULL) {
+				if (unescaped_segment == NULL)
+					unescaped_segment = alloc_mem(token.token->size);
+				size_t size_so_far = p - segment_start - 1;
+				memcpy(unescaped_segment, segment_start, size_so_far);
+				unescaped_out = unescaped_segment + size_so_far;
+				}
 			if (p < end && *p == '}')
 				p += 1;
 			*unescaped_out++ = '}';

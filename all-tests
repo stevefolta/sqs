@@ -206,6 +206,7 @@ test("run() return code 2", run([ "true" ]).ok)
 
 
 ### Capture expressions ###
+
 test("Capture expression", $(echo echo) == "echo")
 
 
@@ -263,6 +264,8 @@ test("String contains", "foo bar baz".contains("bar"))
 test("String contains at end", "foo bar baz".contains("baz"))
 test("String doesn't contain", !"foo bar baz".contains("bax"))
 test("String replace", "foo bar baz".replace("ba", "@") == "foo @r @z")
+
+test("String interpolation (brace quoting)", "{{ { 1 + 1 } }}" == r"{ 2 }")
 
 ### Int operations ###
 
