@@ -184,7 +184,7 @@ void Regex_init_class()
 	init_static_class(Regex);
 	static const BuiltinMethodSpec builtin_methods[] = {
 		{ "init", 2, Regex_init },
-		{ "match", 1, Regex_match },
+		{ "match", 2, Regex_match },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Regex_class, builtin_methods);
