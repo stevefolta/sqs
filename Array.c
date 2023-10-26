@@ -32,7 +32,7 @@ Array* new_Array()
 
 Object* Array_at(struct Array* self, size_t index)
 {
-	if (index > self->size)
+	if (index >= self->size)
 		Error("Array index out of bounds.");
 	return self->items[index];
 }
