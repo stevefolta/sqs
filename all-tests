@@ -106,6 +106,18 @@ fn returner
 
 test("Function return", returner() == 7)
 
+fn nullary
+	return "ok"
+
+fn nullary-outer-fn
+	fn okayer
+		return "ok"
+	fn inner-fn
+		return okayer
+	return inner-fn
+
+test("Nullary call (same block)", nullary == "ok")
+test("Nullary call (sibling)", nullary-outer-fn == "ok")
 
 ### Lexer ###
 

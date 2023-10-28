@@ -1168,6 +1168,13 @@ int FunctionCallExpr_emit(ParseNode* super, MethodBuilder* method)
 			return call->parse_node.emit((ParseNode*) call, method);
 			}
 		}
+	else if (resolved_fn->type == PN_FunctionCallExpr) {
+		FunctionCallExpr* call = (FunctionCallExpr*) resolved_fn;
+		// Attach the args and emit the call.
+		for (int i = 0; i < self->arguments->size; ++i)
+			Array_append(call->arguments, self->arguments->items[i]);
+		return call->parse_node.emit((ParseNode*) call, method);
+		}
 
 	// Allocate stack space for the new frame.
 	int num_args = self->arguments->size;
@@ -1213,6 +1220,7 @@ void FunctionCallExpr_resolve_names(ParseNode* super, MethodBuilder* method)
 FunctionCallExpr* new_FunctionCallExpr(ParseNode* fn, struct Array* arguments)
 {
 	FunctionCallExpr* self = alloc_obj(FunctionCallExpr);
+	self->parse_node.type = PN_FunctionCallExpr;
 	self->parse_node.emit = FunctionCallExpr_emit;
 	self->parse_node.resolve_names = FunctionCallExpr_resolve_names;
 	self->fn = fn;

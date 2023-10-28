@@ -8,6 +8,7 @@
 #include "Dict.h"
 #include "Class.h"
 #include "Object.h"
+#include "Array.h"
 #include "Memory.h"
 #include "Error.h"
 
@@ -115,7 +116,10 @@ ParseNode* BlockContext_find(Environment* super, String* name)
 		// If this is in the same function, we could return a RawLoc of the local.
 		// But it might be in an enclosed function, so we'll use an
 		// UpvalueFunction, which works anywhere.
-		return (ParseNode*) new_UpvalueFunction(function);
+		ParseNode* fn = (ParseNode*) new_UpvalueFunction(function);
+		// Turn it into a function call.  if there are arguments, they'll be
+		// attached by FunctionCallExpr_emit().
+		return (ParseNode*) new_FunctionCallExpr(fn, new_Array());
 		}
 	ClassStatement* class_statement = Block_get_class(self->block, name);
 	if (class_statement)
@@ -167,7 +171,9 @@ ParseNode* BlockUpvalueContext_find(Environment* super, String* name)
 
 	FunctionStatement* function = Block_get_function(self->block, name);
 	if (function)
-		return (ParseNode*) new_UpvalueFunction(function);
+		// Turn it into a function call.  if there are arguments, they'll be
+		// attached by FunctionCallExpr_emit().
+		return (ParseNode*) new_FunctionCallExpr((ParseNode*) new_UpvalueFunction(function), new_Array());
 	ClassStatement* class_statement = Block_get_class(self->block, name);
 	if (class_statement)
 		return ClassStatement_make_reference(class_statement);

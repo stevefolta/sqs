@@ -20,6 +20,7 @@ enum {
 	PN_IfStatement,
 	PN_WithStatement,
 	PN_CallExpr,
+	PN_FunctionCallExpr,
 	PN_Variable,
 	PN_FunctionStatement,
 	PN_ClassStatement,
