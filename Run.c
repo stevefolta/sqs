@@ -244,6 +244,21 @@ Object* RunResult_wait(Object* super, Object** args)
 	return (Object*) self;
 }
 
+Object* RunResult_is_done(Object* super, Object** args)
+{
+	RunResult* self = (RunResult*) super;
+	if (self->done)
+		return &true_obj;
+
+	int status = 0;
+	pid_t result = waitpid(self->pid, &status, WNOHANG);
+	if (result == 0)
+		return &false_obj;
+	self->return_code = WEXITSTATUS(status);
+	self->done = true;
+	return &true_obj;
+}
+
 void RunResult_capture(RunResult* self)
 {
 	if (self->capture_pipe == NULL || self->captured_output)
@@ -262,6 +277,7 @@ void Run_init()
 		{ "ok", 0, RunResult_ok },
 		{ "output", 0, RunResult_output },
 		{ "wait", 0, RunResult_wait },
+		{ "is-done", 0, RunResult_is_done },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&RunResult_class, run_result_methods);
