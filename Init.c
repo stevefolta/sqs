@@ -3,6 +3,7 @@
 #include "Class.h"
 #include "String.h"
 #include "Int.h"
+#include "Float.h"
 #include "Boolean.h"
 #include "Array.h"
 #include "ByteArray.h"
@@ -30,6 +31,7 @@ void init_all()
 	Object_init_class();
 	String_init_class();
 	Int_init_class();
+	Float_init_class();
 	Boolean_init_class();
 	Array_init_class();
 	ByteArray_init_class();
@@ -61,6 +63,7 @@ void init_all()
 	GlobalEnvironment_add_class(&Dict_class);
 	GlobalEnvironment_add_class(&String_class);
 	GlobalEnvironment_add_class(&Int_class);
+	GlobalEnvironment_add_class(&Float_class);
 	GlobalEnvironment_add_class(&File_class);
 	GlobalEnvironment_add_class(&Pipe_class);
 	GlobalEnvironment_add_class(&Regex_class);

@@ -290,6 +290,13 @@ test("Int.as-utf8() (65)", (65).as-utf8 == "A")
 test("Int.as-utf8() (em-dash)", (0x2014).as-utf8 == "—")
 
 
+### Float operations ###
+
+test("3.2 + 12.5", 3.2 + 12.5 == 15.7)
+test("2.2 * 4", 2.2 * 4 == 8.8)
+test("Float(String)", Float("7.5") == 7.5)
+
+
 ### Upvalue locals ###
 
 foo = "foo"

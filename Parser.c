@@ -684,6 +684,10 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 		Lexer_next(self->lexer);
 		return (ParseNode*) new_IntLiteralExpr(next_token.token);
 		}
+	else if (next_token.type == FloatLiteral) {
+		Lexer_next(self->lexer);
+		return (ParseNode*) new_FloatLiteralExr(next_token.token);
+		}
 
 	else if (next_token.type == Identifier) {
 		Lexer_next(self->lexer);

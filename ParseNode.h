@@ -178,6 +178,12 @@ typedef struct IntLiteralExpr {
 	} IntLiteralExpr;
 extern IntLiteralExpr* new_IntLiteralExpr(struct String* value_str);
 
+typedef struct FloatLiteralExpr {
+	ParseNode parse_node;
+	double value;
+	} FloatLiteralExpr;
+extern FloatLiteralExpr* new_FloatLiteralExr(struct String* value_str);
+
 typedef struct BooleanLiteral {
 	ParseNode parse_node;
 	bool value;

@@ -9,6 +9,7 @@
 #include "Dict.h"
 #include "Object.h"
 #include "Int.h"
+#include "Float.h"
 #include "ByteCode.h"
 #include "Memory.h"
 #include "Error.h"
@@ -771,6 +772,21 @@ IntLiteralExpr* new_IntLiteralExpr(String* value_str)
 	IntLiteralExpr* self = alloc_obj(IntLiteralExpr);
 	self->parse_node.emit = IntLiteralExpr_emit;
 	self->value = strtol(String_c_str(value_str), NULL, 0);
+	return self;
+}
+
+
+int FloatLiteralExpr_emit(ParseNode* super, MethodBuilder* method)
+{
+	FloatLiteralExpr* self = (FloatLiteralExpr*) super;
+	return MethodBuilder_emit_literal(method, (Object*) new_Float(self->value));
+}
+
+FloatLiteralExpr* new_FloatLiteralExr(struct String* value_str)
+{
+	FloatLiteralExpr* self = alloc_obj(FloatLiteralExpr);
+	self->parse_node.emit = FloatLiteralExpr_emit;
+	self->value = strtod(String_c_str(value_str), NULL);
 	return self;
 }
 
