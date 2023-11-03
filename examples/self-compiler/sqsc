@@ -105,7 +105,7 @@ fn build(out-file)
 		print("Compiling sqs_compiled.c...")
 		$ {cc} {cflags} -c "{self-compiler-source}/sqs_compiled.c" -o "{build-dir}/sqs_compiled.o"
 	o-files = [ "{build-dir}/main.o" "{build-dir}/sqs_compiled.o" ]
-	sqs-files = "Object Class String Int Array Dict Boolean ByteArray Nil "
+	sqs-files = "Object Class String Int Float Array Dict Boolean ByteArray Nil "
 	sqs-files += "File Pipe Path Print Run Regex Glob MiscFunctions Fail Env "
 	sqs-files += "BuiltinMethod Error UTF8 LinesIterator"
 	for file: sqs-files.split
@@ -122,7 +122,9 @@ fn build(out-file)
 
 # Lexer globals.
 id = r"([[:alpha:]][[:alnum:]_-]*)|\$" 	# TODO: unicode.
-num = r"-?(0x)?[0-9]+"
+num = r"-?(0x)?[0-9]+(\.[0-9]+)?"
+integer = r"-?(0x)?[0-9]+"
+float-pattern = r"-?(0x)?[0-9]+\.[0-9]+"
 operator = r"\+=?|-=?|\*=?|/=?|%=?|\^=?|&(&|=)?|\|(\||=)?|\(|\)|\[|\]|\{|\}|==?|!=?|\.|,|:|~|<<?=?|>>?=?"
 double-quote-string = r'r?"(\\.|[^"])*"'
 single-quote-string = r"r?'(\\.|[^'])*'"
@@ -137,7 +139,8 @@ token-re = Regex("^[ \t]*({id}|{num}|{operator}|{double-quote-string}|{single-qu
 identifier-re = Regex("^{id}$")
 operator-re = Regex("^({operator})$")
 string-literal-re = Regex("^({double-quote-string}|{single-quote-string})$")
-integer-re = Regex("^{num}$")
+integer-re = Regex("^{integer}$")
+float-re = Regex("^{float-pattern}$")
 ignore-re = Regex(r"^[[:space:]]*(#.+)?$")
 indentation-re = Regex(r"^([[:space:]]*).*$")
 
@@ -289,7 +292,7 @@ for level: binop-levels
 builtin-class-objects = [
 	# Object, Class: these are not exposed by sqs by name.
 	Array.superclass, Array.class.class,
-	Int, Array, Dict,
+	Int, Float, Array, Dict,
 	ByteArray, File, Pipe, Regex, Path,
 	]
 builtin-classes = {}
@@ -605,7 +608,7 @@ class Parser
 						arguments.append(parse-capture)
 						continue
 				arguments.append(StringLiteralExpr(token))
-			else if integer-re.match(token)
+			else if integer-re.match(token) || float-re.match(token)
 				lexer.next
 				arguments.append(StringLiteralExpr(token))
 			else if operator-re.match(token)
@@ -615,7 +618,7 @@ class Parser
 					lexer.next
 					while true
 						token = lexer.peek
-						if identifier-re.match(token) || integer-re.match(token)
+						if identifier-re.match(token) || integer-re.match(token) || float-re.match(token)
 							arg += token
 							lexer.next
 							break
@@ -891,6 +894,9 @@ class Parser
 
 		if string-literal-re.match(next-token)
 			return parse-string-literal
+		else if float-re.match(next-token)
+			lexer.next
+			return FloatLiteralExpr(next-token)
 		else if integer-re.match(next-token)
 			lexer.next
 			return IntLiteralExpr(next-token)
@@ -2045,6 +2051,13 @@ class IntLiteralExpr: ParseNode
 		value = Int(value-str)
 	emit(builder)
 		return "((Object*) new_Int({value}))"
+
+class FloatLiteralExpr: ParseNode
+	(value)
+	init(value-str)
+		value = Float(value-str)
+	emit(builder)
+		return "((Object*) new_Float({value}))"
 
 class BooleanLiteral: ParseNode
 	(value)

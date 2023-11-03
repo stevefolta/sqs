@@ -4,6 +4,7 @@
 #include "Class.h"
 #include "String.h"
 #include "Int.h"
+#include "Float.h"
 #include "Array.h"
 #include "Dict.h"
 #include "Boolean.h"

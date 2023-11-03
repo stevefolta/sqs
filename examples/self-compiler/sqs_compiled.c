@@ -109,6 +109,7 @@ static void init_all()
 	Object_init_class();
 	String_init_class();
 	Int_init_class();
+	Float_init_class();
 	Boolean_init_class();
 	Array_init_class();
 	ByteArray_init_class();
