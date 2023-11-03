@@ -1,5 +1,6 @@
 #include "MiscFunctions.h"
 #include "Int.h"
+#include "Float.h"
 #include "Object.h"
 #include "Class.h"
 #include "String.h"
@@ -17,8 +18,8 @@
 
 Object* Sleep(Object* self, Object** args)
 {
-	int seconds = Int_enforce(args[0], "sleep");
-	struct timespec ts = { seconds, 0 };
+	double seconds = Float_enforce(args[0], "sleep");
+	struct timespec ts = { seconds, (seconds - (int) seconds) * 1000000000 };
 	while (true) {
 		int result = nanosleep(&ts, &ts);
 		if (result == 0)
