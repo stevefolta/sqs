@@ -119,6 +119,24 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 </dl>
 
 
+<h3> Float </h3>
+
+<dl>
+
+<dt> + - * / &lt; &gt; &lt;= &gt;= == != </dt>
+<dd>
+The usual operators are supported.  Currently, sqs requires some care when
+mixing Floats and Ints, because Floats will accept Ints as arguments for
+arithmetic operations, but Ints won't accept Floats.  So "3.5 + 2" will work,
+but "2 + 3.5" won't.  Also note that Int division returns an Int, not a Float.
+</dt>
+
+<dt> init(<i>value</i>) </dt>
+<dd> <i>value</i> can either be another Float, an Int, or a String representing an integer. </dd>
+
+</dl>
+
+
 <h3> Array </h3>
 
 <dl>
