@@ -3,6 +3,7 @@
 #include "MethodBuilder.h"
 #include "Environment.h"
 #include "Upvalues.h"
+#include "Module.h"
 #include "ByteArray.h"
 #include "Array.h"
 #include "String.h"
@@ -24,6 +25,8 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 	// Push our context.
 	BlockContext context;
 	BlockContext_init(&context, self, method->environment);
+	if (self->module)
+		BlockContext_make_module_context(&context);
 	method->environment = &context.environment;
 
 	// First, resolve names, so our locals get autodeclared.
@@ -37,8 +40,14 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 		}
 
 	// Allocate locals on the stack.
-	if (self->locals)
-		self->locals_base = MethodBuilder_reserve_locals(method, self->locals->size);
+	if (self->locals) {
+		if (self->module) {
+			Module_create_module_locals(self->module, self->locals->size);
+			self->locals_base = method->cur_num_variables;
+			}
+		else
+			self->locals_base = MethodBuilder_reserve_locals(method, self->locals->size);
+		}
 	else
 		self->locals_base = method->cur_num_variables;
 
@@ -49,6 +58,8 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 			// Function.  Add upvalues to the context.
 			BlockUpvalueContext context;
 			BlockUpvalueContext_init(&context, self, method, method->environment);
+			if (self->module)
+				BlockUpvalueContext_make_module_context(&context);
 			method->environment = &context.environment;
 
 			FunctionStatement* function = (FunctionStatement*) statement;
@@ -64,6 +75,8 @@ int Block_emit(struct ParseNode* super, struct MethodBuilder* method)
 			// Class.  Add upvalues to the context.
 			BlockUpvalueContext context;
 			BlockUpvalueContext_init(&context, self, method, method->environment);
+			if (self->module)
+				BlockUpvalueContext_make_module_context(&context);
 			method->environment = &context.environment;
 
 			statement->emit(statement, method);
@@ -105,17 +118,42 @@ ParseNode* Block_get_local(Block* self, String* name)
 
 FunctionStatement* Block_get_function(Block* self, struct String* name)
 {
-	if (self->functions == NULL)
-		return NULL;
-	
-	return (FunctionStatement*) Dict_at(self->functions, name);
+	if (self->functions) {
+		FunctionStatement* function =  (FunctionStatement*) Dict_at(self->functions, name);
+		if (function)
+			return function;
+		}
+
+	if (self->imported_modules) {
+		for (int i = 0; i < self->imported_modules->size; ++i) {
+			Module* module = (Module*) Array_at(self->imported_modules, i);
+			FunctionStatement* fn = Module_exported_function(module, name);
+			if (fn)
+				return fn;
+			}
+		}
+
+	return NULL;
 }
 
 ClassStatement* Block_get_class(Block* self, struct String* name)
 {
-	if (self->classes == NULL)
-		return NULL;
-	return (ClassStatement*) Dict_at(self->classes, name);
+	if (self->classes) {
+		ClassStatement* class_statement = (ClassStatement*) Dict_at(self->classes, name);
+		if (class_statement)
+			return class_statement;
+		}
+
+	if (self->imported_modules) {
+		for (int i = 0; i < self->imported_modules->size; ++i) {
+			Module* module = (Module*) Array_at(self->imported_modules, i);
+			ClassStatement* class_ = Module_exported_class(module, name);
+			if (class_)
+				return class_;
+			}
+		}
+
+	return NULL;
 }
 
 ParseNode* Block_autodeclare(Block* self, String* name)
@@ -141,7 +179,6 @@ void Block_add_class(Block* self, struct ClassStatement* class_statement)
 		self->classes = new_Dict();
 	Dict_set_at(self->classes, ClassStatement_get_name(class_statement), (Object*) class_statement);
 }
-
 
 
 int IfStatement_emit(ParseNode* super, MethodBuilder* method)

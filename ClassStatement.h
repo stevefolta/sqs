@@ -24,5 +24,6 @@ ClassStatement* new_ClassStatement(struct String* name);
 
 struct String* ClassStatement_get_name(ClassStatement* self);
 ParseNode* ClassStatement_make_reference(ClassStatement* self);
+extern int ClassStatement_emit(ParseNode* super, struct MethodBuilder* builder);
 
 

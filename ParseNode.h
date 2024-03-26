@@ -47,6 +47,8 @@ typedef struct Block {
 	int locals_base;
 	struct Dict* functions;
 	struct Dict* classes;
+	struct Array* imported_modules;
+	struct Module* module;	// If this exists, the block is a module.
 	} Block;
 extern Block* new_Block();
 extern void Block_append(Block* self, ParseNode* statement);

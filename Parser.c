@@ -3,6 +3,7 @@
 #include "ParseNode.h"
 #include "ClassStatement.h"
 #include "RunStatement.h"
+#include "Module.h"
 #include "String.h"
 #include "Array.h"
 #include "Object.h"
@@ -48,7 +49,7 @@ extern Parser* new_Parser(const char* text, size_t size)
 }
 
 
-ParseNode* Parser_parse_block(Parser* self)
+ParseNode* Parser_parse_block(Parser* self, Module* module)
 {
 	// This is used to compile indented blocks, as well as raw code.  So if used
 	// for an indented block, the Indent must be consumed before this is called.
@@ -76,6 +77,7 @@ ParseNode* Parser_parse_block(Parser* self)
 		// empty lines.
 		if (block == NULL) {
 			block = new_Block();
+			block->module = module;
 			self->inner_block = block;
 			}
 
@@ -107,6 +109,8 @@ static StatementParser statement_parsers[] = {
 	{ "fn", &Parser_parse_fn_statement },
 	{ "class", &Parser_parse_class_statement },
 	{ "$", &Parser_parse_run_statement },
+	{ "import", &Parser_parse_import },
+	{ "export", &Parser_parse_export },
 	};
 
 ParseNode* Parser_parse_statement(Parser* self)
@@ -147,7 +151,7 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 	statement->condition = condition;
 	if (Lexer_peek(self->lexer).type == Indent) {
 		Lexer_next(self->lexer);
-		statement->if_block = Parser_parse_block(self);
+		statement->if_block = Parser_parse_block(self, NULL);
 		}
 	Token next_token = Lexer_peek(self->lexer);
 	while (next_token.type == EOL) {
@@ -166,7 +170,7 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 				Lexer_next(self->lexer);
 				if (Lexer_peek(self->lexer).type == Indent) {
 					Lexer_next(self->lexer);
-					statement->else_block = Parser_parse_block(self);
+					statement->else_block = Parser_parse_block(self, NULL);
 					}
 				}
 			}
@@ -193,7 +197,7 @@ ParseNode* Parser_parse_while_statement(Parser* self)
 	statement->condition = condition;
 	if (Lexer_peek(self->lexer).type == Indent) {
 		Lexer_next(self->lexer);
-		statement->body = Parser_parse_block(self);
+		statement->body = Parser_parse_block(self, NULL);
 		}
 	return (ParseNode*) statement;
 }
@@ -218,7 +222,7 @@ ParseNode* Parser_parse_for_statement(Parser* self)
 		Error("Extra characters after expression at line %d.", line_number);
 	if (Lexer_peek(self->lexer).type == Indent) {
 		Lexer_next(self->lexer);
-		statement->body = Parser_parse_block(self);
+		statement->body = Parser_parse_block(self, NULL);
 		}
 
 	return (ParseNode*) statement;
@@ -276,7 +280,7 @@ ParseNode* Parser_parse_with_statement(Parser* self)
 	ParseNode* body = NULL;
 	if (Lexer_peek(self->lexer).type == Indent) {
 		Lexer_next(self->lexer);
-		body = Parser_parse_block(self);
+		body = Parser_parse_block(self, NULL);
 		}
 
 	return (ParseNode*) new_WithStatement(name, expr, body);
@@ -302,7 +306,7 @@ FunctionStatement* Parser_parse_fn_statement_raw(Parser* self)
 	// Body.
 	if (Lexer_peek(self->lexer).type == Indent) {
 		Lexer_next(self->lexer);
-		function->body = Parser_parse_block(self);
+		function->body = Parser_parse_block(self, NULL);
 		}
 
 	return function;

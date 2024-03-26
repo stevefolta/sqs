@@ -42,6 +42,8 @@ typedef struct BlockContext {
 	struct Block* block;
 	} BlockContext;
 extern void BlockContext_init(BlockContext* self, struct Block* block, Environment* parent);
+extern struct ParseNode* BlockContext_find(Environment* super, struct String* name);
+extern struct ParseNode* BlockContext_find_autodeclaring(Environment* super, struct String* name);
 
 typedef struct BlockUpvalueContext {
 	Environment environment;

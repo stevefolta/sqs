@@ -7,6 +7,7 @@ struct Lexer;
 struct ParseNode;
 struct Block;
 struct FunctionStatement;
+struct Module;
 struct String;
 struct Array;
 
@@ -19,7 +20,8 @@ typedef struct Parser {
 
 extern Parser* new_Parser(const char* text, size_t size);
 
-extern struct ParseNode* Parser_parse_block(Parser* self);
+extern struct ParseNode* Parser_parse_block(Parser* self, struct Module* module);
+extern struct ParseNode* Parser_parse_fn_statement(Parser* self);
 extern struct FunctionStatement* Parser_parse_fn_statement_raw(Parser* self);
 extern struct ParseNode* Parser_parse_expression(Parser* self);
 extern struct ParseNode* Parser_parse_string_literal(Parser* self);

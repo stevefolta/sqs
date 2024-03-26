@@ -191,11 +191,21 @@ ParseNode* BlockUpvalueContext_find(Environment* super, String* name)
 	return node;
 }
 
-Class* BlockUpvalueContext_get_class_for_superclass(Environment* super, String* name, MethodBuilder* method)
+Class* BlockUpvalueContext_get_class_for_superclass(Environment* super, String* name, MethodBuilder* builder)
 {
 	BlockContext* self = (BlockContext*) super;
 	ClassStatement* class_statement = Block_get_class(self->block, name);
 	if (class_statement) {
+		// If it's building, that's a superclass mutual recursion.
+		if (class_statement->is_building) {
+			Error(
+				"Two classes can't be each other's superclass!  (One of them is \"%s\".)",
+				String_c_str(name));
+			}
+		if (!class_statement->is_built) {
+			// Better build it now!
+			ClassStatement_emit((ParseNode*) class_statement, builder);
+			}
 		if (!class_statement->is_built)
 			Error("A class can't have a superclass (\"%s\") that hasn't been defined yet.", String_c_str(name));
 		return class_statement->built_class;

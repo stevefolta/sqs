@@ -295,6 +295,21 @@ void interpret_bytecode(struct Method* method)
 				*get_upvalue_ptr((Method*) value, dest, frame) = DEREF(src);
 				break;
 
+			case BC_GET_MODULE_LOCAL:
+				src = *pc++; 	// module frame
+				value = DEREF(src);
+				src = *pc++; 	// local offset
+				dest = *pc++;
+				frame[dest] = ((Object**) value)[src];
+				break;
+			case BC_SET_MODULE_LOCAL:
+				src = *pc++; 	// module frame
+				value = DEREF(src);
+				dest = *pc++; 	// local offset
+				src = *pc++;
+				((Object**) value)[dest] = DEREF(src);
+				break;
+
 			default:
 				Error("Internal error: bad bytecode %d.", opcode);
 				break;

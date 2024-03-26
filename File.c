@@ -143,4 +143,18 @@ int File_fd(struct File* file)
 }
 
 
+String* file_contents(const char* file_path)
+{
+	FILE* file = fopen(file_path, "r");
+	if (file == NULL)
+		return NULL;
+	fseek(file, 0, SEEK_END);
+	size_t size = ftell(file);
+	rewind(file);
+	char* text = (char*) alloc_mem(size);
+	size_t bytes_read = fread(text, 1, size, file);
+	fclose(file);
+	return new_static_String(text, bytes_read);
+}
+
 

@@ -4,12 +4,14 @@
 #include "MethodBuilder.h"
 #include "Method.h"
 #include "Environment.h"
+#include "Module.h"
 #include "Init.h"
 #include "ByteCode.h"
 #include "Object.h"
 #include "String.h"
 #include "Array.h"
 #include "Int.h"
+#include "File.h"
 #include "Memory.h"
 #include "Error.h"
 #include <stdbool.h>
@@ -18,28 +20,14 @@
 #include <errno.h>
 
 
-static String* file_contents(const char* file_path)
-{
-	FILE* file = fopen(file_path, "r");
-	if (file == NULL) {
-		fprintf(stderr, "Couldn't open \"%s\" (%s).", file_path, strerror(errno));
-		return NULL;
-		}
-	fseek(file, 0, SEEK_END);
-	size_t size = ftell(file);
-	rewind(file);
-	char* text = (char*) alloc_mem(size);
-	size_t bytes_read = fread(text, 1, size, file);
-	fclose(file);
-	return new_static_String(text, bytes_read);
-}
-
 static void lexer_test(const char* file_path)
 {
 	// Read the test file.
 	String* contents = file_contents(file_path);
-	if (contents == NULL)
+	if (contents == NULL) {
+		fprintf(stderr, "Couldn't open \"%s\" (%s).", file_path, strerror(errno));
 		return;
+		}
 
 	Lexer* lexer = new_Lexer(contents->str, contents->size);
 	while (true) {
@@ -77,13 +65,15 @@ static void lexer_test(const char* file_path)
 
 static Method* compile_script(const char* file_path)
 {
-	// Read the test file.
+	// Read the file.
 	String* contents = file_contents(file_path);
-	if (contents == NULL)
+	if (contents == NULL) {
+		fprintf(stderr, "Couldn't open \"%s\" (%s).", file_path, strerror(errno));
 		return NULL;
+		}
 
 	Parser* parser = new_Parser(contents->str, contents->size);
-	ParseNode* ast = Parser_parse_block(parser);
+	ParseNode* ast = Parser_parse_block(parser, NULL);
 	MethodBuilder* method_builder = new_MethodBuilder(new_Array(), NULL);
 	ast->emit(ast, method_builder);
 	MethodBuilder_finish(method_builder);
@@ -133,6 +123,7 @@ int main(int argc, char* argv[])
 	if (method) {
 		if (dump_requested)
 			dump_bytecode(method, NULL, new_c_static_String("main"));
+		Module_emit_modules();
 		Object* result = call_method(method, NULL);
 		if (result && result->class_ == &Int_class)
 			return Int_value(result);

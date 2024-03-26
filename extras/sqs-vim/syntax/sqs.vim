@@ -10,6 +10,7 @@ syn keyword sqsNil	nil
 
 syn keyword sqsStatement	if else elif while for with fn class
 syn keyword sqsStatement	return break continue
+syn keyword sqsStatement	import export
 syn match sqsStatement	"\$"
 
 syn match sqsComment	'#.*'

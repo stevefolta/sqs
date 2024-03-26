@@ -55,6 +55,9 @@ enum {
 
 	BC_GET_UPVAL, 	// enclosing method (literal), local offset, dest
 	BC_SET_UPVAL, 	// enclosing method (literal), local offset, src
+
+	BC_GET_MODULE_LOCAL, 	// module frame (literal), local offset, dest
+	BC_SET_MODULE_LOCAL, 	// module frame (literal), local offset, src
 	};
 
 /* A call frame on the stack looks like this:
