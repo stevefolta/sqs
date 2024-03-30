@@ -113,7 +113,8 @@ Token Lexer_next_token(struct Lexer* self)
 			}
 
 		// Figure out the indentation change.
-		if ((indentation > 0 && self->indent_stack_size == 0) || indentation > self->indent_stack[self->indent_stack_size - 1]) {
+		if (indentation > 0 && (self->indent_stack_size == 0 || indentation > self->indent_stack[self->indent_stack_size - 1])) {
+			// Indenting.
 			self->indent_stack[self->indent_stack_size] = indentation;
 			self->indent_stack_size += 1;
 			if (self->indent_stack_size > indent_stack_max)
@@ -122,6 +123,7 @@ Token Lexer_next_token(struct Lexer* self)
 			return result;
 			}
 		else if (self->indent_stack_size > 0 && indentation < self->indent_stack[self->indent_stack_size - 1]) {
+			// Unindenting.
 			self->unindent_to = indentation;
 			self->indent_stack_size -= 1;
 			result.type = Unindent;
