@@ -147,7 +147,7 @@ int ClassStatement_emit(ParseNode* super, MethodBuilder* method)
 	if (self->superclass_name) {
 		Class* superclass = Environment_find_class_for_superclass(method->environment, self->superclass_name, method);
 		if (superclass == NULL)
-			Error("Couldn't find a superclass named \"%s\".", String_c_str(self->superclass_name));
+			Error("Couldn't find a superclass named \"%s\" for \"%s\".", String_c_str(self->superclass_name), String_c_str(self->built_class->name));
 		self->built_class->superclass = superclass;
 		}
 
