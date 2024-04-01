@@ -1,0 +1,180 @@
+#!/usr/bin/env sqs
+
+import ParseNode
+import Context
+import Codegen
+import Parser
+import Builtins
+import Calls
+import Debugging
+
+
+export class ImportStatement: ParseNode
+	(names block)
+
+	init(names-in, block-in)
+		names = names-in
+		block = block-in
+
+	resolve-names(builder)
+		for name: names
+			module = get-module(name)
+			module.resolve-names(builder)
+			block.add-imported-module(module)
+
+	emit-top-level(builder)
+		for name: names
+			module = get-module(name)
+			if !module.is-emitted
+				module.emit-top-level(builder)
+
+	emit(builder)
+		# Make sure the modules have been initialized.
+		for name: names
+			module = get-module(name)
+			builder.add("extern void {module.c-name}_initialize_(void);")
+			builder.add("{module.c-name}_initialize_();")
+
+export class ExportStatement: ParseNode
+	(item)
+
+	init(item-in)
+		item = item-in
+
+	resolve-names(builder)
+		item.resolve-names(builder)
+	emit-top-level(builder)
+		item.emit-top-level(builder)
+	emit
+		# Nothing to do here.
+
+
+export class Module
+	(name block exported-classes exported-functions)
+	(c-name names-are-resolved is-emitted)
+
+	init(name-in)
+		name = name-in
+		c-name = mangle-name(name)
+		exported-classes = {}
+		exported-functions = {}
+	block=(new-block)
+		block = new-block
+
+	resolve-names(builder)
+		if names-are-resolved
+			return
+		names-are-resolved = true
+
+		# Start again with a new GlobalContext.
+		builder.push-context(GlobalContext())
+
+		block.resolve-names(builder)
+
+		builder.pop-context	# the GlobalContext.
+
+	emit-top-level(builder)
+		# Module variables.
+		builder.add("struct {{")
+		builder.indent
+		builder.add("bool initialized_;")
+		if block.locals
+			for kv: block.locals
+				builder.add("Object* {mangle-name(kv.key)};")
+		builder.dedent
+		builder.add("}} {c-name}_modvars_ = {{ false }};")
+		builder.add("")
+
+		# Mark ourself as emitted before emitting the block, so its imports can't
+		# cause an infinite loop.
+		is-emitted = true
+
+		block.emit-top-level(builder)
+
+		# Emit the initialization function.
+		builder.add("void {c-name}_initialize_(void)")
+		builder.add("{{")
+		builder.indent
+		builder.add("if ({c-name}_modvars_.initialized_)")
+		builder.add("\treturn;")
+		builder.add("{c-name}_modvars_.initialized_ = true;")
+		builder.add("")
+		block.emit(builder)
+		builder.dedent
+		builder.add("}}")
+		builder.add("")
+
+	context-for(builder)
+		# Called by Block.resolve-names() to get a context.
+		return ModuleContext(self)
+
+	get-export(name)
+		class-statement = exported-classes[name]
+		if class-statement
+			return ClassRef(class-statement)
+		function = exported-functions[name]
+		if function
+			# Treat it as a nullary function call.  FunctionCallExpr.emit will
+			# append arguments if any are given.
+			return FunctionCallExpr(FunctionRef(function), [])
+		return nil
+
+	class ModuleContext: Context
+		(module)
+
+		init(module-in)
+			module = module-in
+
+		find(name)
+			local = module.block.get-local(name)
+			if local
+				return ModuleLocal(module, name)
+			expr = module.block.find(name)
+			if expr
+				return expr
+			return parent && parent.find(name)
+		find-autodeclaring(name)
+			# Already declared in the block?
+			local = module.block.get-local(name)
+			if local
+				return ModuleLocal(module, name)
+			# Not declared here, search up the chain.
+			expr = parent && parent.find(name)
+			if expr
+				return expr
+			# Doesn't exist, so autodeclare it.
+			local = module.block.autodeclare(name)
+			return ModuleLocal(module, name)
+
+		c-prefix
+			# Modules are the top level; ignore the parent.
+			return mangle-name(module.name)
+
+	class ModuleLocal: ParseNode
+		(name c-name)
+
+		init(module, name)
+			name = name
+			c-name = "{module.c-name}_modvars_.{mangle-name(name)}"
+		is-settable
+			return true
+		emit(builder)
+			return c-name
+		emit-set(value, builder)
+			value-loc = value.emit(builder)
+			builder.add("{c-name} = {value-loc};")
+			return c-name
+
+
+modules = {}
+
+export fn get-module(name)
+	if modules.contains(name)
+		return modules[name]
+	module = Module(name)
+	modules[name] = module
+	parser = Parser(File("{Path(argv[1]).dir-name}/{name}"), name)
+	module.block = parser.parse-block(module)
+	return module
+
+

@@ -1,0 +1,236 @@
+#!/usr/bin/env sqs
+
+import ParseNode Context Codegen
+
+
+export class IfStatement: ParseNode
+	(condition if-block else-block)
+
+	init(condition-in)
+		condition = condition-in
+	if-block=(new-if-block)
+		if-block = new-if-block
+	else-block=(new-else-block)
+		else-block = new-else-block
+
+	resolve-names(builder)
+		condition.resolve-names(builder)
+		if if-block
+			if-block.resolve-names(builder)
+		if else-block
+			else-block.resolve-names(builder)
+	emit(builder)
+		condition-loc = condition.emit(builder)
+		if if-block
+			builder.add("if (IS_TRUTHY({condition-loc})) {{")
+			builder.indent
+			if-block.emit(builder)
+			builder.add(r"}")
+			builder.dedent
+			if else-block
+				builder.add(r"else {")
+				builder.indent
+				else-block.emit(builder)
+				builder.add(r"}")
+				builder.dedent
+		else if else-block
+			builder.add("if (!IS_TRUTHY({condition-loc})) {{")
+			builder.indent
+			else-block.emit(builder)
+			builder.add(r"}")
+			builder.dedent
+	emit-top-level(builder)
+		if if-block
+			if-block.emit-top-level(builder)
+		if else-block
+			else-block.emit-top-level(builder)
+
+export class WhileStatement: ParseNode
+	(condition body)
+
+	condition=(new-condition)
+		condition = new-condition
+	body=(new-body)
+		body = new-body
+	is-loop
+		return true
+
+	resolve-names(builder)
+		condition.resolve-names(builder)
+		if body
+			body.resolve-names(builder)
+	emit(builder)
+		builder.add(r"while (true) {")
+		builder.indent
+		condition-loc = condition.emit(builder)
+		builder.add("if (!IS_TRUTHY({condition-loc}))")
+		builder.add("\tbreak;")
+		builder.add("")
+		if body
+			body.emit(builder)
+		builder.add(r"}")
+		builder.dedent
+	emit-top-level(builder)
+		if body
+			body.emit-top-level(builder)
+
+export class ForStatement: ParseNode
+	(variable-name collection body)
+
+	init(name)
+		variable-name = name
+	collection=(new-collection)
+		collection = new-collection
+	body=(new-body)
+		body = new-body
+	is-loop
+		return true
+
+	resolve-names(builder)
+		builder.push-context(ForStatementContext(variable-name))
+		collection.resolve-names(builder)
+		if body
+			body.resolve-names(builder)
+		builder.pop-context
+	emit(builder)
+		collection-loc = collection.emit(builder)
+		iterator-loc = builder.new-temp
+		variable-loc = mangle-name(variable-name)
+		builder.add('Object* {iterator-loc} = call_("iterator", {collection-loc}, 0, NULL);')
+		builder.add(r"while (true) {")
+		builder.indent
+		builder.add('Object* {variable-loc} = call_("next", {iterator-loc}, 0, NULL);')
+		builder.add('if (!{variable-loc})')
+		builder.add('\tbreak;')
+		builder.add("")
+		if body
+			body.emit(builder)
+		builder.add(r"}")
+		builder.dedent
+	emit-top-level(builder)
+		if body
+			body.emit-top-level(builder)
+
+	class ForStatementContext: Context
+		(variable-name)
+		init(variable-name-in)
+			variable-name = variable-name-in
+		find(name)
+			if name == variable-name
+				return RawLoc(mangle-name(variable-name))
+			return parent.find(name)
+
+export class ContinueStatement: ParseNode
+	emit(builder)
+		builder.add("continue;")
+export class BreakStatement: ParseNode
+	emit(builder)
+		builder.add("break;")
+
+export class ReturnStatement: ParseNode
+	(value)
+
+	value=(new-value)
+		value = new-value
+	resolve-names(builder)
+		if value
+			value.resolve-names(builder)
+	emit(builder)
+		value-loc = "NULL"
+		if value
+			value-loc = value.emit(builder)
+		builder.emit-unwind-function
+		builder.add("return {value-loc};")
+
+export class WithStatement: ParseNode
+	(name expr body unwind-loc)
+
+	init(name-in, expr-in, body-in)
+		name = name-in
+		expr = expr-in
+		body = body-in
+
+	resolve-names(builder)
+		builder.push-context(WithStatementContext(self))
+		expr.resolve-names(builder)
+		if body
+			body.resolve-names(builder)
+		builder.pop-context
+
+	emit(builder)
+		# We'll use a temporary for the unwinding, to make sure the name isn't
+		# shadowed by a subblock.
+		# We also make it it's own block, so the name doesn't end up in the outer scope.
+		builder.add(r"{")
+		expr-loc = expr.emit(builder)
+		unwind-loc = builder.new-temp
+		builder.add("Object* {unwind-loc} = {expr-loc};")
+		builder.add("Object* {mangle-name(name)} = {unwind-loc};")
+		if body
+			builder.push-unwinding(self)
+			body.emit(builder)
+			builder.pop-unwinding(self)
+		emit-unwind(builder)
+		builder.add(r"}")
+
+	emit-top-level(builder)
+		if body
+			body.emit-top-level(builder)
+
+	emit-unwind(builder)
+		builder.add('call_("close", {unwind-loc}, 0, NULL);')
+
+	class WithStatementContext: Context
+		(with-statement)
+		init(with-statement-in)
+			with-statement = with-statement-in
+		find(name)
+			if name == with-statement.name
+				return RawLoc(mangle-name(name))
+			return parent && parent.find(name)
+
+
+export class RunCommand: ParseNode
+	(arguments in-pipe-loc out-pipe-loc capture)
+	init(arguments-in)
+		arguments = arguments-in
+	in-pipe-loc=(new-in-pipe-loc)
+		in-pipe-loc = new-in-pipe-loc
+	out-pipe-loc=(new-out-pipe-loc)
+		out-pipe-loc = new-out-pipe-loc
+	capture=(new-capture)
+		capture = new-capture
+
+	resolve-names(builder)
+		for arg: arguments
+			arg.resolve-names(builder)
+	
+	emit(builder)
+		# Create the array of arguments.
+		args-array = builder.new-temp
+		builder.add("Array* {args-array} = new_Array();")
+		for arg: arguments
+			arg-loc = arg.emit(builder)
+			builder.add("Array_append_strings({args-array}, {arg-loc});")
+
+		# Create the options.
+		options-loc = "NULL"
+		if in-pipe-loc || out-pipe-loc || capture
+			options-dict = builder.new-temp
+			options-loc = "((Object*) {options-dict})"
+			builder.add("Dict* {options-dict} = new_Dict();")
+			if in-pipe-loc
+				builder.add('Dict_set_at({options-dict}, new_c_static_String("stdin"), {in-pipe-loc});')
+			if out-pipe-loc
+				builder.add('Dict_set_at({options-dict}, new_c_static_String("stdout"), {out-pipe-loc});')
+				# Don't wait for this process, only wait for the last process in the
+				# pipeline.
+				builder.add('Dict_set_at({options-dict}, new_c_static_String("wait"), &false_obj);')
+			else if capture
+				builder.add('Dict_set_at({options-dict}, new_c_static_String("capture"), &true_obj);')
+
+		# Emit the call.
+		result = builder.new-temp
+		builder.add('Object* {result} = Run(NULL, (Object*[]) {{ (Object*) {args-array}, {options-loc} }});')
+		return result
+

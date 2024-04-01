@@ -1,0 +1,66 @@
+#!/usr/bin/env sqs
+
+import ParseNode, Context, Codegen, Debugging
+
+
+export class FunctionStatement: ParseNode
+	(name arguments body c-name)
+
+	init(name-in)
+		name = name-in
+	arguments=(new-arguments)
+		arguments = new-arguments
+	body=(new-body)
+		body = new-body
+
+	resolve-names(builder)
+		context = FunctionContext(self)
+		builder.push-context(context)
+		c-name = context.c-prefix
+		if body
+			body.resolve-names(builder)
+		builder.pop-context
+
+	emit-top-level(builder)
+		if body
+			body.emit-top-level(builder)
+
+		builder.add("Object* {c-name}(Object* self, Object** args_)")
+		builder.add(r"{")
+		builder.indent
+		if arguments
+			index = 0
+			for arg: arguments
+				builder.add("Object* {mangle-name(arg)} = args_[{index}];")
+				index += 1
+		if body
+			body.emit(builder)
+		if (name == "init")
+			builder.add("return self;")
+		else
+			builder.add("return NULL;")
+		builder.dedent
+		builder.add(r"}")
+		builder.add("")
+
+	emit(builder)
+		# Everything is emitted in emit-top-level(), and anything referencing the
+		# function will use FunctionRef, so nothing needs to be done here.
+
+	class FunctionContext: Context
+		(function-statement)
+		init(function-statement-in)
+			function-statement = function-statement-in
+		find(name)
+			if function-statement.arguments
+				if function-statement.arguments.contains(name)
+					return RawLoc(mangle-name(name))
+			return parent && parent.find(name)
+		c-prefix
+			prefix = parent && parent.c-prefix
+			fn-c-name = mangle-name(function-statement.name)
+			if prefix
+				return "{prefix}__{fn-c-name}"
+			return fn-c-name
+
+

@@ -1,0 +1,62 @@
+#!/usr/bin/env sqs
+
+import ParseNode
+import Context
+
+export class BuiltinClass: ParseNode
+	(builtin-class)
+	init(builtin-class-in)
+		builtin-class = builtin-class-in
+	emit(builder)
+		return "((Object*) &{builtin-class.name}_class)"
+	superclass
+		the-superclass = builtin-class.superclass
+		return the-superclass && BuiltinClass(the-superclass)
+	get-ivar(name)
+		# The built-in classes don't expose their ivars directly by name.
+		return nil
+	c-ivar-index-name(name)
+		return nil
+	total-ivars
+		return builtin-class.num-ivars
+	name
+		return builtin-class.name
+	c-name
+		return builtin-class.name
+
+
+builtin-class-objects = [
+	# Object, Class: these are not exposed by sqs by name.
+	Array.superclass, Array.class.class,
+	Int, Float, Array, Dict,
+	ByteArray, File, Pipe, Regex, Path,
+	]
+builtin-classes = {}
+for the-class: builtin-class-objects
+	builtin-classes[the-class.name] = the-class
+builtin-fns = {
+	print: "Print", run: "Run", fail: "Fail", glob: "Glob", sleep: "Sleep",
+	getpid: "Getpid", cwd: "Get_cwd", chdir: "Chdir", rename: "Rename",
+	}
+
+
+export class BuiltinObject: ParseNode
+	(c-code)
+	init(c-code-in)
+		c-code = c-code-in
+	emit(builder)
+		return c-code
+
+
+export class GlobalContext: Context
+	find(name)
+		builtin-class = builtin-classes[name]
+		if builtin-class
+			return BuiltinClass(builtin-class)
+		c-name = builtin-fns[name]
+		if c-name
+			return BuiltinObject(c-name)
+		if [ "env", "argv" ].contains(name)
+			return BuiltinObject("(Object*) &{name}_obj")
+		return nil
+

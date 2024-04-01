@@ -1,0 +1,937 @@
+#!/usr/bin/env sqs
+
+import Lexer
+import ParseNode Expressions Calls
+import Block Statements FunctionStatement
+import Modules
+
+binop-levels = [
+	[ "|" ], [ "^" ], [ "&" ],
+	[ "==", "!=" ],
+	[ "<" "<=" ">" ">=" ],
+	[ "<<" ">>" ],
+	[ "+", "-" ],
+	[ "*" "/" "%" ],
+	]
+binops = {}
+unop-precedence = 1
+for level: binop-levels
+	for op: level
+		binops[op] = unop-precedence
+	unop-precedence += 1
+
+export class Parser
+	(lexer)
+	(inner-block)
+
+	init(stream, filename)
+		lexer = Lexer(stream, filename)
+
+	parse-block(module)
+		# This is used for indented blocks, and the outermost level of a file.  If
+		# called for an indented block, the indent must be consumed first.
+
+		block = nil
+
+		# Give access to the innermost block during parsing, so functions and
+		# classes can be defined during the parse phase (so forward references will
+		# work during the later emit/resolve phase).
+		prev-inner-block = inner-block
+
+		while true
+			next-token = lexer.peek
+			where = lexer.where
+			if next-token == dedent-token || !next-token
+				lexer.next
+				break
+			else if next-token == eol-token
+				# Empty line.
+				lexer.next
+				continue
+
+			# We're lazily making the block object, in case the block was nothing but
+			# empty lines.
+			if !block
+				block = Block()
+				block.module = module
+				inner-block = block
+
+			statement = parse-statement
+			if !statement
+				fail("Statement expected {where}.")
+			block.append(statement)
+
+		inner-block = prev-inner-block
+		return block
+
+	parse-statement
+		next-token = lexer.peek
+		where = lexer.where
+		if !next-token
+			return nil
+
+		if next-token == "if"
+			return parse-if-statement
+		else if next-token == "while"
+			return parse-while-statement
+		else if next-token == "for"
+			return parse-for-statement
+		else if next-token == "continue"
+			return parse-continue-statement
+		else if next-token == "break"
+			return parse-break-statement
+		else if next-token == "return"
+			return parse-return-statement
+		else if next-token == "with"
+			return parse-with-statement
+		else if next-token == "fn"
+			return parse-fn-statement
+		else if next-token == "class"
+			return parse-class-statement
+		else if next-token == "$"
+			return parse-run-statement
+		else if next-token == "import"
+			return parse-import-statement
+		else if next-token == "export"
+			return parse-export-statement
+
+		expression = parse-expression
+		if !expression
+			return nil
+		next-token = lexer.next
+		if next-token != eol-token
+			fail("Extra characters after expression {where}")
+		return expression
+
+	parse-if-statement
+		where = lexer.where
+		lexer.next
+
+		condition = parse-expression
+		if !condition
+			fail('Missing expression in "if" statement {where}')
+		if lexer.next != eol-token
+			fail("Extra characters after expression {where}")
+		statement = IfStatement(condition)
+		if lexer.peek == indent-token
+			lexer.next
+			statement.if-block = parse-block
+		next-token = lexer.peek
+		while next-token == eol-token
+			lexer.next
+			next-token = lexer.peek
+		if next-token == "else"
+			lexer.next
+			next-token = lexer.peek
+			if next-token == "if"
+				statement.else-block = parse-if-statement
+			else
+				if next-token != eol-token
+					fail('Extra tokens at end of "else" {lexer.where}')
+				lexer.next
+				if lexer.peek == indent-token
+					lexer.next
+					statement.else-block = parse-block
+		else if next-token == "elif"
+			# Don't consume the "elif"; the recursive call will do that.
+			statement.else-block = parse-if-statement
+
+		return statement
+
+	parse-while-statement
+		where = lexer.where
+		lexer.next
+
+		condition = parse-expression
+		if !condition
+			fail('Missing expression in "while" statement {where}')
+		if lexer.next != eol-token
+			fail('Extra characters after expression {where}')
+		statement = WhileStatement()
+		statement.condition = condition
+		if lexer.peek == indent-token
+			lexer.next
+			statement.body = parse-block
+		return statement
+
+	parse-for-statement
+		where = lexer.where
+		lexer.next
+
+		token = lexer.next
+		if !identifier-re.match(token)
+			fail('Need identifier for "for" statement {where}')
+		statement = ForStatement(token)
+		if lexer.next != ":"
+			fail('Missing ":" in "for" statement {where}')
+		statement.collection = parse-expression
+		if !statement.collection
+			fail('Missing expression in "for" statement {where}')
+		if lexer.next != eol-token
+			fail("Extra characters after expression {where}")
+		if lexer.peek == indent-token
+			lexer.next
+			statement.body = parse-block
+
+		return statement
+
+	parse-continue-statement
+		lexer.next
+		return ContinueStatement()
+	parse-break-statement
+		lexer.next
+		return BreakStatement()
+
+	parse-return-statement
+		lexer.next
+		statement = ReturnStatement()
+		statement.value = parse-expression
+		if lexer.next != eol-token
+			fail('Extra characters at end of "return" statement {lexer.where}')
+		return statement
+
+	parse-with-statement
+		lexer.next
+		where = lexer.where
+
+		name = lexer.next
+		if !identifier-re.match(name)
+			fail('Expected a name in "with" statement {where}')
+		if lexer.next != "="
+			fail('Expected "=" in "with" statement {where}')
+		expression = parse-expression
+		if !expression
+			fail('Expected expression in "with" statement {where}')
+		if lexer.next != eol-token
+			fail('Extra characters after expression {lexer.where}')
+		body = nil
+		if lexer.peek == indent-token
+			lexer.next
+			body = parse-block
+
+		return WithStatement(name, expression, body)
+
+	parse-fn-statement-raw
+		# This could be in either a Block or a ClassStatement
+
+		# Name and arguments
+		name = parse-fn-name
+		function = FunctionStatement(name)
+		function.arguments = parse-names-list("argument")
+		if lexer.next != eol-token
+			fail('Extra characters at the end of a "fn" definition {lexer.where}')
+
+		# Body
+		if lexer.peek == indent-token
+			lexer.next
+			function.body = parse-block
+
+		return function
+
+	parse-fn-statement
+		# This one is only used in a Block.
+		lexer.next 	# Consume the "fn".
+		function = parse-fn-statement-raw
+		if inner-block
+			inner-block.add-function(function)
+		return function
+
+	parse-class-statement
+		lexer.next	# Consume "class".
+
+		# Make sure new functions and classes don't end up in the enclosing block.
+		prev-inner-block = inner-block
+		inner-block = nil
+
+		# Name.
+		name = lexer.next
+		if !identifier-re.match(name)
+			fail('Expected class name {lexer.where}')
+		import ClassStatement
+		statement = ClassStatement(name)
+
+		# Superclass.
+		if lexer.peek == ":"
+			lexer.next
+			token = lexer.next
+			if !identifier-re.match(token)
+				fail("Expected a class name as the superclass {lexer.where}")
+			statement.superclass-name = token
+
+		# Ivars.
+		statement.ivars = parse-names-list("instance variable")
+
+		if lexer.next != eol-token
+			fail("Extra characters after class definition {lexer.where}")
+
+		# Functions and classes.
+		if lexer.peek == indent-token
+			lexer.next
+			while true
+				token = lexer.peek
+				if token == dedent-token
+					lexer.next
+					break
+				else if token == eol-token
+					lexer.next
+					continue
+
+				# Ivars.
+				else if token == "("
+					arg-names = parse-names-list("argument")
+					if lexer.next != eol-token
+						fail("Extra characters after ivars list {lexer.where}")
+					if !statement.ivars
+						statement.ivars = arg-names
+					else
+						for ivar: arg-names
+							statement.ivars.append(ivar)
+					continue
+
+				# "class"
+				else if token == "class"
+					enclosed-class = parse-class-statement
+					if !statement.enclosed-classes
+						statement.enclosed-classes = {}
+					statement.enclosed-classes[enclosed-class.name] = enclosed-class
+					continue
+
+				# Anything else is a function.
+				# It might be preceded by "fn", or not.
+				if token == "fn"
+					lexer.next
+					token = lexer.next
+					if !identifier-re.match(token) && !operator-re.match(token)
+						fail("Bad function definition {lexer.where}")
+
+				function = parse-fn-statement-raw
+				if !function
+					fail("Expected function definition {lexer.where}")
+				statement.functions[function.name] = function
+
+		if prev-inner-block
+			prev-inner-block.add-class(statement)
+
+		inner-block = prev-inner-block
+		return statement
+
+	parse-run-command
+		arguments = []
+		while true
+			token = lexer.peek
+			if token == eol-token
+				break
+			if string-literal-re.match(token)
+				arguments.append(parse-string-literal)
+			else if identifier-re.match(token)
+				lexer.next
+				if token == "$"
+					next-token = lexer.peek
+					if next-token == "("
+						arguments.append(parse-capture)
+						continue
+				arguments.append(StringLiteralExpr(token))
+			else if integer-re.match(token) || float-re.match(token)
+				lexer.next
+				arguments.append(StringLiteralExpr(token))
+			else if operator-re.match(token)
+				# Command-line options: Coalesce "-" or "+" with next identifier, "-", or "+".
+				if token == "-" || token == "+"
+					arg = token
+					lexer.next
+					while true
+						token = lexer.peek
+						if identifier-re.match(token) || integer-re.match(token) || float-re.match(token)
+							arg += token
+							lexer.next
+							break
+						else if token == "-" || token == "+"
+							arg += token
+							lexer.next
+						else
+							break
+					arguments.append(StringLiteralExpr(arg))
+
+				# Expression inside "{}" or "()".
+				else if token == r"{" || token == "("
+					lexer.next
+					arguments.append(parse-expression)
+					end-token = "}"
+					if token == "("
+						end-token = ")"
+					if lexer.next != end-token
+						fail('Missing "{end-token}" {lexer.where}')
+
+				# These end a command.
+				else if [ "&&" "||" "|" ")" ].contains(token)
+					break
+
+				# Any other operator: just an argument.
+				else
+					lexer.next
+					arguments.append(StringLiteralExpr(token))
+
+			else
+				fail('Unknown token in run command: "{token}"')
+
+		if arguments.size == 0
+			return nil
+		return RunCommand(arguments)
+
+	parse-run-pipeline
+		command = parse-run-command
+		if !command
+			return nil
+
+		pipeline = nil
+		while true
+			token = lexer.peek
+			if token != "|"
+				break
+			lexer.next
+
+			if !pipeline
+				pipeline = RunPipeline()
+				pipeline.commands.append(command)
+			command = parse-run-command
+			if !command
+				fail('Missing command after "|" {lexer.where}')
+			pipeline.commands.append(command)
+
+		if pipeline
+			return pipeline
+		return command
+
+	parse-run-statement
+		where = lexer.where
+		lexer.next
+
+		statement = parse-run-pipeline
+		if !statement
+			fail('Empty "$" statement {where}')
+
+		while true
+			token = lexer.peek
+			if token != "&&" && token != "||"
+				break
+
+			where = lexer.where
+			lexer.next
+			command-2 = parse-run-pipeline
+			if !command-2
+				fail('Empty command after "{token}" {where}')
+			if statement.is-a(RunCommand) || statement.is-a(RunPipeline)
+				statement = CallExpr(statement, "ok")
+			statement = ShortCircuitExpression(statement, CallExpr(command-2, "ok"), (token == "&&"))
+
+		if lexer.next != eol-token
+			fail('Extra characters at end of line {where}')
+		return statement
+
+	parse-import-statement
+		where = lexer.where
+		lexer.next
+
+		names = []
+		while true
+			token = lexer.next
+			if token == ","
+				continue
+			else if token == eol-token
+				break
+			else if !identifier-re.match(token)
+				fail('Expected module name {lexer.where}')
+			names.append(token)
+
+		return ImportStatement(names, inner-block)
+
+	parse-export-statement
+		lexer.next
+
+		module = inner-block.module
+		if !module
+			fail('Export statement not in a module {lexer.where}')
+
+		item = nil
+		token = lexer.peek
+		if token == "class"
+			item = parse-class-statement
+			module.exported-classes[item.name] = item
+		else if token == "fn"
+			item = parse-fn-statement
+			module.exported-functions[item.name] = item
+		else
+			fail('Expected "class" or "fn" after "export" {lexer.where}')
+
+		return ExportStatement(item)
+
+	parse-expression
+		expr = parse-logical-or-expression
+		if !expr
+			return nil
+
+		next-token = lexer.peek
+		if next-token == "="
+			lexer.next
+			if !expr.is-settable
+				fail("Attempt to set something that isn't settable {lexer.where}")
+			right = parse-expression
+			if !right
+				fail('Missing expression after "=" {lexer.where}')
+			setter = SetExpr(expr, right)
+			expr = setter
+
+		# "+=" etc.
+		else if [ "+=" "-=" "*=" "/=" "%=" "<<=" ">>=" "|=" "&=" "^=" ].contains(next-token)
+			lexer.next
+			if !expr.is-settable
+				fail("Attempt to set something that isn't settable {lexer.where}")
+			right = parse-expression
+			if !right
+				fail('Missing expression after "=" {lexer.where}')
+
+			# Make the operation.
+			op-name = next-token.slice(0, -1)
+			call = CallExpr(expr, op-name, right)
+
+			# Make the set.
+			setter = SetExpr(expr, call)
+			expr = setter
+
+		return expr
+
+	parse-logical-or-expression
+		expr = parse-logical-and-expression
+		if !expr
+			return nil
+
+		while true
+			if lexer.peek != "||"
+				break
+			lexer.next
+
+			expr2 = parse-logical-and-expression
+			if !expr2
+				fail('Missing expression after "||" {lexer.where}')
+			expr = ShortCircuitExpression(expr, expr2, false)
+
+		return expr
+
+	parse-logical-and-expression
+		expr = parse-binop(0)
+		if !expr
+			return nil
+
+		while true
+			if lexer.peek != "&&"
+				break
+			lexer.next
+
+			expr2 = parse-binop(0)
+			if !expr2
+				fail('Missing expression after "&&" {lexer.where}')
+			expr = ShortCircuitExpression(expr, expr2, true)
+
+		return expr
+
+	parse-binop(precedence)
+		if precedence >= unop-precedence
+			return parse-unop
+
+		expr = parse-binop(precedence + 1)
+
+		while true
+			op-precedence = binops[lexer.peek]
+			if !op-precedence || precedence > op-precedence
+				break
+			op = lexer.next
+			right = parse-binop(op-precedence + 1)
+			if !right
+				fail('Missing expression after "{op}" {lexer.where}')
+			expr = CallExpr(expr, op, right)
+
+		return expr
+
+	parse-unop
+		next-token = lexer.peek
+		if next-token == "!"
+			lexer.next
+			expr = parse-unop
+			if !expr
+				fail('Expected expression after "!" {lexer.where}')
+			return ShortCircuitNot(expr)
+
+		else if [ "~" "-" ].contains(next-token)
+			lexer.next
+			expr = parse-unop
+			if !expr
+				fail('Expected expression after "{next-token}" {lexer.where}')
+			return CallExpr(expr, next-token)
+
+		return parse-postfix-expression
+
+	parse-postfix-expression
+		expr = parse-primary
+		if !expr
+			return nil
+
+		while true
+			next-token = lexer.peek
+			if next-token == "."
+				expr = parse-dot-call(expr)
+			else if next-token == "("
+				expr = parse-fn-call(expr)
+			else if next-token == "["
+				expr = parse-index-call(expr)
+			else
+				break
+
+		return expr
+
+	parse-dot-call(receiver)
+		lexer.next 	# Consume the "."
+
+		# Name.
+		token = lexer.next
+		if !identifier-re.match(token)
+			fail('Expected a name after "." {lexer.where}')
+		call = CallExpr(receiver, token)
+
+		# Parse the arguments (if there are any).
+		if lexer.peek == "("
+			call.arguments = parse-arguments
+		call.got-args = true 	# We know we handled whatever arguments there may have been.
+
+		return call
+
+	parse-fn-call(function)
+		return FunctionCallExpr(function, parse-arguments)
+
+	parse-index-call(receiver)
+		lexer.next 	# Consume the "[".
+
+		call = CallExpr(receiver, "[]")
+		index-expr = parse-expression
+		if !index-expr
+			fail('Expected expression after "[" {lexer.where}')
+		call.add-argument(index-expr)
+
+		# Finish.
+		if lexer.next != "]"
+			fail('Expected "]" {lexer.where}')
+		return call
+
+	parse-arguments
+		where = lexer.where
+		lexer.next 	# Consume "(".
+
+		args = []
+		need-comma = false
+		while true
+			# Next ")" or ",".
+			next-token = lexer.peek
+			if next-token == ")"
+				lexer.next
+				break
+			if need-comma
+				if !next-token
+					fail('Unterminated argument list starting {where}')
+				if next-token != ","
+					fail('Comma expected between arguments {lexer.where}')
+				lexer.next
+				need-comma = false
+
+			arg = parse-expression
+			if !arg
+				fail('Expected expression in argument list {lexer.where}')
+			args.append(arg)
+			need-comma = true
+
+		return args
+
+	parse-primary
+		next-token = lexer.peek
+
+		if string-literal-re.match(next-token)
+			return parse-string-literal
+		else if float-re.match(next-token)
+			lexer.next
+			return FloatLiteralExpr(next-token)
+		else if integer-re.match(next-token)
+			lexer.next
+			return IntLiteralExpr(next-token)
+
+		else if identifier-re.match(next-token)
+			lexer.next
+			if next-token == "true"
+				return BooleanLiteral(true)
+			else if next-token == "false"
+				return BooleanLiteral(false)
+			else if next-token == "nil"
+				return NilLiteral()
+			else if next-token == "self"
+				return SelfExpr()
+			else if next-token == "super"
+				return parse-super-call
+			else if next-token == "$"
+				if lexer.peek == "("
+					return parse-capture
+			return Variable(next-token, lexer.where)
+
+		else if next-token == "["
+			return parse-array-literal
+		else if next-token == r"{"
+			return parse-dict-literal
+		else if next-token == "("
+			start-where = lexer.where
+			lexer.next
+			expr = parse-expression
+			if lexer.next != ")"
+				fail('Missing ")" {start-where}')
+			return expr
+
+		return nil
+
+	parse-string-literal
+		# Process interpolations and escapes.
+
+		# Raw string literal?
+		token = lexer.next
+		if token.slice(0, 1) == "r"
+			return StringLiteralExpr(token.slice(2, -1))
+
+		start-where = lexer.where
+		start-line-number = lexer.line-number
+		remainder = token.slice(1, -1)
+		segment-start = remainder
+		segment-size = 0
+		segments = []
+		last-segment-is-literal = false
+		fn next-char
+			c = remainder.slice(0, 1)
+			remainder = remainder.slice(1)
+			return c
+		fn add-literal-segment(str)
+			if last-segment-is-literal
+				segments.back.append(str)
+			else
+				segments.append(StringLiteralExpr(str))
+				last-segment-is-literal = true
+		fn finish-segment()
+			if segment-size > 0
+				add-literal-segment(segment-start.slice(0, segment-size))
+			segment-start = remainder
+			segment-size = 0
+
+		while !remainder.is-empty
+			c = next-char()
+
+			if c == "\x5C" 	# Backslash; just getting around a syntax-hilighting bug...
+				finish-segment()
+				escape-mapping = {
+					n: "\n", t: "\t", r: "\r", e: "\e", b: "\b", a: "\a", v: "\v", f: "\f"
+					}
+				escape-mapping["\x5C"] = "\x5C\x5C"
+				c = next-char()
+				mapping = escape-mapping[c]
+				if mapping
+					add-literal-segment(mapping)
+				else if c == 'x'
+					digits = "0x" + next-char()
+					digits += next-char()
+					value = Int(digits)
+					byte-array = ByteArray()
+					byte-array.append(value)
+					add-literal-segment(byte-array.as-string)
+				else if c == 'u' || c == 'U'
+					num-digits = 4
+					if c == 'U'
+						num-digits = 8
+					digits = "0x"
+					while num-digits > 0
+						digits += next-char()
+						num-digits -= 1
+					add-literal-segment(Int(digits).as-utf8)
+				else
+					add-literal-segment(c)
+				segment-start = remainder
+
+			else if c == r"{"
+				finish-segment()
+				if remainder.slice(0, 1) == r"{"
+					# Escaping via "{{".
+					add-literal-segment(next-char())
+					segment-start = remainder
+				else
+					brace-level = 0
+					segment-size = 0
+					while !remainder.is-empty
+						c = next-char()
+						if c == r"{"
+							brace-level += 1
+						else if c == r"}"
+							brace-level -= 1
+							if brace-level <= 0
+								break
+						segment-size += 1
+					if brace-level > 0
+						fail("Unterminated string interpolation {start-where}")
+
+					# Parse the expression.
+					class SingleLineIterator
+						(line)
+						init(line-in)
+							line = line-in
+						next
+							result = line
+							line = nil
+							return result
+						lines
+							return self
+					parser = Parser(SingleLineIterator(segment-start.slice(0, segment-size)))
+					parser.lexer.is-for-expression(start-line-number)
+					expr = parser.parse-expression
+					if expr
+						segments.append(expr)
+
+					last-segment-is-literal = false
+					segment-start = remainder
+					segment-size = 0
+
+			else if c == r"}"
+				finish-segment()
+				if remainder.slice(0, 1) == "}"
+					next-char()
+				add-literal-segment(r"}")
+				segment-start = remainder
+
+			else
+				segment-size += 1
+
+		# Finish up.
+		finish-segment()
+		if segments.size == 1
+			return segments[0]
+		return InterpolatedStringLiteral(segments)
+
+	parse-array-literal
+		lexer.next
+		array-literal = ArrayLiteral()
+
+		while true
+			next-token = lexer.peek
+			if next-token == "]"
+				lexer.next
+				break
+			else if next-token == ","
+				lexer.next
+				continue
+
+			item = parse-expression
+			if !item
+				fail("Expected expression in array literal {lexer.where}")
+			array-literal.add-item(item)
+
+		return array-literal
+
+	parse-dict-literal
+		lexer.next
+		dict-literal = DictLiteral()
+
+		while true
+			# Key.
+			token = lexer.next
+			if token == "}"
+				break
+			else if token == ","
+				continue
+			else if !identifier-re.match(token)
+				fail("Expected name in Dict literal {lexer.where}")
+			key = token
+
+			# ":" or "="
+			token = lexer.next
+			if token != ":" && token != "="
+				fail('Expected ":" or "=" in Dict literal {lexer.where}')
+
+			# Value.
+			value = parse-expression
+			if !value
+				fail('Expected value expression for "{key}" in Dict literal {lexer.where}')
+
+			# Add it.
+			dict-literal.add-item(key, value)
+
+		return dict-literal
+
+	parse-super-call
+		# The "super" has already been consumed.
+
+		# "."
+		token = lexer.next
+		if token != "."
+			fail('Expected "." in "super" call {lexer.where}')
+
+		# Name.
+		name = parse-fn-name
+		call = SuperCallExpr(name)
+
+		# Arguments.
+		if lexer.peek == "("
+			call.arguments = parse-arguments
+
+		return call
+
+	parse-capture
+		# Consume '('.
+		lexer.next
+		where = lexer.where
+
+		pipeline = parse-run-pipeline
+		if !pipeline
+			fail('Expected a command or pipeline in "$()" {where}')
+		if lexer.next != ")"
+			fail('Missing ")" at end of "$()" {lexer.where}')
+		return RunCapture(pipeline)
+
+
+	parse-fn-name
+		# Base name.
+		name = lexer.next
+		can-be-set = true
+		if name == "["
+			if lexer.next != "]"
+				fail('Expected "[]" as a function name, not just "[", {lexer.where}')
+			name = "[]"
+		else if operator-re.match(name)
+			can-be-set = false
+		else if !identifier-re.match(name)
+			fail('Expected a function name {lexer.where}')
+
+		# Add "="?
+		if can-be-set
+			if lexer.peek == "="
+				name += "="
+				lexer.next
+
+		return name
+
+	parse-names-list(type)
+		names = []
+		if lexer.peek != "("
+			return names
+
+		lexer.next	# Consume "(".
+		while true
+			token = lexer.next
+			if token == ")"
+				break
+			else if token == ","
+				continue
+			else if !identifier-re.match(token)
+				fail('Expected {type} name {lexer.where}')
+			names.append(token)
+
+		return names
+
+

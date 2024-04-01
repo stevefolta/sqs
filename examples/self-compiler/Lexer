@@ -1,0 +1,181 @@
+#!/usr/bin/env sqs
+
+# Lexer.
+
+# Lexer globals.
+id = r"([[:alpha:]][[:alnum:]_-]*)|\$" 	# TODO: unicode.
+operator = r"\+=?|-=?|\*=?|/=?|%=?|\^=?|&(&|=)?|\|(\||=)?|\(|\)|\[|\]|\{|\}|==?|!=?|\.|,|:|~|<<?=?|>>?=?"
+num = r"-?(0x)?[0-9]+(\.[0-9]+)?"
+integer = r"-?(0x)?[0-9]+"
+float-pattern = r"-?(0x)?[0-9]+\.[0-9]+"
+double-quote-string = r'r?"(\\.|[^"])*"'
+single-quote-string = r"r?'(\\.|[^'])*'"
+double-quote-string-contents = r'(\\.|[^"])*'
+single-quote-string-contents = r"(\\.|[^'])*"
+double-quote-string-start-re = Regex('^[ \t]*(r?"{double-quote-string-contents})$')
+single-quote-string-start-re = Regex("^[ \t]*(r?'{single-quote-string-contents})$")
+string-start-re = Regex("^[ \t]*(r?(\"{double-quote-string-contents}|'{single-quote-string-contents}))$")
+double-quote-string-end-re = Regex('{double-quote-string-contents}"')
+single-quote-string-end-re = Regex("{single-quote-string-contents}'")
+token-re = Regex("^[ \t]*({id}|{num}|{operator}|{double-quote-string}|{single-quote-string})")
+indentation-re = Regex(r"^([[:space:]]*).*$")
+ignore-re = Regex(r"^[[:space:]]*(#.+)?$")
+
+# Exported regular expressions.
+identifier-re-var = Regex("^{id}$")
+operator-re-var = Regex("^({operator})$")
+string-literal-re-var = Regex("^({double-quote-string}|{single-quote-string})$")
+integer-re-var = Regex("^{integer}$")
+float-re-var = Regex("^{float-pattern}$")
+export fn operator-re
+	return operator-re-var
+export fn identifier-re
+	return identifier-re-var
+export fn string-literal-re
+	return string-literal-re-var
+export fn integer-re
+	return integer-re-var
+export fn float-re
+	return float-re-var
+
+# Lexer special tokens.
+eol = "#eol"
+indent = "#indent"
+dedent = "#dedent"
+export fn eol-token
+	return eol
+export fn indent-token
+	return indent
+export fn dedent-token
+	return dedent
+
+export class Lexer
+	(stream filename lines cur-line peeked-token line-number)
+	(indent-stack unindent-to at-line-start paren-level)
+
+	init(stream-in, filename-in)
+		stream = stream-in
+		filename = filename-in
+		lines = stream.lines
+		cur-line = lines.next
+		line-number = 1
+		indent-stack = []
+		unindent-to = -1
+		at-line-start = true
+		paren-level = 0
+
+	is-for-expression(line-number-in)
+		at-line-start = false
+		line-number = line-number-in
+
+	next
+		if peeked-token
+			result = peeked-token
+			peeked-token = nil
+			return result
+		return next-token
+
+	peek
+		if !peeked-token
+			peeked-token = next-token
+		return peeked-token
+
+	next-token
+		# EOF?
+		if !cur-line
+			if indent-stack.size > 0
+				unindent-to = 0
+			else
+				return nil
+
+		# Unindenting?
+		if unindent-to >= 0
+			if indent-stack.size == 0 || unindent-to == indent-stack.back
+				# We're done unindenting.
+				unindent-to = -1
+			else
+				# Unindent one more level.
+				indent-stack.pop-back
+				return dedent
+
+		# Indenting?
+		if at-line-start && paren-level == 0
+			at-line-start = false
+
+			# Consume empty lines before looking at indentation.
+			while true
+				if !ignore-re.match(cur-line)
+					break
+				cur-line = lines.next
+				line-number += 1
+				if !cur-line
+					return nil
+
+			# Figure out the indentation change.
+			indentation = indentation-re.match(cur-line)[1].size
+			if (indentation > 0 && indent-stack.size == 0) || indentation > indent-stack.back
+				indent-stack.append(indentation)
+				return indent
+			else if indent-stack.size > 0 && indentation < indent-stack.back
+				unindent-to = indentation
+				indent-stack.pop-back
+				return dedent
+
+		# End of line?
+		if ignore-re.match(cur-line)
+			# Move to the next line.
+			cur-line = lines.next
+			line-number += 1
+			at-line-start = true
+			if paren-level > 0
+				while ignore-re.match(cur-line)
+					cur-line = lines.next
+					line-number += 1
+			else
+				return eol
+
+		# Next real token.
+		match = token-re.match(cur-line)
+		if !match
+			if string-start-re.match(cur-line)
+				return lex-multiline-string
+			fail("Unknown characters on line {line-number}: {cur-line}")
+		cur-line = match.remainder
+		token = match[1]
+		if token == "(" || token == "[" || token == r"{"
+			paren-level += 1
+		else if token == ")" || token == "]" || token == "}"
+			paren-level -= 1
+		at-line-start = false
+		return token
+
+	lex-multiline-string
+		end-re = double-quote-string-end-re
+		if single-quote-string-start-re.match(cur-line)
+			end-re = single-quote-string-end-re
+		quote-lines = [ string-start-re.match(cur-line)[1] ]
+		while true
+			cur-line = lines.next
+			match = end-re.match(cur-line)
+			if match
+				quote-lines.append(match[0])
+				cur-line = match.remainder
+				break
+			else
+				quote-lines.append(cur-line)
+		return quote-lines.join("\n")
+
+	where
+		if filename
+			return 'on line {line-number} of "{filename}"'
+		return 'on line {line-number}'
+
+	test
+		while true
+			token = next
+			if !token
+				break
+			print("{line-number}: {token}")
+
+
+

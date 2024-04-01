@@ -1,0 +1,154 @@
+#!/usr/bin/env sqs
+
+import ParseNode Expressions Builtins
+
+
+export class CallExpr: ParseNode
+	(name, receiver, arguments, got-args)
+
+	init(receiver-in, name-in, arg)
+		name = name-in
+		receiver = receiver-in
+		arguments = []
+		if arg
+			arguments.append(arg)
+			got-args = true
+	is-settable
+		return true
+
+	add-argument(arg)
+		arguments.append(arg)
+		got-args = true
+	arguments=(new-arguments)
+		arguments = new-arguments
+		got-args = true
+	got-args=(new-got-args)
+		got-args = new-got-args
+
+	emit(builder)
+		receiver-loc = receiver.emit(builder)
+		arg-results = []
+		for arg: arguments
+			arg-results.append(arg.emit(builder))
+		arg-list = "NULL"
+		if arg-results.size > 0
+			arg-list = "(Object*[]) {{ {arg-results.join(', ')} }}"
+		result = builder.new-temp
+		builder.add('Object* {result} = call_("{name}", {receiver-loc}, {arg-results.size}, {arg-list});')
+		return result
+
+	emit-set(value, builder)
+		receiver-loc = receiver.emit(builder)
+		arg-results = []
+		for arg: arguments
+			arg-results.append(arg.emit(builder))
+		arg-results.append(value.emit(builder))
+		arg-list = "(Object*[]) {{ {arg-results.join(', ')} }}"
+		result = builder.new-temp
+		builder.add('Object* {result} = call_("{name}=", {receiver-loc}, {arg-results.size}, {arg-list});')
+		return result
+
+	resolve-names(builder)
+		receiver.resolve-names(builder)
+		for arg: arguments
+			arg.resolve-names(builder)
+
+export class FunctionCallExpr: ParseNode
+	(function arguments)
+
+	init(function-in, arguments-in)
+		function = function-in
+		arguments = arguments-in
+	append-arguments(new-arguments)
+		arguments += new-arguments
+
+	emit(builder)
+		# Certain CallExprs, like self-calls, don't become CallExprs until name
+		# resolution happens.  In that case, this is actually just attaching the
+		# arguments to that call.
+		resolved-fn = function
+		if resolved-fn.is-a(Variable)
+			resolved-fn = resolved-fn.resolved
+		if resolved-fn.is-a(CallExpr)
+			if !resolved-fn.got-args
+				resolved-fn.arguments = arguments
+				return resolved-fn.emit(builder)
+		else if resolved-fn.is-a(FunctionCallExpr)
+			resolved-fn.append-arguments(arguments)
+			return resolved-fn.emit(builder)
+
+		# "Calling" a class is special.
+		if resolved-fn.is-a(ClassRef) || resolved-fn.is-a(BuiltinClass)
+			# Emit object instantiation.
+			class-loc = resolved-fn.emit(builder)
+			new-obj = builder.new-temp
+			builder.add("Object* {new-obj} = Class_instantiate((Class*) {class-loc});")
+			# Emit "init" call (if there is one).
+			if resolved-fn.is-a(ClassRef) && !resolved-fn.class-statement.functions["init"]
+				# No "init".
+				return new-obj
+			arg-results = []
+			for arg: arguments
+				arg-results.append(arg.emit(builder))
+			args-text = "NULL"
+			if arg-results.size > 0
+				args-text = "(Object*[]) {{ {arg-results.join(', ')} }}"
+			result = builder.new-temp
+			builder.add('Object* {result} = call_("init", {new-obj}, {arg-results.size}, {args-text});')
+			return result
+
+		# Will be a FunctionRef.
+		fn-loc = resolved-fn.emit(builder)
+		result = builder.new-temp
+		arg-results = []
+		for arg: arguments
+			arg-results.append(arg.emit(builder))
+		args-needed = 0
+		if resolved-fn.is-a(FunctionRef)
+			args-needed = resolved-fn.num-args
+		else
+			# This is probably a builtin function.  Those have up to two arguments;
+			# always give them two.
+			args-needed = 2
+		args-left = args-needed - arguments.size
+		while args-left > 0
+			arg-results.append(NilLiteral().emit(builder))
+			args-left -= 1
+		args-text = "NULL"
+		if arg-results.size > 0
+			args-text = arg-results.join(', ')
+			args-text = "(Object*[]) {{ {arg-results.join(', ')} }}"
+		builder.add("Object* {result} = {fn-loc}(self, {args-text});")
+		return result
+
+	resolve-names(builder)
+		if function
+			function.resolve-names(builder)
+		for arg: arguments
+			arg.resolve-names(builder)
+
+export class SuperCallExpr: ParseNode
+	(name arguments)
+
+	init(name-in)
+		name = name-in
+	arguments=(new-arguments)
+		arguments = new-arguments
+
+	resolve-names(builder)
+		for arg: arguments
+			arg.resolve-names(builder)
+
+	emit(builder)
+		# TODO: include the class needed.  Will need to capture the enclosing
+		# class's superclass during resolve-names().
+		arg-results = []
+		for arg: arguments
+			arg-results.append(arg.emit(builder))
+		result = builder.new-temp
+		arg-list = "NULL"
+		if arg-results.size > 0
+			arg-list = "(Object*[]) {{ {arg-results.join(', ')} }}"
+		builder.add('Object* {result} = super_call_("{name}", self, {arg-results.size}, {arg-list});')
+		return result
+

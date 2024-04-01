@@ -1,0 +1,205 @@
+#!/usr/bin/env sqs
+
+import ParseNode Context Codegen Builtins Expressions Calls Debugging
+
+
+export class ClassStatement: ParseNode
+	(name, superclass-name, superclass, ivars, functions, enclosed-classes, c-name)
+
+	init(name-in)
+		name = name-in
+		functions = {}
+	superclass-name=(new-superclass-name)
+		superclass-name = new-superclass-name
+	ivars=(new-ivars)
+		ivars = new-ivars
+	enclosed-classes=(new-enclosed-classes)
+		enclosed-classes = new-enclosed-classes
+	get-ivar(name)
+		if ivars && ivars.contains(name)
+			return IvarExpr(name)
+		return nil
+	total-ivars
+		num-ivars = 0
+		if superclass
+			num-ivars += superclass.total-ivars
+		if ivars
+			num-ivars += ivars.size
+		return num-ivars
+	c-ivar-index-name(name)
+		if ivars && ivars.contains(name)
+			return "{c-name}_{mangle-name(name)}__index"
+		return superclass && superclass.c-ivar-index-name(name)
+
+	emit-top-level(builder)
+		enclosing-class = builder.cur-class
+		builder.cur-class = self
+		builder.add-class(self)
+
+		# Class object.
+		builder.add('declare_static_string({c-name}_class_name_, "{name}");')
+		ivars-names-loc = "NULL"
+		if ivars && ivars.size > 0
+			ivars-list = []
+			for ivar: ivars
+				ivars-list.append('inline_string_("{ivar}")')
+			ivars-list = '{{ {ivars-list.join(", ")} }}'
+			builder.add('Array {c-name}_ivar_names_ = {{ &Array_class, {ivars.size}, {ivars.size}, (Object*[]) {ivars-list} }};')
+			ivars-names-loc = "&{c-name}_ivar_names_"
+		builder.add("Class {c-name}_class = {{")
+		builder.indent
+		builder.add('&Class_class,')
+		builder.add('&{c-name}_class_name_,')
+		if superclass
+			builder.add("&{superclass.c-name}_class,")
+		else
+			builder.add('NULL,')
+		builder.add('NULL,')
+		builder.add("{total-ivars},")
+		builder.add("{ivars-names-loc},")
+		builder.dedent
+		builder.add(r"};")
+		builder.add("")
+
+		# Ivar indices.
+		if ivars && ivars.size > 0
+			ivar-index = 0
+			if superclass
+				ivar-index = superclass.total-ivars
+			builder.add("enum {{")
+			builder.indent
+			for ivar: ivars
+				builder.add("{c-name}_{mangle-name(ivar)}__index = {ivar-index},")
+				ivar-index += 1
+			builder.add(r"};")
+			builder.dedent
+			builder.add("")
+
+		# Functions & classes.
+		for kv: functions
+			kv.value.emit-top-level(builder)
+		if enclosed-classes
+			for kv: enclosed-classes
+				kv.value.emit-top-level(builder)
+
+		# Function specs.
+		# We do this after emitting the functions, so we don't have to
+		# forward-declare them.
+		if functions.size > 0
+			builder.add("static const BuiltinMethodSpec {c-name}__builtin_methods_[] = {{")
+			builder.indent
+			for kv: functions
+				function = kv.value
+				num-args = 0
+				if function.arguments
+					num-args = function.arguments.size
+				builder.add('{{ "{function.name}", {num-args}, {function.c-name} }},')
+			builder.add(r"{ NULL },")
+			builder.add(r"};")
+			builder.dedent
+			builder.add("")
+
+		builder.cur-class = enclosing-class
+
+	emit(builder)
+		# Everything is emitted in emit-top-level(), and anything referencing the
+		# class will use ClassRef, so nothing needs to be done here.
+
+	resolve-names(builder)
+		if superclass-name
+			superclass = builder.context.find(superclass-name)
+			if superclass && superclass.is-a(ClassRef)
+				superclass = superclass.class-statement
+		if !superclass
+			superclass = BuiltinClass(Array.superclass) 	# Object
+		builder.push-context(ClassContext(self))
+		c-name = builder.context.c-prefix
+		for kv: functions
+			kv.value.resolve-names(builder)
+		builder.pop-context
+		if enclosed-classes
+			builder.push-context(EnclosedClassContext(self))
+			for kv: enclosed-classes
+				kv.value.resolve-names(builder)
+			builder.pop-context
+
+	class ClassContext: Context
+		(class-statement)
+		init(class-statement-in)
+			class-statement = class-statement-in
+
+		find(name)
+			# Enclosed class.
+			enclosed-class = nil
+			if class-statement.enclosed-classes
+				enclosed-class = class-statement.enclosed-classes[name]
+			if enclosed-class
+				return ClassRef(enclosed-class)
+
+			# Self-call.
+			function = class-statement.functions[name]
+			if function
+				return CallExpr(SelfExpr(), name)
+			# Self-call of super function.
+			cur-class = class-statement.superclass
+			while cur-class
+				# TODO: handle built-in classes somehow...
+				if cur-class.is-a(ClassRef)
+					cur-class = cur-class.class-statement
+				if cur-class.is-a(ClassStatement)
+					if cur-class.functions[name]
+						return CallExpr(SelfExpr(), name)
+				cur-class = cur-class.superclass
+
+			# Ivar.
+			ivar = find-ivar(name)
+			if ivar
+				return ivar
+
+			return parent && parent.find(name)
+
+		c-prefix
+			prefix = parent && parent.c-prefix
+			name = mangle-name(class-statement.name)
+			if prefix
+				return "{prefix}__{name}"
+			return name
+
+		find-ivar(name)
+			cur-class = class-statement
+			while cur-class
+				ivar = cur-class.get-ivar(name)
+				if ivar
+					return ivar
+				cur-class = cur-class.superclass
+
+	class EnclosedClassContext: Context
+		(class-statement)
+		init(class-statement-in)
+			class-statement = class-statement-in
+
+		find(name)
+			# Enclosed class.
+			enclosed-class = nil
+			if class-statement.enclosed-classes
+				enclosed-class = class-statement.enclosed-classes[name]
+			if enclosed-class
+				return ClassRef(enclosed-class)
+
+			return parent && parent.find(name)
+
+
+class IvarExpr: ParseNode
+	(name)
+	init(name-in)
+		name = name-in
+	is-settable
+		return true
+	emit(builder)
+		return "ivar_get_({builder.cur-class.c-ivar-index-name(name)})"
+	emit-set(value, builder)
+		mangled-name = mangle-name(name)
+		value-loc = value.emit(builder)
+		builder.add("ivar_set_({builder.cur-class.c-ivar-index-name(name)}, {value-loc});")
+		return value-loc
+

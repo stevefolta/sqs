@@ -1,0 +1,29 @@
+#!/usr/bin/env sqs
+
+export class Context
+	(parent)
+
+	parent=(new-parent)
+		parent = new-parent
+
+	find(name)
+		print("Unimplemented find() in {self.class.name}")
+	find-autodeclaring(name)
+		# Default: same as "find".
+		return find(name)
+	get-class-for-superclass(name, builder)
+		return nil
+
+	c-prefix
+		# Default: this context doesn't introduce a new level of namespace.
+		return parent && parent.c-prefix
+
+	find-class-for-superclass(name, builder)
+		context = self
+		while context
+			the-class = get-class-for-superclass(name, builder)
+			if the-class
+				return the-class
+			context = context.parent
+		return nil
+

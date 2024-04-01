@@ -1,0 +1,42 @@
+#!/usr/bin/env sqs
+
+
+export fn mangle-name(name)
+	return name.replace("-", "_").replace("=", "_eq_")
+
+export fn c-quote-string(str)
+	remainder = str
+	fn next-char
+		c = remainder.slice(0, 1)
+		remainder = remainder.slice(1)
+		return c
+	segment-start = remainder
+	segment-size = 0
+	segments = []
+	fn finish-segment
+		if segment-size > 0
+			segments.append(segment-start.slice(0, segment-size))
+		segment-start = remainder
+		segment-size = 0
+	substitution-list = [
+		[ "\x5C" "\x5C\x5C" ], 	# Backslash.
+		[ '"', r'\"' ],
+		[ "\n" r"\n" ], [ "\r" r"\r" ], [ "\t" r"\t" ], [ "\e" r"\x1B" ],
+		[ "\b" r"\b" ], [ "\a" r"\a" ], [ "\v" r"\v" ], [ "\f" r"\f" ],
+		]
+	substitutions = {}
+	for sub: substitution-list
+		substitutions[sub[0]] = sub[1]
+	while !remainder.is-empty
+		c = next-char()
+		substitution = substitutions[c]
+		if substitution
+			finish-segment()
+			segments.append(substitution)
+		# TODO: other control characters
+		else
+			segment-size += 1
+	finish-segment()
+	return segments.join()
+
+

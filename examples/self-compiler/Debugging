@@ -1,0 +1,5 @@
+#!/usr/bin/env sqs
+
+export fn DBG(message)
+	print(message)
+

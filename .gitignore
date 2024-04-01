@@ -1,5 +1,6 @@
 sqs
 objects
+build
 *.local
 test
 temp*

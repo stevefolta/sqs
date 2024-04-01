@@ -1,0 +1,200 @@
+#!/usr/bin/env sqs
+
+import ParseNode, Context, Codegen, FunctionStatement, ClassStatement, Calls
+import Debugging
+
+next-capture-id = 1
+
+export class Block: ParseNode
+	(statements locals functions classes)
+	(capture-id, captured-locals)
+	(imported-modules module) 	# If "module" is present, the block *is* a module.
+
+	init
+		statements = []
+	append(statement)
+		statements.append(statement)
+	add-function(function)
+		if !functions
+			functions = {}
+		functions[function.name] = function
+	add-class(class-statement)
+		if !classes
+			classes = {}
+		classes[class-statement.name] = class-statement
+	get-local(name)
+		return locals && locals[name]
+	get-function(name)
+		return functions && functions[name]
+	get-class(name)
+		return classes && classes[name]
+	autodeclare(name)
+		if !locals
+			locals = {}
+		local = Local(name)
+		locals[name] = local
+		return local
+	dump(level)
+		if !level
+			level = 0
+		super.dump(level)
+		for statement: statements
+			statement.dump(level + 1)
+	module=(new-module)
+		module = new-module
+	add-imported-module(module)
+		if !imported-modules
+			imported-modules = []
+		imported-modules.append(module)
+
+	emit(builder)
+		# Emit local declarations.
+		if locals && locals.size > 0
+			local-specs = []
+			for kv: locals
+				local-specs.append("{mangle-name(kv.key)} = NULL")
+			builder.add('Object_ptr {local-specs.join(", ")};')
+
+		# Emit the captured locals.
+		if captured-locals
+			mangled-names = []
+			for local-name: captured-locals
+				mangled-names.append("&{mangle-name(local-name)}")
+			builder.add("Object** captures_[] = {{ {mangled-names.join(', ')} }};")
+			builder.add("UpvalFrame upval_frame_ = {{ {capture-id}, cur_upval_frame_, captures_ }};")
+			builder.add("cur_upval_frame_ = &upval_frame_;")
+			builder.push-unwinding(self)
+
+		# Emit.
+		for statement: statements
+			statement.emit(builder)
+
+		# Finish.
+		if captured-locals
+			builder.pop-unwinding(self)
+			emit-unwind(builder)
+
+	emit-top-level(builder)
+		for statement: statements
+			statement.emit-top-level(builder)
+
+	emit-unwind(builder)
+		if captured-locals
+			builder.add("cur_upval_frame_ = cur_upval_frame_->up;")
+
+	resolve-names(builder)
+		if module
+			builder.push-context(module.context-for(builder))
+		else
+			builder.push-context(BlockContext(self))
+		for statement: statements
+			if statement.is-a(FunctionStatement) || statement.is-a(ClassStatement)
+				# Add upvalues to the context.
+				builder.push-context(BlockUpvalueContext(self))
+				statement.resolve-names(builder)
+				builder.pop-context
+			else
+				statement.resolve-names(builder)
+		builder.pop-context
+
+	capture-index(name)
+		# Set up captures, if we haven't yet.
+		if !captured-locals
+			capture-id = next-capture-id
+			next-capture-id += 1
+			captured-locals = []
+
+		# Find existing index, if there is one.
+		index = 0
+		for local-name: captured-locals
+			if local-name == name
+				break
+			index += 1
+		if index >= captured-locals.size
+			captured-locals.append(name)
+		return index
+
+	find(name)
+		expr = get-local(name)
+		if expr
+			return expr
+		function = get-function(name)
+		if function
+			# Treat it as a nullary function call.  FunctionCallExpr.emit will
+			# append arguments if any are given.
+			return FunctionCallExpr(FunctionRef(function), [])
+		class-statement = get-class(name)
+		if class-statement
+			return ClassRef(class-statement)
+		if imported-modules
+			for module: imported-modules
+				if imported-item = module.get-export(name)
+					return imported-item
+
+	class BlockContext: Context
+		(block)
+
+		init(block-in)
+			block = block-in
+		find(name)
+			expr = block.find(name)
+			if expr
+				return expr
+			return parent && parent.find(name)
+		find-autodeclaring(name)
+			# Already declared here?
+			expr = block.get-local(name)
+			if expr
+				return expr
+			# Not declared here, search up the chain.
+			expr = parent && parent.find(name)
+			if expr
+				return expr
+			# Doesn't exist, so autodeclare it.
+			return block.autodeclare(name)
+
+	class BlockUpvalueContext: Context
+		(block)
+
+		init(block-in)
+			block = block-in
+		find(name)
+			node = parent.find(name)
+			if node && node.is-a(Local)
+				# It's a local in the block's method, turn it into an upvalue.
+				# If it were a local in an enclosing method, it would already be an
+				# UpvalueLocal.
+				node = UpvalueLocal(block, name)
+			return node
+
+	class UpvalueLocal: ParseNode
+		(block, index)
+
+		init(block-in, name)
+			block = block-in
+			index = block.capture-index(name)
+		emit(builder)
+			result = builder.new-temp
+			builder.add("Object* {result} = *get_upvalue_({block.capture-id}, {index});")
+			return result
+		emit-set(value, builder)
+			value-loc = value.emit(builder)
+			builder.add("*get_upvalue_({block.capture-id}, {index}) = {value-loc};")
+			return value-loc
+
+
+class Local: ParseNode
+	(name)
+
+	init(name-in)
+		name = name-in
+	is-settable
+		return true
+	emit(builder)
+		return mangle-name(name)
+	emit-set(value, builder)
+		mangled-name = mangle-name(name)
+		value-loc = value.emit(builder)
+		builder.add('{mangled-name} = {value-loc};')
+		return mangled-name
+
