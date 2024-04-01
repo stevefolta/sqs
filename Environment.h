@@ -13,9 +13,9 @@ typedef struct Environment {
 	struct Environment* parent;
 	struct ParseNode* (*find)(struct Environment* self, struct String* name);
 	struct ParseNode* (*find_autodeclaring)(struct Environment* self, struct String* name);
-	struct Class* (*get_class_for_superclass)(struct Environment* self, struct String* name, struct MethodBuilder* method);
+	struct Class* (*get_class_for_superclass)(struct Environment* self, struct String* name, struct MethodBuilder* builder);
 	} Environment;
-extern struct Class* Environment_find_class_for_superclass(Environment* self, struct String* name, struct MethodBuilder* method);
+extern struct Class* Environment_find_class_for_superclass(Environment* self, struct String* name, struct MethodBuilder* builder);
 
 typedef struct GlobalEnvironment {
 	Environment environment;
@@ -35,7 +35,7 @@ typedef struct MethodEnvironment {
 	Environment environment;
 	struct MethodBuilder* method;
 	} MethodEnvironment;
-extern MethodEnvironment* new_MethodEnvironment(struct MethodBuilder* method, Environment* parent);
+extern MethodEnvironment* new_MethodEnvironment(struct MethodBuilder* builder, Environment* parent);
 
 typedef struct BlockContext {
 	Environment environment;
