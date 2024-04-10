@@ -69,6 +69,8 @@ enum {
 	frame[1]: first argument
 	...
 	frame[n]: local variables and temporaries
+
+	A method's first literal is its method name, to support stack tracing.
 */
 #define frame_saved_area_size 4
 

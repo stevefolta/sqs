@@ -24,6 +24,7 @@ enum {
 bool dump_requested = false;
 
 extern Object** get_upvalue_ptr(Method* method, int local_offset, Object** frame);
+extern void dump_stack(Object** frame, Object** literals, int depth);
 
 void init_bytecode_interpreter()
 {
@@ -142,7 +143,11 @@ void interpret_bytecode(struct Method* method)
 				value = Object_find_method(frame[frame_adjustment], name_str);
 				if (value == NULL) {
 					Class* receiver_class = (frame[frame_adjustment] ? frame[frame_adjustment]->class_ : &Nil_class);
-					Error("Unhandled method call: \"%s\" on %s.", String_c_str(name_str), String_c_str(receiver_class->name));
+					fprintf(
+						stderr, "Unhandled method call: \"%s\" on %s.  Stack trace:\n",
+						String_c_str(name_str), String_c_str(receiver_class->name));
+					dump_stack(frame, literals, 10);
+					exit(EXIT_FAILURE);
 					}
 				}
 
@@ -165,8 +170,11 @@ void interpret_bytecode(struct Method* method)
 
 				// Call the method.
 				if (value->class_ == &Method_class) {
-					if (frame + ((Method*) value)->stack_size >= stack_limit)
-						Error("Stack overflow!");
+					if (frame + ((Method*) value)->stack_size >= stack_limit) {
+						fprintf(stderr, "Stack overflow!  Stack trace:\n");
+						dump_stack(frame, literals, 10);
+						exit(EXIT_FAILURE);
+						}
 					pc = (int8_t*) ((Method*) value)->bytecode->array;
 					literals = ((Method*) value)->literals->items;
 					}
@@ -229,7 +237,10 @@ void interpret_bytecode(struct Method* method)
 				value = Object_find_super_method(frame[frame_adjustment], name_str);
 				if (value == NULL) {
 					Class* receiver_class = (frame[frame_adjustment] ? frame[frame_adjustment]->class_ : &Nil_class);
-					Error("Unhandled method call: \"%s\" on %s.", String_c_str(name_str), String_c_str(receiver_class->name));
+					fprintf(
+						stderr, "Unhandled method call: \"%s\" on %s.  Stack trace:\n",
+						String_c_str(name_str), String_c_str(receiver_class->name));
+					exit(EXIT_FAILURE);
 					}
 				}
 				goto make_call;
@@ -634,6 +645,28 @@ Object** get_upvalue_ptr(Method* method, int local_offset, Object** frame)
 
 	Error("Internal error: upvalue reference with no enclosing frame.");
 	return NULL;
+}
+
+
+void dump_stack(Object** frame, Object** literals, int depth)
+{
+	for (; depth != 0 && frame && literals; --depth) {
+		const char* name = "-unknown-";
+		Object* name_obj = literals[0];
+		if (name_obj->class_ == &String_class)
+			name = String_c_str((String*) name_obj);
+		if (frame[0])
+			fprintf(stderr, "\t%s on %s\n", name, String_c_str(frame[0]->class_->name));
+		else
+			fprintf(stderr, "\t%s\n", name);
+
+		// Go to the next frame.
+		frame = (Object**) frame[-3];
+		literals = (Object**) frame[-1];
+		}
+
+	if (frame != NULL && literals != NULL)
+		fprintf(stderr, "\t...\n");
 }
 
 

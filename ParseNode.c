@@ -533,6 +533,7 @@ Object* FunctionStatement_compile(FunctionStatement* self, Environment* environm
 {
 	// Compile.
 	MethodBuilder* builder = new_MethodBuilder(self->arguments, environment);
+	MethodBuilder_add_literal(builder, (Object*) self->name);
 	if (self->body)
 		self->body->emit(self->body, builder);
 	if (String_equals_c(self->name, "init"))

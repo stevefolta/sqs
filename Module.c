@@ -232,6 +232,7 @@ void Module_build(Module* module)
 	module->is_building = true;
 
 	MethodBuilder* method_builder = new_MethodBuilder(new_Array(), NULL);
+	MethodBuilder_add_literal(method_builder, (Object*) new_c_static_String("-module-"));
 	module->block->parse_node.emit(&module->block->parse_node, method_builder);
 	MethodBuilder_finish(method_builder);
 	module->method = method_builder->method;
