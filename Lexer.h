@@ -26,9 +26,10 @@ typedef struct Lexer {
 	int unindent_to; 	// -1: no unindents pending
 	Token peeked_token;
 	bool have_peeked_token;
+	String* filename;
 	} Lexer;
 
-extern Lexer* new_Lexer(const char* text, size_t size);
+extern Lexer* new_Lexer(const char* text, size_t size, String* filename);
 extern Token Lexer_peek(Lexer* self);
 extern Token Lexer_next(Lexer* self);
 extern Token Lexer_next_token(Lexer* self);

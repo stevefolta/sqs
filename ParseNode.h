@@ -203,9 +203,10 @@ typedef struct Variable {
 	ParseNode parse_node;
 	struct String* name;
 	int line_number;
+	struct String* filename;
 	ParseNode* resolved;
 	} Variable;
-extern Variable* new_Variable(struct String* name, int line_number);
+extern Variable* new_Variable(struct String* name, int line_number, struct String* filename);
 
 typedef struct Local {
 	ParseNode parse_node;

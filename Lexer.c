@@ -6,18 +6,18 @@
 #define indent_stack_max 64
 
 
-extern void Lexer_init(Lexer* self, const char* text, size_t size);
+extern void Lexer_init(Lexer* self, const char* text, size_t size, String* filename);
 extern bool Lexer_skip_comment(struct Lexer* self);
 
 
-Lexer* new_Lexer(const char* text, size_t size)
+Lexer* new_Lexer(const char* text, size_t size, String* filename)
 {
 	Lexer* lexer = (Lexer*) alloc_mem(sizeof(Lexer));
-	Lexer_init(lexer, text, size);
+	Lexer_init(lexer, text, size, filename);
 	return lexer;
 }
 
-void Lexer_init(Lexer* self, const char* text, size_t size)
+void Lexer_init(Lexer* self, const char* text, size_t size, String* filename)
 {
 	self->p = text;
 	self->end = text + size;
@@ -28,6 +28,7 @@ void Lexer_init(Lexer* self, const char* text, size_t size)
 	self->indent_stack_size = 0;
 	self->unindent_to = -1;
 	self->have_peeked_token = false;
+	self->filename = filename;
 }
 
 
@@ -330,7 +331,7 @@ Token Lexer_next_token(struct Lexer* self)
 				else if (c == '\n')
 					self->line_number += 1;
 				}
-			Error("Unterminated string starting at line %d.", start_line);
+			Error("Unterminated string starting %s.", where(start_line, self->filename));
 			}
 			break;
 
@@ -351,7 +352,7 @@ Token Lexer_next_token(struct Lexer* self)
 		identifier:
 			// Identifier.
 			if (!is_identifier_character(c))
-				Error("Unknown character on line %d.", self->line_number);
+				Error("Unknown character %s.", where(self->line_number, self->filename));
 			while (self->p < self->end) {
 				c = *self->p;
 				if (is_identifier_character(c)) {

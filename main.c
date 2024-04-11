@@ -29,7 +29,7 @@ static void lexer_test(const char* file_path)
 		return;
 		}
 
-	Lexer* lexer = new_Lexer(contents->str, contents->size);
+	Lexer* lexer = new_Lexer(contents->str, contents->size, NULL);
 	while (true) {
 		Token token = Lexer_next(lexer);
 		if (token.type == EndOfText)
@@ -72,7 +72,7 @@ static Method* compile_script(const char* file_path)
 		return NULL;
 		}
 
-	Parser* parser = new_Parser(contents->str, contents->size);
+	Parser* parser = new_Parser(contents->str, contents->size, NULL);
 	ParseNode* ast = Parser_parse_block(parser, NULL);
 	MethodBuilder* method_builder = new_MethodBuilder(new_Array(), NULL);
 	MethodBuilder_add_literal(method_builder, (Object*) new_c_static_String("main"));

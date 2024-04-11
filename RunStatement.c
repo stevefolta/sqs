@@ -92,7 +92,7 @@ RunCommand* Parser_parse_run_command(Parser* self)
 				const char* end_char = (start_char == '{' ? "}" : ")");
 				token = Lexer_next(self->lexer);
 				if (token.type != Operator || !String_equals_c(token.token, end_char))
-					Error("Missing \"%s\" on line %d.", end_char, token.line_number);
+					Error("Missing \"%s\" %s.", end_char, where(token.line_number, self->filename));
 				}
 
 			else if (String_is_one_of(token.token, terminating_operators)) {
@@ -130,7 +130,7 @@ ParseNode* Parser_parse_run_pipeline(Parser* self)
 			}
 		command = Parser_parse_run_command(self);
 		if (command == NULL)
-			Error("Missing command after \"|\" on line %d.", token.line_number);
+			Error("Missing command after \"|\" %s.", where(token.line_number, self->filename));
 		Array_append(pipeline->commands, (Object*) command);
 		}
 
@@ -144,7 +144,7 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 
 	ParseNode* statement = Parser_parse_run_pipeline(self);
 	if (statement == NULL)
-		Error("Empty \"$\" statement on line %d.", line_number);
+		Error("Empty \"$\" statement %s.", where(line_number, self->filename));
 
 	while (true) {
 		Token token = Lexer_peek(self->lexer);
@@ -155,7 +155,7 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 			int line_number = Lexer_next(self->lexer).line_number;
 			ParseNode* command_2 = Parser_parse_run_pipeline(self);
 			if (command_2 == NULL)
-				Error("Empty command after \"&&\"  on line %d.", line_number);
+				Error("Empty command after \"&&\" %s.", where(line_number, self->filename));
 			if (statement->type == PN_RunCommand || statement->type == PN_RunPipeline)
 				statement = (ParseNode*) new_CallExpr(statement, &ok_string);
 			statement =
@@ -171,7 +171,7 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 
 	Token token = Lexer_next(self->lexer);
 	if (token.type != EOL)
-		Error("Extra characters at end of line %d.", token.line_number);
+		Error("Extra characters at end of line %s.", where(token.line_number, self->filename));
 
 	return statement;
 }
@@ -184,10 +184,10 @@ ParseNode* Parser_parse_capture(Parser* self)
 
 	ParseNode* pipeline = Parser_parse_run_pipeline(self);
 	if (pipeline == NULL)
-		Error("Expected a command or pipeline in \"$()\" on line %d.", token.line_number);
+		Error("Expected a command or pipeline in \"$()\" %s.", where(token.line_number, self->filename));
 	token = Lexer_next(self->lexer);
 	if (token.type != Operator || !String_equals_c(token.token, ")"))
-		Error("Missing \")\" at end of \"$()\" on line %d.", token.line_number);
+		Error("Missing \")\" at end of \"$()\" %s.", where(token.line_number, self->filename));
 
 	return (ParseNode*) new_RunCapture(pipeline);
 }

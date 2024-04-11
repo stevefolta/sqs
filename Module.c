@@ -32,7 +32,7 @@ ParseNode* Parser_parse_export(Parser* self)
 
 	Module* module = self->inner_block->module;
 	if (module == NULL)
-		Error("\"export\" statement is not part of a module on line %d.", next_token.line_number);
+		Error("\"export\" statement is not part of a module %s.", where(next_token.line_number, self->filename));
 
 	if (next_token.type == Identifier) {
 		if (String_equals_c(next_token.token, "class")) {
@@ -47,7 +47,7 @@ ParseNode* Parser_parse_export(Parser* self)
 			}
 		}
 
-	Error("Expected \"class\" or \"fn\" after \"export\" on line %d.", next_token.line_number);
+	Error("Expected \"class\" or \"fn\" after \"export\" %s.", where(next_token.line_number, self->filename));
 	return NULL;
 }
 
@@ -95,14 +95,14 @@ ParseNode* Parser_parse_import(Parser* self)
 		if (token.type == Operator && String_equals_c(token.token, ","))
 			continue;
 		if (token.type != Identifier)
-			Error("Expected a module name in \"import\" statement on line %d.", token.line_number);
+			Error("Expected a module name in \"import\" statement %s.", where(token.line_number, self->filename));
 
 		// Load the module.
 		// This will parse it, if needed, which will make all its exports known.
 		// It won't be emitted yet, though.
 		Module* module = Module_get_module(token.token);
 		if (module == NULL)
-			Error("Couldn't load module named \"%s\" on line %d.", String_c_str(token.token), token.line_number);
+			Error("Couldn't load module named \"%s\" %s.", String_c_str(token.token), where(token.line_number, self->filename));
 
 		// Add it to the Block's imported modules.
 		if (self->inner_block->imported_modules == NULL)
@@ -199,7 +199,7 @@ Module* Module_load_from_file(String* name, const char* file_path)
 	Module* module = new_Module();
 	Dict_set_at(modules, name, (Object*) module);
 
-	Parser* parser = new_Parser(contents->str, contents->size);
+	Parser* parser = new_Parser(contents->str, contents->size, name);
 	ParseNode* ast = Parser_parse_block(parser, module);
 	if (ast == NULL)
 		return NULL;

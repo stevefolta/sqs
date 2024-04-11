@@ -44,7 +44,7 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 	// Name.
 	Token token = Lexer_next(self->lexer);
 	if (token.type != Identifier)
-		Error("Expected class name on line %d.", token.line_number);
+		Error("Expected class name %s.", where(token.line_number, self->filename));
 	String* name = token.token;
 
 	ClassStatement* class_statement = new_ClassStatement(name);
@@ -55,7 +55,7 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 		Lexer_next(self->lexer);
 		token = Lexer_next(self->lexer);
 		if (token.type != Identifier)
-			Error("Expected a class name as the superclass on line %d.", token.line_number);
+			Error("Expected a class name as the superclass %s.", where(token.line_number, self->filename));
 		class_statement->superclass_name = token.token;
 		}
 
@@ -64,7 +64,7 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 
 	token = Lexer_next(self->lexer);
 	if (token.type != EOL)
-		Error("Extra characters after class definition on line %d.", token.line_number);
+		Error("Extra characters after class definition %s.", where(token.line_number, self->filename));
 
 	// Functions and classes.
 	token = Lexer_peek(self->lexer);
@@ -86,7 +86,7 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 				Array* arg_names = Parser_parse_names_list(self, "argument");
 				token = Lexer_next(self->lexer);
 				if (token.type != EOL)
-					Error("Extra characters after ivars list on line %d.", token.line_number);
+					Error("Extra characters after ivars list %s.", where(token.line_number, self->filename));
 				if (class_statement->ivars == NULL)
 					class_statement->ivars = arg_names;
 				else {
@@ -115,12 +115,12 @@ ParseNode* Parser_parse_class_statement(Parser* self)
 				Lexer_next(self->lexer);
 				token = Lexer_next(self->lexer);
 				if (token.type != Identifier && token.type != Operator)
-					Error("Bad function definition on line %d.", token.line_number);
+					Error("Bad function definition %s.", where(token.line_number, self->filename));
 				}
 
 			FunctionStatement* function = Parser_parse_fn_statement_raw(self);
 			if (function == NULL)
-				Error("Expected function definition on line %d.", token.line_number);
+				Error("Expected function definition %s.", where(token.line_number, self->filename));
 			Dict_set_at(class_statement->functions, function->name, (Object*) function);
 			}
 		}

@@ -39,12 +39,14 @@ extern ParseNode* Parser_parse_array_literal(Parser* self);
 extern ParseNode* Parser_parse_dict_literal(Parser* self);
 extern ParseNode* Parser_parse_super_call(Parser* self);
 extern bool String_is_one_of(String* str, const char** values);
+extern const char* where(int line_number, struct String* filename);
 
 
-extern Parser* new_Parser(const char* text, size_t size)
+Parser* new_Parser(const char* text, size_t size, struct String* filename)
 {
 	Parser* parser = (Parser*) alloc_mem(sizeof(Parser));
-	parser->lexer = new_Lexer(text, size);
+	parser->lexer = new_Lexer(text, size, filename);
+	parser->filename = filename;
 	return parser;
 }
 
@@ -83,7 +85,7 @@ ParseNode* Parser_parse_block(Parser* self, Module* module)
 
 		ParseNode* statement = Parser_parse_statement(self);
 		if (statement == NULL) {
-			Error("Statement expected at line %d.", next_token.line_number);
+			Error("Statement expected on line %s.", where(next_token.line_number, self->filename));
 			return NULL;
 			}
 		Block_append(block, statement);
@@ -133,7 +135,7 @@ ParseNode* Parser_parse_statement(Parser* self)
 		return NULL;
 	next_token = Lexer_next(self->lexer);
 	if (next_token.type != EOL)
-		Error("Extra characters after expression at line %d.", next_token.line_number);
+		Error("Extra characters after expression %s.", where(next_token.line_number, self->filename));
 	return (ParseNode*) new_ExpressionStatement(expression);
 }
 
@@ -144,9 +146,9 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 
 	ParseNode* condition = Parser_parse_expression(self);
 	if (condition == NULL)
-		Error("Missing expression in \"if\" statement at line %d.", line_number);
+		Error("Missing expression in \"if\" statement %s.", where(line_number, self->filename));
 	if (Lexer_next(self->lexer).type != EOL)
-		Error("Extra characters after expression at line %d.", line_number);
+		Error("Extra characters after expression %s.", where(line_number, self->filename));
 	IfStatement* statement = new_IfStatement();
 	statement->condition = condition;
 	if (Lexer_peek(self->lexer).type == Indent) {
@@ -166,7 +168,7 @@ ParseNode* Parser_parse_if_statement(Parser* self)
 				statement->else_block = Parser_parse_if_statement(self);
 			else {
 				if (next_token.type != EOL)
-					Error("Extra tokens at end of \"else\" in line %d.", next_token.line_number);
+					Error("Extra tokens at end of \"else\" %s.", where(next_token.line_number, self->filename));
 				Lexer_next(self->lexer);
 				if (Lexer_peek(self->lexer).type == Indent) {
 					Lexer_next(self->lexer);
@@ -190,9 +192,9 @@ ParseNode* Parser_parse_while_statement(Parser* self)
 
 	ParseNode* condition = Parser_parse_expression(self);
 	if (condition == NULL)
-		Error("Missing expression in \"while\" statement at line %d.", line_number);
+		Error("Missing expression in \"while\" statement %s.", where(line_number, self->filename));
 	if (Lexer_next(self->lexer).type != EOL)
-		Error("Extra characters after expression at line %d.", line_number);
+		Error("Extra characters after expression %s.", where(line_number, self->filename));
 	WhileStatement* statement = new_WhileStatement();
 	statement->condition = condition;
 	if (Lexer_peek(self->lexer).type == Indent) {
@@ -209,17 +211,17 @@ ParseNode* Parser_parse_for_statement(Parser* self)
 
 	Token token = Lexer_next(self->lexer);
 	if (token.type != Identifier)
-		Error("Need identifier for \"for\" statement (line %d).", line_number);
+		Error("Need identifier for \"for\" statement %s.", where(line_number, self->filename));
 	ForStatement* statement = new_ForStatement();
 	statement->variable_name = token.token;
 	token = Lexer_next(self->lexer);
 	if (token.type != Operator || !String_equals_c(token.token, ":"))
-		Error("Missing \":\" in \"for\" statement (line %d).", line_number);
+		Error("Missing \":\" in \"for\" statement %s.", where(line_number, self->filename));
 	statement->collection = Parser_parse_expression(self);
 	if (statement->collection == NULL)
-		Error("Missing expression in \"for\" statement (line %d).", line_number);
+		Error("Missing expression in \"for\" statement %s.", where(line_number, self->filename));
 	if (Lexer_next(self->lexer).type != EOL)
-		Error("Extra characters after expression at line %d.", line_number);
+		Error("Extra characters after expression %s.", where(line_number, self->filename));
 	if (Lexer_peek(self->lexer).type == Indent) {
 		Lexer_next(self->lexer);
 		statement->body = Parser_parse_block(self, NULL);
@@ -254,7 +256,7 @@ ParseNode* Parser_parse_return_statement(Parser* self)
 
 	Token token = Lexer_next(self->lexer);
 	if (token.type != EOL)
-		Error("Extra characters at end of \"return\" statement on line %d.", token.line_number);
+		Error("Extra characters at end of \"return\" statement %s.", where(token.line_number, self->filename));
 
 	return (ParseNode*) return_statement;
 }
@@ -267,16 +269,16 @@ ParseNode* Parser_parse_with_statement(Parser* self)
 	// Parse.
 	Token token = Lexer_next(self->lexer);
 	if (token.type != Identifier)
-		Error("Expected a name in \"with\" statement on line %d.", token.line_number);
+		Error("Expected a name in \"with\" statement %s.", where(token.line_number, self->filename));
 	String* name = token.token;
 	token = Lexer_next(self->lexer);
 	if (token.type != Operator || !String_equals_c(token.token, "="))
-		Error("Expected \"=\"  in \"with\" statement on line %d.", token.line_number);
+		Error("Expected \"=\"  in \"with\" statement %s.", where(token.line_number, self->filename));
 	ParseNode* expr = Parser_parse_expression(self);
 	if (expr == NULL)
-		Error("Expected expression in \"with\" statement on line %d.", token.line_number);
+		Error("Expected expression in \"with\" statement %s.", where(token.line_number, self->filename));
 	if (Lexer_next(self->lexer).type != EOL)
-		Error("Extra characters after expression on line %d.", token.line_number);
+		Error("Extra characters after expression %s.", where(token.line_number, self->filename));
 	ParseNode* body = NULL;
 	if (Lexer_peek(self->lexer).type == Indent) {
 		Lexer_next(self->lexer);
@@ -301,7 +303,7 @@ FunctionStatement* Parser_parse_fn_statement_raw(Parser* self)
 
 	Token token = Lexer_next(self->lexer);
 	if (token.type != EOL)
-		Error("Extra characters at the end of a \"fn\" definition on line %d.", token.line_number);
+		Error("Extra characters at the end of a \"fn\" definition %s.", where(token.line_number, self->filename));
 
 	// Body.
 	if (Lexer_peek(self->lexer).type == Indent) {
@@ -343,10 +345,10 @@ ParseNode* Parser_parse_expression(Parser* self)
 		if (String_equals_c(next_token.token, "=")) {
 			Lexer_next(self->lexer);
 			if (!expr->emit_set)
-				Error("Attempt to set something that isn't settable (line %d).", next_token.line_number);
+				Error("Attempt to set something that isn't settable %s.", where(next_token.line_number, self->filename));
 			ParseNode* right = Parser_parse_expression(self);
 			if (right == NULL)
-				Error("Missing expression after \"=\" (line %d).", next_token.line_number);
+				Error("Missing expression after \"=\" %s.", where(next_token.line_number, self->filename));
 			SetExpr* setter = new_SetExpr();
 			setter->left = expr;
 			setter->right = right;
@@ -357,10 +359,10 @@ ParseNode* Parser_parse_expression(Parser* self)
 		else if (String_is_one_of(next_token.token, modify_tokens)) {
 			Lexer_next(self->lexer);
 			if (!expr->emit_set)
-				Error("Attempt to set something that isn't settable (line %d).", next_token.line_number);
+				Error("Attempt to set something that isn't settable %s.", where(next_token.line_number, self->filename));
 			ParseNode* right = Parser_parse_expression(self);
 			if (right == NULL)
-				Error("Missing expression after \"=\" (line %d).", next_token.line_number);
+				Error("Missing expression after \"=\" %s.", where(next_token.line_number, self->filename));
 
 			// Make the operation.
 			String* op_name = new_String(next_token.token->str, next_token.token->size - 1);
@@ -392,7 +394,7 @@ ParseNode* Parser_parse_logical_or_expression(Parser* self)
 
 		ParseNode* expr2 = Parser_parse_logical_and_expression(self);
 		if (expr2 == NULL)
-			Error("Missing expression after \"||\" (line %d).", next_token.line_number);
+			Error("Missing expression after \"||\" %s.", where(next_token.line_number, self->filename));
 		expr = (ParseNode*) new_ShortCircuitExpr(expr, expr2, false);
 		}
 
@@ -414,7 +416,7 @@ ParseNode* Parser_parse_logical_and_expression(Parser* self)
 
 		ParseNode* expr2 = Parser_parse_inclusive_or_expression(self);
 		if (expr2 == NULL)
-			Error("Missing expression after \"&&\" (line %d).", next_token.line_number);
+			Error("Missing expression after \"&&\" %s.", where(next_token.line_number, self->filename));
 		expr = (ParseNode*) new_ShortCircuitExpr(expr, expr2, true);
 		}
 
@@ -451,7 +453,7 @@ ParseNode* Parser_parse_binop(
 		Lexer_next(self->lexer);
 		ParseNode* expr2 = parse_tighter(self);
 		if (expr2 == NULL)
-			Error("Missing expression after \"%s\" in line %d.", String_c_str(op.token), op.line_number);
+			Error("Missing expression after \"%s\" %s.", String_c_str(op.token), where(op.line_number, self->filename));
 
 		// Make the binop.
 		expr = (ParseNode*) new_CallExpr_binop(expr, expr2, op.token);
@@ -495,7 +497,7 @@ ParseNode* Parser_parse_equality_expression(Parser* self)
 		Lexer_next(self->lexer);
 		ParseNode* expr2 = Parser_parse_relational_expression(self);
 		if (expr2 == NULL)
-			Error("Missing expression after \"%s\" in line %d.", String_c_str(op.token), op.line_number);
+			Error("Missing expression after \"%s\" %s.", String_c_str(op.token), where(op.line_number, self->filename));
 
 		// Special-case "== nil" and "!= nil".
 		//*** TODO
@@ -545,7 +547,7 @@ ParseNode* Parser_parse_unary_expression(Parser* self)
 			Lexer_next(self->lexer);
 			ParseNode* expr = Parser_parse_unary_expression(self);
 			if (expr == NULL)
-				Error("Expected expression after \"!\" on line %d.", next_token.line_number);
+				Error("Expected expression after \"!\" %s.", where(next_token.line_number, self->filename));
 			return (ParseNode*) new_ShortCircuitNot(expr);
 			}
 
@@ -553,7 +555,7 @@ ParseNode* Parser_parse_unary_expression(Parser* self)
 			Lexer_next(self->lexer);
 			ParseNode* expr = Parser_parse_unary_expression(self);
 			if (expr == NULL)
-				Error("Expected expression after \"%s\" on line %d.", String_c_str(next_token.token), next_token.line_number);
+				Error("Expected expression after \"%s\" %s.", String_c_str(next_token.token), where(next_token.line_number, self->filename));
 			return (ParseNode*) new_CallExpr(expr, next_token.token);
 			}
 		}
@@ -578,16 +580,16 @@ Array* Parser_parse_arguments(Parser* self)
 			}
 		if (need_comma) {
 			if (next_token.type == EndOfText)
-				Error("Unterminated argument list starting at line %d.", start_token.line_number);
+				Error("Unterminated argument list starting %s.", where(start_token.line_number, self->filename));
 			if (next_token.type != Operator || !String_equals_c(next_token.token, ","))
-				Error("Comma expected between arguments in line %d.", next_token.line_number);
+				Error("Comma expected between arguments %s.", where(next_token.line_number, self->filename));
 			Lexer_next(self->lexer);
 			need_comma = false;
 			}
 
 		ParseNode* arg = Parser_parse_expression(self);
 		if (arg == NULL)
-			Error("Expected expression in argument list in line %d.", next_token.line_number);
+			Error("Expected expression in argument list %s.", where(next_token.line_number, self->filename));
 		Array_append(args, (Object*) arg);
 		need_comma = true;
 		}
@@ -603,7 +605,7 @@ ParseNode* Parser_parse_dot_call(Parser* self, ParseNode* receiver)
 	// Get the name.
 	Token token = Lexer_next(self->lexer);
 	if (token.type != Identifier)
-		Error("Expected a name after \".\" in line %d.", token.line_number);
+		Error("Expected a name after \".\" %s.", where(token.line_number, self->filename));
 	String* name = token.token;
 	CallExpr* call = new_CallExpr(receiver, name);
 
@@ -639,7 +641,7 @@ ParseNode* Parser_parse_index_call(Parser* self, ParseNode* receiver)
 	// Finish.
 	Token token = Lexer_next(self->lexer);
 	if (token.type != Operator || !String_equals_c(token.token, "]"))
-		Error("Expected \"]\" in line %d.", token.line_number);
+		Error("Expected \"]\" %s.", where(token.line_number, self->filename));
 	return (ParseNode*) call;
 }
 
@@ -710,7 +712,7 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 			if (next_token.type == Operator && String_equals_c(next_token.token, "("))
 				return Parser_parse_capture(self);
 			}
-		return (ParseNode*) new_Variable(next_token.token, next_token.line_number);
+		return (ParseNode*) new_Variable(next_token.token, next_token.line_number, self->filename);
 		}
 
 	else if (next_token.type == Operator) {
@@ -724,7 +726,7 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 			ParseNode* expr = Parser_parse_expression(self);
 			next_token = Lexer_next(self->lexer);
 			if (next_token.type != Operator || !String_equals_c(next_token.token, ")"))
-				Error("Missing \")\" on line %d.", start_line_number);
+				Error("Missing \")\" %s.", where(start_line_number, self->filename));
 			return expr;
 			}
 		}
@@ -733,7 +735,9 @@ ParseNode* Parser_parse_primary_expression(Parser* self)
 }
 
 
-static uint32_t parse_hex(const char** p_in_out, const char* end, int num_digits, int line_number)
+static uint32_t parse_hex(
+	const char** p_in_out, const char* end, int num_digits,
+	int line_number, String* filename)
 {
 	const char* p = *p_in_out;
 	uint32_t value = 0;
@@ -747,7 +751,7 @@ static uint32_t parse_hex(const char** p_in_out, const char* end, int num_digits
 		else if (c >= 'a' && c <= 'f')
 			value += c - 'a' + 0x0A;
 		else
-			Error("Bad \\x escape in line %d.", line_number);
+			Error("Bad \\x escape %s.", where(line_number, filename));
 		}
 	*p_in_out = p;
 	return value;
@@ -807,7 +811,7 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 				case 'x':
 					{
 					const char* p_copy = p; 	// Let "p" stay in a register.
-					uint32_t value = parse_hex(&p_copy, end, 2, token.line_number);
+					uint32_t value = parse_hex(&p_copy, end, 2, token.line_number, self->filename);
 					p = p_copy;
 					*unescaped_out++ = value;
 					}
@@ -821,7 +825,7 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 						if (c >= '0' && c <= '9')
 							value += c - '0';
 						else
-							Error("Bad \\0 escape in line %d.", token.line_number);
+							Error("Bad \\0 escape %s.", where(token.line_number, self->filename));
 						}
 					}
 					break;
@@ -829,10 +833,10 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 				case 'U':
 					{
 					const char* p_copy = p; 	// Let "p" stay in a register.
-					uint32_t value = parse_hex(&p_copy, end, (c == 'u' ? 4 : 8), token.line_number);
+					uint32_t value = parse_hex(&p_copy, end, (c == 'u' ? 4 : 8), token.line_number, self->filename);
 					p = p_copy;
 					if (value > 0x10FFFF)
-						Error("Invalid unicode character (0x%Xd) on line %d.", value, token.line_number);
+						Error("Invalid unicode character (0x%Xd) %s.", value, where(token.line_number, self->filename));
 					unescaped_out += put_utf8(value, unescaped_out);
 					}
 					break;
@@ -845,7 +849,7 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 		else if (*p == '{') {
 			p += 1;
 			if (p >= end)
-				Error("Unterminated interpolated string in line %d.", token.line_number);
+				Error("Unterminated interpolated string %s.", where(token.line_number, self->filename));
 			else if (*p == '{') {
 				// Escaping via "{{".
 				p += 1;
@@ -886,10 +890,10 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 						}
 					}
 				if (brace_level > 0)
-					Error("Unterminated string interpolation in line %d.", token.line_number);
+					Error("Unterminated string interpolation %s.", where(token.line_number, self->filename));
 
 				// Parse the expression.
-				Parser* parser = new_Parser(expression_start, p - expression_start - 1);
+				Parser* parser = new_Parser(expression_start, p - expression_start - 1, self->filename);
 				Lexer_set_for_expression(parser->lexer);
 				parser->lexer->line_number = token.line_number;
 				ParseNode* expr = Parser_parse_expression(parser);
@@ -955,7 +959,7 @@ ParseNode* Parser_parse_array_literal(Parser* self)
 
 		ParseNode* item = Parser_parse_expression(self);
 		if (item == NULL)
-			Error("Expected expression in array literal in line %d.", next_token.line_number);
+			Error("Expected expression in array literal %s.", where(next_token.line_number, self->filename));
 		ArrayLiteral_add_item(array_literal, item);
 		}
 
@@ -977,21 +981,21 @@ ParseNode* Parser_parse_dict_literal(Parser* self)
 			else if (String_equals_c(token.token, ","))
 				continue;
 			else
-				Error("Expected name in Dict literal in line %d.", token.line_number);
+				Error("Expected name in Dict literal %s.", where(token.line_number, self->filename));
 			}
 		else if (token.type != Identifier)
-			Error("Expected name in Dict literal in line %d.", token.line_number);
+			Error("Expected name in Dict literal %s.", where(token.line_number, self->filename));
 		String* name = token.token;
 
 		// ":" or "=".
 		token = Lexer_next(self->lexer);
 		if (token.type != Operator || !(String_equals_c(token.token, ":") || String_equals_c(token.token, "=")))
-			Error("Expected \":\" or \"=\" in Dict literal in line %d.", token.line_number);
+			Error("Expected \":\" or \"=\" in Dict literal %s.", where(token.line_number, self->filename));
 
 		// Value.
 		ParseNode* value = Parser_parse_expression(self);
 		if (value == NULL)
-			Error("Expected value expression in Dict literal in line %d.", token.line_number);
+			Error("Expected value expression in Dict literal %s.", where(token.line_number, self->filename));
 
 		// Add it.
 		DictLiteral_add_item(dict_literal, name, value);
@@ -1008,7 +1012,7 @@ ParseNode* Parser_parse_super_call(Parser* self)
 	// "."
 	Token token = Lexer_next(self->lexer);
 	if (token.type != Operator && !String_equals_c(token.token, "."))
-		Error("Expected \".\" in \"super\" call on line %d.", token.line_number);
+		Error("Expected \".\" in \"super\" call %s.", where(token.line_number, self->filename));
 
 	// Name.
 	String* name = Parser_parse_fn_name(self);
@@ -1035,14 +1039,14 @@ String* Parser_parse_fn_name(Parser* self)
 		if (String_equals_c(token.token, "[")) {
 			token = Lexer_next(self->lexer);
 			if (token.type != Operator || !String_equals_c(token.token, "]"))
-				Error("Expected \"[]\" as a function name, not just \"[\", on line %d.", token.line_number);
+				Error("Expected \"[]\" as a function name, not just \"[\", %s.", where(token.line_number, self->filename));
 			name = new_c_static_String("[]");
 			}
 		else
 			can_be_set = false;
 		}
 	else if (token.type != Identifier)
-		Error("Expected a function name on line %d.", token.line_number);
+		Error("Expected a function name %s.", where(token.line_number, self->filename));
 
 	// Add "="?
 	if (can_be_set) {
@@ -1075,7 +1079,7 @@ Array* Parser_parse_names_list(Parser* self, const char* type)
 				continue;
 			}
 		if (token.type != Identifier)
-			Error("Expected %s name in line %d.", type, token.line_number);
+			Error("Expected %s name %s.", type, where(token.line_number, self->filename));
 		Array_append(arguments, (Object*) token.token);
 		}
 
