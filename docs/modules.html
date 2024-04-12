@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title> sqs Modules </title>
+	<meta charset="utf-8">
+	<style>
+	span.meta {
+		color: gray;
+		}
+	</style>
+</head>
+
+<body>
+
+<h2> sqs Modules </h2>
+
+<p>
+Although sqs is meant to be used for single-file scripts, it does provide a simple module facility.  Any imported modules must be in the same directory as the script that's importing them -- there's nothing like <code>import LeftPad from "http://totally-legit.ru"</code>.
+</p>
+
+
+<h3> import </h3>
+
+<pre>
+import <i>names</i>
+</pre>
+
+<p>
+Imports the exported classes and functions from the named modules.  The list of module names can be separated by commas, or just spaces.
+</p>
+
+
+<h3> export </h3>
+
+<pre>
+export class <i>class name etc...</i>
+export fn <i>function name etc...</i>
+</pre>
+
+At the top level of a module file, any <a href="statements.html#class-statement">class statement</a> or <a href="statements.html#function-statement">function statement</a> can be preceded by <code>export</code>, meaning that that class or function will be available to any script or module that imports the module.
+
+<p>
+
+</p>
+
+
+</body>
+</html>
+

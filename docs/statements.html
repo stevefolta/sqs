@@ -102,7 +102,7 @@ Creates a new scope with <i>variable</i> set to <i>expression</i>.  At the end o
 </p>
 
 
-<h3> fn </h3>
+<h3 id="function-statement"> fn </h3>
 
 <pre>
 fn <i>name</i>
@@ -116,7 +116,7 @@ Defines a function.  The <i>arguments</i> can be separated by commas, but don't 
 </p>
 
 
-<h3> class </h3>
+<h3 id="class-statement"> class </h3>
 
 <pre>
 class <i>name</i><span class="meta">[</span>: <i>superclass</i><span class="meta">]</span> <span class="meta">[</span>(<i>instance-variables</i>)<span class="meta">]</span>
@@ -141,7 +141,7 @@ $ <i>command</i>
 </pre>
 
 <p>
-Runs a command.  <i>command</i> consists of a sequence of words, strings (with string interpolation), expressions surrounded by braces or parentheses, capture expressions, or <code>-</code> or <code>+</code>s which are consolidated with the following word.  Expressions in braces or parentheses are incorporated as follows: if the expression is string (or number), it becomes a single argument; if it is an array, it is incorporated as several arguments; if it is <code>nil</code> it is ignored.
+Runs a command.  <i>command</i> consists of a sequence of words, strings (with string interpolation), expressions surrounded by braces or parentheses, capture expressions, or <code>-</code> or <code>+</code>s which are consolidated with the following word.  Expressions in braces or parentheses are incorporated as follows: if the expression is a string (or number), it becomes a single argument; if it is an array, it is incorporated as several arguments; if it is <code>nil</code> it is ignored.
 </p>
 
 <p>
