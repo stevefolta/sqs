@@ -54,11 +54,22 @@ ParseNode* Parser_parse_export(Parser* self)
 
 typedef struct ImportStatement {
 	ParseNode parse_node;
+	Array* imported_modules;
 	} ImportStatement;
 
 int ImportStatement_emit(ParseNode* super, MethodBuilder* builder)
 {
-	// Nothing to do here.
+	ImportStatement* self = (ImportStatement*) super;
+
+	// This is a good time to build the imported modules, if they haven't been
+	// built yet.  This is to ensure that they get built (and more importantly,
+	// had their names resolved) before the current block can try to use any of
+	// the imported classes as a superclass.
+	for (int which_module = 0; which_module < self->imported_modules->size; ++which_module) {
+		Module* module = (Module*) self->imported_modules->items[which_module];
+		Module_build(module);
+		}
+
 	return 0;
 }
 
@@ -66,6 +77,7 @@ ImportStatement* new_ImportStatement()
 {
 	ImportStatement* self = alloc_obj(ImportStatement);
 	self->parse_node.emit = ImportStatement_emit;
+	self->imported_modules = new_Array();
 	return self;
 }
 
@@ -96,6 +108,8 @@ ParseNode* Parser_parse_import(Parser* self)
 		if (self->inner_block->imported_modules == NULL)
 			self->inner_block->imported_modules = new_Array();
 		Array_append(self->inner_block->imported_modules, (Object*) module);
+
+		Array_append(import_statement->imported_modules, (Object*) module);
 		}
 
 	return (ParseNode*) import_statement;
@@ -213,33 +227,16 @@ void Module_create_module_locals(Module* self, int num_locals)
 
 void Module_build(Module* module)
 {
-	if (module->method)
+	if (module->method || module->is_building)
 		return;
+	module->is_building = true;
 
 	MethodBuilder* method_builder = new_MethodBuilder(new_Array(), NULL);
 	module->block->parse_node.emit(&module->block->parse_node, method_builder);
 	MethodBuilder_finish(method_builder);
 	module->method = method_builder->method;
 	call_method(module->method, NULL);
-}
-
-
-void Module_emit_modules()
-{
-	if (modules == NULL)
-		return;
-
-	DictIterator* it = new_DictIterator(modules);
-	while (true) {
-		DictIteratorResult kv = DictIterator_next(it);
-		if (kv.key == NULL)
-			break;
-		Module* module = (Module*) kv.value;
-		if (module->method)
-			continue;
-
-		Module_build(module);
-		}
+	module->is_building = false;
 }
 
 

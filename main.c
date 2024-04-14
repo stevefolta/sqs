@@ -123,7 +123,6 @@ int main(int argc, char* argv[])
 	if (method) {
 		if (dump_requested)
 			dump_bytecode(method, NULL, new_c_static_String("main"));
-		Module_emit_modules();
 		Object* result = call_method(method, NULL);
 		if (result && result->class_ == &Int_class)
 			return Int_value(result);
