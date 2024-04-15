@@ -394,7 +394,7 @@ fn test-error(name, code)
 		file.write("\n") 	# For one-liners.
 	result = nil
 	with dev-null = File("/dev/null", "w")
-		result = run([ "sqs", test-file-path], { stdout = dev-null, stderr = dev-null })
+		result = run([ "sqs", test-file-path ], { stdout = dev-null, stderr = dev-null })
 	test(name, !result.ok)
 	$ rm {test-file-path}
 
