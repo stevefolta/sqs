@@ -10,21 +10,25 @@ integer = r"-?(0x)?[0-9]+"
 float-pattern = r"-?(0x)?[0-9]+\.[0-9]+"
 double-quote-string = r'r?"(\\.|[^"])*"'
 single-quote-string = r"r?'(\\.|[^'])*'"
+backquote-string = r"r?`(\\.|[^`])*`"
 double-quote-string-contents = r'(\\.|[^"])*'
 single-quote-string-contents = r"(\\.|[^'])*"
+backquote-string-contents = r"(\\.|[^`])*"
 double-quote-string-start-re = Regex('^[ \t]*(r?"{double-quote-string-contents})$')
 single-quote-string-start-re = Regex("^[ \t]*(r?'{single-quote-string-contents})$")
-string-start-re = Regex("^[ \t]*(r?(\"{double-quote-string-contents}|'{single-quote-string-contents}))$")
+backquote-string-start-re = Regex("^[ \t]*(r?`{backquote-string-contents})$")
+string-start-re = Regex("^[ \t]*(r?(\"{double-quote-string-contents}|'{single-quote-string-contents}|`{backquote-string-contents}))$")
 double-quote-string-end-re = Regex('{double-quote-string-contents}"')
 single-quote-string-end-re = Regex("{single-quote-string-contents}'")
-token-re = Regex("^[ \t]*({id}|{num}|{operator}|{double-quote-string}|{single-quote-string})")
+backquote-string-end-re = Regex("{backquote-string-contents}`")
+token-re = Regex("^[ \t]*({id}|{num}|{operator}|{double-quote-string}|{single-quote-string}|{backquote-string})")
 indentation-re = Regex(r"^([[:space:]]*).*$")
 ignore-re = Regex(r"^[[:space:]]*(#.+)?$")
 
 # Exported regular expressions.
 identifier-re-var = Regex("^{id}$")
 operator-re-var = Regex("^({operator})$")
-string-literal-re-var = Regex("^({double-quote-string}|{single-quote-string})$")
+string-literal-re-var = Regex("^({double-quote-string}|{single-quote-string}|{backquote-string})$")
 integer-re-var = Regex("^{integer}$")
 float-re-var = Regex("^{float-pattern}$")
 export fn operator-re
@@ -135,10 +139,10 @@ export class Lexer
 				return eol
 
 		# Next real token.
+		if string-start-re.match(cur-line)
+			return lex-multiline-string
 		match = token-re.match(cur-line)
 		if !match
-			if string-start-re.match(cur-line)
-				return lex-multiline-string
 			fail("Unknown characters on line {line-number}: {cur-line}")
 		cur-line = match.remainder
 		token = match[1]
@@ -153,6 +157,8 @@ export class Lexer
 		end-re = double-quote-string-end-re
 		if single-quote-string-start-re.match(cur-line)
 			end-re = single-quote-string-end-re
+		else if backquote-string-start-re.match(cur-line)
+			end-re = backquote-string-end-re
 		quote-lines = [ string-start-re.match(cur-line)[1] ]
 		while true
 			cur-line = lines.next
