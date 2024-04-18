@@ -171,6 +171,32 @@ Object* ByteArray_decode_8859_1(Object* super, Object** args)
 }
 
 
+typedef struct ByteArrayIterator {
+	Class* class_;
+	ByteArray* byte_array;
+	size_t index;
+	} ByteArrayIterator;
+Class ByteArrayIterator_class;
+
+Object* ByteArrayIterator_next(Object* super, Object** args)
+{
+	ByteArrayIterator* self = (ByteArrayIterator*) super;
+	if (self->index >= self->byte_array->size)
+		return NULL;
+	return (Object*) new_Int(self->byte_array->array[self->index++]);
+}
+
+Object* ByteArray_iterator(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	ByteArrayIterator* iterator = alloc_obj(ByteArrayIterator);
+	iterator->class_ = &ByteArrayIterator_class;
+	iterator->byte_array = self;
+	iterator->index = 0;
+	return (Object*) iterator;
+}
+
+
 void ByteArray_init_class()
 {
 	init_static_class(ByteArray);
@@ -184,9 +210,16 @@ void ByteArray_init_class()
 		{ "slice", 2, ByteArray_slice },
 		{ "is-valid-utf8", 0, ByteArray_is_valid_utf8 },
 		{ "decode-8859-1", 0, ByteArray_decode_8859_1 },
+		{ "iterator", 0, ByteArray_iterator },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&ByteArray_class, builtin_methods);
+
+	init_static_class(ByteArrayIterator);
+	static const BuiltinMethodSpec iterator_methods[] = {
+		{ "next", 0, ByteArrayIterator_next },
+		};
+	Class_add_builtin_methods(&ByteArrayIterator_class, iterator_methods);
 }
 
 
