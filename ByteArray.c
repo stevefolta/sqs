@@ -218,6 +218,7 @@ void ByteArray_init_class()
 	init_static_class(ByteArrayIterator);
 	static const BuiltinMethodSpec iterator_methods[] = {
 		{ "next", 0, ByteArrayIterator_next },
+		{ NULL },
 		};
 	Class_add_builtin_methods(&ByteArrayIterator_class, iterator_methods);
 }
