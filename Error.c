@@ -26,7 +26,7 @@ const char* where(int line_number, struct String* filename)
 	declare_static_string(line_str, "on line ");
 	Array_append(strings, (Object*) &line_str);
 	char buf[32];
-	sprintf(buf, "%d", line_number);
+	snprintf(buf, sizeof(buf), "%d", line_number);
 	Array_append(strings, (Object*) new_c_String(buf));
 	if (filename) {
 		declare_static_string(filename_start_str, " of \"");

@@ -52,7 +52,7 @@ Object* Int_init(Object* super, Object** args)
 Object* Int_string(Object* super, Object** args)
 {
 	char str[64];
-	sprintf(str, "%d", ((Int*) super)->value);
+	snprintf(str, sizeof(str), "%d", ((Int*) super)->value);
 	return (Object*) new_c_String(str);
 }
 

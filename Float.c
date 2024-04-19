@@ -58,7 +58,7 @@ Object* Float_init(Object* super, Object** args)
 Object* Float_string(Object* super, Object** args)
 {
 	char str[64];
-	sprintf(str, "%g", ((Float*) super)->value);
+	snprintf(str, sizeof(str), "%g", ((Float*) super)->value);
 	return (Object*) new_c_String(str);
 }
 
