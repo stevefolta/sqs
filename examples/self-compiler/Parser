@@ -4,6 +4,7 @@ import Lexer
 import ParseNode Expressions Calls
 import Block Statements FunctionStatement
 import Modules
+import Debugging
 
 binop-levels = [
 	[ "|" ], [ "^" ], [ "&" ],
@@ -731,7 +732,6 @@ export class Parser
 				escape-mapping = {
 					n: "\n", t: "\t", r: "\r", e: "\e", b: "\b", a: "\a", v: "\v", f: "\f"
 					}
-				escape-mapping["\x5C"] = "\x5C\x5C"
 				c = next-char()
 				mapping = escape-mapping[c]
 				if mapping
