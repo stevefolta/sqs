@@ -1,42 +1,64 @@
 #!/usr/bin/env sqs
 
+import Debugging
+
 
 export fn mangle-name(name)
 	return name.replace("-", "_").replace("=", "_eq_")
 
+
+substitution-list = [
+	[ "\x5C" "\x5C\x5C" ], 	# Backslash.
+	[ '"', r'\"' ],
+	[ "\n" r"\n" ], [ "\r" r"\r" ], [ "\t" r"\t" ], [ "\e" r"\x1B" ],
+	[ "\b" r"\b" ], [ "\a" r"\a" ], [ "\v" r"\v" ], [ "\f" r"\f" ],
+	]
+substitutions = {}
+for sub: substitution-list
+	substitutions[sub[0]] = sub[1]
+
 export fn c-quote-string(str)
-	remainder = str
-	fn next-char
-		c = remainder.slice(0, 1)
-		remainder = remainder.slice(1)
-		return c
-	segment-start = remainder
-	segment-size = 0
-	segments = []
-	fn finish-segment
-		if segment-size > 0
-			segments.append(segment-start.slice(0, segment-size))
-		segment-start = remainder
-		segment-size = 0
-	substitution-list = [
-		[ "\x5C" "\x5C\x5C" ], 	# Backslash.
-		[ '"', r'\"' ],
-		[ "\n" r"\n" ], [ "\r" r"\r" ], [ "\t" r"\t" ], [ "\e" r"\x1B" ],
-		[ "\b" r"\b" ], [ "\a" r"\a" ], [ "\v" r"\v" ], [ "\f" r"\f" ],
-		]
-	substitutions = {}
-	for sub: substitution-list
-		substitutions[sub[0]] = sub[1]
-	while !remainder.is-empty
-		c = next-char()
-		substitution = substitutions[c]
-		if substitution
-			finish-segment()
-			segments.append(substitution)
-		# TODO: other control characters
+	fn hex-escape(c)
+		escaped-bytes = ByteArray(6)
+		escaped-bytes[0] = 92 	# '\'
+		escaped-bytes[1] = 120 	# 'x'
+		# C will try to use as many characters as possible for a hex constant, not
+		# just two, so use string concatenation to get around that.
+		escaped-bytes[4] = escaped-bytes[5] = 34
+		nybble = c >> 4
+		if nybble < 10
+			escaped-bytes[2] = 48 + nybble
 		else
-			segment-size += 1
+			escaped-bytes[2] = 65 + nybble - 10
+		nybble = c & 15
+		if nybble < 10
+			escaped-bytes[3] = 48 + nybble
+		else
+			escaped-bytes[3] = 65 + nybble - 10
+		return escaped-bytes.as-string
+
+	bytes = str.bytes
+	segments = []
+	segment-start = 0
+	index = 0
+	fn finish-segment
+		if index > segment-start
+			segments.append(bytes.slice(segment-start, index).as-string)
+		segment-start = index + 1
+	
+	for c: bytes
+		if (c > 34 && c < 92) || (c > 92 && c < 127) || c == 32 || c == 33
+			# Unescaped characters: anything between ' ' and '~', except '\\' and '"'.
+			# These just go into the segment.
+		else
+			finish-segment()
+			char-str = bytes.slice(index, index + 1).as-string
+			substitution = substitutions[char-str]
+			if substitution
+				segments.append(substitution)
+			else
+				segments.append(hex-escape(c))
+		index += 1
 	finish-segment()
 	return segments.join()
-
 
