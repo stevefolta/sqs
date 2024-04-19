@@ -827,6 +827,7 @@ ParseNode* Parser_parse_string_literal(Parser* self)
 						else
 							Error("Bad \\0 escape %s.", where(token.line_number, self->filename));
 						}
+					*unescaped_out++ = value;
 					}
 					break;
 				case 'u':
