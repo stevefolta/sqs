@@ -202,7 +202,7 @@ test("File write and read", ok)
 
 ### Regex ###
 
-r = Regex(r"foo (?P<word>\w+) baz")
+r = Regex(r"foo (?P<word>[[:alnum:]]+) baz")
 test("Regex non-match", r.match("foo bar blech") == nil)
 test("Regex match 1", r.match("foo bar baz")['word'] == "bar")
 test("Regex match 2", r.match("foo blech baz")['word'] == "blech")
