@@ -13,6 +13,7 @@ Object* Fail(Object* self, Object** args)
 		write(STDERR_FILENO, "\n", 1);
 		}
 	exit(1);
+	return NULL;
 }
 
 
