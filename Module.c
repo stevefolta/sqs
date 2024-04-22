@@ -130,7 +130,9 @@ const char* follow_link(const char* path)
 	struct stat stat_buf;
 	if (lstat(path, &stat_buf) < 0)
 		return NULL;
-	ssize_t string_size = (stat_buf.st_size > 0 ? stat_buf.st_size + 1 : PATH_MAX);
+	// readlink() is tricky!  We have to ask for *more* bytes than we need,
+	// otherwise we can't detect truncation.
+	ssize_t string_size = (stat_buf.st_size > 0 ? stat_buf.st_size + 2 : PATH_MAX);
 	char* new_path = alloc_mem_no_pointers(string_size);
 	ssize_t num_bytes = readlink(path, new_path, string_size - 1);
 	if (num_bytes < 0 || num_bytes == string_size - 1)
