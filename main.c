@@ -129,6 +129,9 @@ int main(int argc, char* argv[])
 			return Int_value(result);
 		}
 
+#ifdef SHOW_NUM_GCS
+	fprintf(stderr, "- Num GCs: %ld\n", GC_get_gc_no());
+#endif
 	return EXIT_SUCCESS;
 }
 
