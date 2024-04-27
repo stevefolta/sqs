@@ -73,6 +73,7 @@ Object** get_upvalue_(int capture_id, int index)
 			return frame->captures[index];
 		}
 	Error("Internal error: bad capture ID (%d)", capture_id);
+	return NULL;
 }
 
 Object* call_object(Object* receiver, String* name, Array* args)
