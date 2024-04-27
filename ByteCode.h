@@ -43,6 +43,7 @@ enum {
 
 	BC_SUPER_CALL,
 	// Followed by value for the method name.
+	// Followed by value for the (child) class.
 	// Followed by number of arguments.
 	// Followed by the "frame adjustment".
 

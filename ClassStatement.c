@@ -349,6 +349,7 @@ void ClassFunctionContext_init(struct ClassFunctionContext* self, ClassStatement
 	self->environment.parent = parent;
 	self->environment.find = ClassFunctionContext_find;
 	self->environment.get_class_for_superclass = ClassFunctionContext_get_class_for_superclass;
+	self->environment.on_class = class_statement->built_class;
 	self->class_statement = class_statement;
 }
 
@@ -398,6 +399,7 @@ void EnclosedClassContext_init(EnclosedClassContext* self, ClassStatement* class
 	self->environment.parent = parent;
 	self->environment.find = EnclosedClassContext_find;
 	self->environment.get_class_for_superclass = EnclosedClassContext_get_class_for_superclass;
+	self->environment.on_class = NULL;
 	self->class_statement = class_statement;
 }
 

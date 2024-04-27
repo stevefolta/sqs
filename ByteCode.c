@@ -229,12 +229,14 @@ void interpret_bytecode(struct Method* method)
 				{
 				// Parameters.
 				int8_t name = *pc++;
+				int8_t class_loc = *pc++;
+				Class* child_class = (Class*) DEREF(class_loc);
 				args_given = *pc++;
 				frame_adjustment = *pc++;
 				String* name_str = (String*) DEREF(name);
 
 				// Find the method.
-				value = Object_find_super_method(frame[frame_adjustment], name_str);
+				value = Class_find_super_method(child_class, name_str);
 				if (value == NULL) {
 					Class* receiver_class = (frame[frame_adjustment] ? frame[frame_adjustment]->class_ : &Nil_class);
 					fprintf(

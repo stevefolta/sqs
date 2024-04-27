@@ -1284,42 +1284,47 @@ FunctionCallExpr* new_FunctionCallExpr(ParseNode* fn, struct Array* arguments)
 }
 
 
-int SuperCallExpr_emit(ParseNode* super, MethodBuilder* method)
+int SuperCallExpr_emit(ParseNode* super, MethodBuilder* builder)
 {
 	SuperCallExpr* self = (SuperCallExpr*) super;
+
+	// Emit the (child) class.
+	Class* on_class = Environment_find_function_class(builder->environment);
+	int class_loc = MethodBuilder_emit_literal(builder, (Object*) on_class);
 
 	// Allocate stack space for the new frame.
 	int num_args = self->arguments->size;
 	int orig_locals =
 		MethodBuilder_reserve_locals(
-			method,
+			builder,
 			frame_saved_area_size + 1 /* receiver's "self" */ + num_args);
 	int args_start = orig_locals + frame_saved_area_size;
 
 	// Emit receiver (self) and args, and put them into the new frame's arguments.
-	MethodBuilder_add_move(method, 0, args_start);
+	MethodBuilder_add_move(builder, 0, args_start);
 	for (int i = 0; i < num_args; ++i) {
 		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
-		int arg_loc = arg->emit(arg, method);
-		MethodBuilder_add_move(method, arg_loc, args_start + i + 1);
+		int arg_loc = arg->emit(arg, builder);
+		MethodBuilder_add_move(builder, arg_loc, args_start + i + 1);
 		}
 
 	// Emit the name.
 	// If it needs a temporary local, it's okay for it to be in the callee's
 	// frame, since it'll be consumed right away.
-	int name_loc = MethodBuilder_emit_string_literal(method, self->name);
+	int name_loc = MethodBuilder_emit_string_literal(builder, self->name);
 
 	// Emit the call itself.
-	MethodBuilder_add_bytecode(method, BC_SUPER_CALL);
-	MethodBuilder_add_bytecode(method, name_loc);
-	MethodBuilder_add_bytecode(method, num_args);
-	MethodBuilder_add_bytecode(method, args_start);
+	MethodBuilder_add_bytecode(builder, BC_SUPER_CALL);
+	MethodBuilder_add_bytecode(builder, name_loc);
+	MethodBuilder_add_bytecode(builder, class_loc);
+	MethodBuilder_add_bytecode(builder, num_args);
+	MethodBuilder_add_bytecode(builder, args_start);
 
-	method->cur_num_variables = orig_locals + 1;
+	builder->cur_num_variables = orig_locals + 1;
 	return orig_locals;
 }
 
-int SuperCallExpr_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* method)
+int SuperCallExpr_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* builder)
 {
 	SuperCallExpr* self = (SuperCallExpr*) super;
 
@@ -1330,17 +1335,17 @@ int SuperCallExpr_emit_set(ParseNode* super, ParseNode* value, MethodBuilder* me
 	setter.name = String_add(setter.name, &equals_string);
 	setter.arguments = Array_copy(setter.arguments);
 	SuperCallExpr_add_argument(&setter, value);
-	return SuperCallExpr_emit((ParseNode*) &setter, method);
+	return SuperCallExpr_emit((ParseNode*) &setter, builder);
 }
 
-void SuperCallExpr_resolve_names(ParseNode* super, MethodBuilder* method)
+void SuperCallExpr_resolve_names(ParseNode* super, MethodBuilder* builder)
 {
 	SuperCallExpr* self = (SuperCallExpr*) super;
 	int num_args = self->arguments->size;
 	for (int i = 0; i < num_args; ++i) {
 		ParseNode* arg = (ParseNode*) Array_at(self->arguments, i);
 		if (arg->resolve_names)
-			arg->resolve_names(arg, method);
+			arg->resolve_names(arg, builder);
 		}
 }
 

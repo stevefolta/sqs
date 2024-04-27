@@ -27,6 +27,17 @@ Class* Environment_find_class_for_superclass(Environment* self, struct String* n
 	return NULL;
 }
 
+struct Class* Environment_find_function_class(Environment* self)
+{
+	Environment* env = self;
+	while (env) {
+		if (env->on_class)
+			return env->on_class;
+		env = env->parent;
+		}
+	return NULL;
+}
+
 
 GlobalEnvironment global_environment;
 
@@ -53,6 +64,7 @@ void GlobalEnvironment_init()
 	global_environment.environment.find = GlobalEnvironment_find;
 	global_environment.environment.find_autodeclaring = GlobalEnvironment_find;
 	global_environment.environment.get_class_for_superclass = GlobalEnvironment_get_class_for_superclass;
+	global_environment.environment.on_class = NULL;
 	global_environment.dict = new_Dict();
 }
 
@@ -160,6 +172,7 @@ void BlockContext_init(BlockContext* self, struct Block* block, Environment* par
 	self->environment.find = BlockContext_find;
 	self->environment.find_autodeclaring = BlockContext_find_autodeclaring;
 	self->environment.get_class_for_superclass = BlockContext_get_class_for_superclass;
+	self->environment.on_class = NULL;
 	self->block = block;
 }
 
@@ -222,6 +235,7 @@ void BlockUpvalueContext_init(
 	self->environment.find = BlockUpvalueContext_find;
 	self->environment.find_autodeclaring = BlockUpvalueContext_find;
 	self->environment.get_class_for_superclass = BlockUpvalueContext_get_class_for_superclass;
+	self->environment.on_class = NULL;
 	self->block = block;
 	self->method_builder = method_builder;
 }
@@ -243,6 +257,7 @@ void ForStatementContext_init(ForStatementContext* self, struct String* variable
 	self->environment.find = ForStatementContext_find;
 	self->environment.find_autodeclaring = NULL;
 	self->environment.get_class_for_superclass = NULL;
+	self->environment.on_class = NULL;
 	self->variable_name = variable_name;
 	self->variable_loc = variable_loc;
 }

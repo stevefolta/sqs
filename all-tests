@@ -82,6 +82,21 @@ class Sub: Super (verious)
 
 test("Superclasses", Sub().combined == "alpha beta gamma")
 
+class Grandparent
+	foo
+		return "grandparent"
+
+class Parent: Grandparent
+	foo
+		return super.foo
+
+class Child: Parent
+	foo
+		return super.foo
+
+test("Deep super calls", Child().foo == "grandparent")
+
+
 ### Functions ###
 
 fn foo-fn(x)

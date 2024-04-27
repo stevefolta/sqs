@@ -26,6 +26,7 @@ extern void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* spec
 	// "specs" is a list, terminated by a NULL entry.
 extern Class* new_Class(struct String* name);
 extern struct Object* Class_instantiate(Class* self);
+extern struct Object* Class_find_super_method(Class* self, struct String* name);
 
 extern Class Class_class;
 extern void Class_init_class();

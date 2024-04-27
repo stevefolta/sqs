@@ -14,8 +14,10 @@ typedef struct Environment {
 	struct ParseNode* (*find)(struct Environment* self, struct String* name);
 	struct ParseNode* (*find_autodeclaring)(struct Environment* self, struct String* name);
 	struct Class* (*get_class_for_superclass)(struct Environment* self, struct String* name, struct MethodBuilder* builder);
+	struct Class* on_class;
 	} Environment;
 extern struct Class* Environment_find_class_for_superclass(Environment* self, struct String* name, struct MethodBuilder* builder);
+extern struct Class* Environment_find_function_class(Environment* self);
 
 typedef struct GlobalEnvironment {
 	Environment environment;
