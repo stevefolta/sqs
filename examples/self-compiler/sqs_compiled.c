@@ -37,12 +37,12 @@ Object* call_(const char* name, Object* receiver, int num_args, Object** args)
 }
 
 
-Object* super_call_(const char* name, Object* receiver, int num_args, Object** args)
+Object* super_call_(const char* name, Class* child_class, Object* receiver, int num_args, Object** args)
 {
 	// Find the method.
 	String name_str;
 	String_init_static_c(&name_str, name);
-	Object* method = Object_find_super_method(receiver, &name_str);
+	Object* method = Class_find_super_method(child_class, &name_str);
 	if (method == NULL || method->class_ != &BuiltinMethod_class) {
 		Class* receiver_class = (receiver ? receiver->class_ : &Nil_class);
 		Error("Unhandled method call: \"%s\" on %s.", name, String_c_str(receiver_class->name));

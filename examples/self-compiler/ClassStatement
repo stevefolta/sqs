@@ -30,6 +30,8 @@ export class ClassStatement: ParseNode
 		if ivars && ivars.contains(name)
 			return "{c-name}_{mangle-name(name)}__index"
 		return superclass && superclass.c-ivar-index-name(name)
+	c-class-loc
+		return "&{c-name}_class"
 
 	emit-top-level(builder)
 		enclosing-class = builder.cur-class

@@ -136,19 +136,19 @@ export class SuperCallExpr: ParseNode
 		arguments = new-arguments
 
 	resolve-names(builder)
-		for arg: arguments
-			arg.resolve-names(builder)
+		if arguments
+			for arg: arguments
+				arg.resolve-names(builder)
 
 	emit(builder)
-		# TODO: include the class needed.  Will need to capture the enclosing
-		# class's superclass during resolve-names().
 		arg-results = []
-		for arg: arguments
-			arg-results.append(arg.emit(builder))
+		if arguments
+			for arg: arguments
+				arg-results.append(arg.emit(builder))
 		result = builder.new-temp
 		arg-list = "NULL"
 		if arg-results.size > 0
 			arg-list = "(Object*[]) {{ {arg-results.join(', ')} }}"
-		builder.add('Object* {result} = super_call_("{name}", self, {arg-results.size}, {arg-list});')
+		builder.add('Object* {result} = super_call_("{name}", {builder.cur-class.c-class-loc}, self, {arg-results.size}, {arg-list});')
 		return result
 

@@ -30,7 +30,7 @@ typedef Object* Object_ptr;
 #define ivar_set_(index, value) ( ((Object**) self)[index + 1] = value )
 
 extern Object* call_(const char* name, Object* receiver, int num_args, Object** args);
-extern Object* super_call_(const char* name, Object* receiver, int num_args, Object** args);
+extern Object* super_call_(const char* name, Class* child_class, Object* receiver, int num_args, Object** args);
 
 typedef struct UpvalFrame UpvalFrame;
 struct UpvalFrame {
