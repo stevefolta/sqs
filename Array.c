@@ -181,6 +181,12 @@ static Object* Array_size_builtin(Object* super, Object** args)
 	return (Object*) new_Int(self->size);
 }
 
+static Object* Array_is_empty_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	return make_bool(self->size == 0);
+}
+
 static Object* Array_string_builtin(Object* super, Object** args)
 {
 	Array* self = (Array*) super;
@@ -307,10 +313,11 @@ static Object* Array_slice_builtin(Object* super, Object** args)
 	return (Object*) slice;
 }
 
+declare_static_string(equals_string, "==");
+
 static Object* Array_contains_builtin(Object* super, Object** args)
 {
 	Array* self = (Array*) super;
-	declare_static_string(equals_string, "==");
 	for (int i = 0; i < self->size; ++i) {
 		Object* items[] = { self->items[i] };
 		Array args_array = { &Array_class, 1, 1, items };
@@ -320,6 +327,36 @@ static Object* Array_contains_builtin(Object* super, Object** args)
 	return &false_obj;
 }
 
+static void Array_remove_index(Array* array, int index)
+{
+	if (index < 0 || index >= array->size)
+		return;
+	if (index != array->size - 1)
+		memmove(&array->items[index], &array->items[index + 1], (array->size - index - 1) * sizeof(Object*));
+	array->size -= 1;
+}
+
+static Object* Array_remove_index_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	Array_remove_index(self, Int_enforce(args[0], "Array.remove-index"));
+	return super;
+}
+
+static Object* Array_remove_item_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	for (int i = 0; i < self->size; ++i) {
+		Object* items[] = { self->items[i] };
+		Array args_array = { &Array_class, 1, 1, items };
+		if (IS_TRUTHY(call_object(args[0], &equals_string, &args_array))) {
+			Array_remove_index(self, i);
+			break;
+			}
+		}
+	return super;
+}
+
 
 void Array_init_class()
 {
@@ -327,6 +364,7 @@ void Array_init_class()
 
 	static BuiltinMethodSpec builtin_methods[] = {
 		{ "size", 0, Array_size_builtin },
+		{ "is-empty", 0, Array_is_empty_builtin },
 		{ "string", 0, Array_string_builtin },
 		{ "[]", 1, Array_at_builtin },
 		{ "[]=", 2, Array_at_set_builtin },
@@ -341,6 +379,8 @@ void Array_init_class()
 		{ "copy", 0, Array_copy_builtin },
 		{ "slice", 2, Array_slice_builtin },
 		{ "contains", 1, Array_contains_builtin },
+		{ "remove-index", 1, Array_remove_index_builtin },
+		{ "remove-item", 1, Array_remove_item_builtin },
 		{ NULL },
 		};
 	Class_add_builtin_methods(&Array_class, builtin_methods);

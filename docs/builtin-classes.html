@@ -100,6 +100,9 @@ If the <i>delimiter</i> (a String) is given, returns an Array of substrings spli
 <dt> is-empty </dt>
 <dd> Returns whether the string is empty.  This is faster than checking if the size is zero. </dd>
 
+<dt> replace(<i>old</i>, <i>new</i>) </dt>
+<dd> Returns a new string with all occurrances of <i>old</i> replaced by <i>new</i>.
+
 </dl>
 
 
@@ -143,6 +146,8 @@ but "2 + 3.5" won't.  Also note that Int division returns an Int, not a Float.
 
 <dt> size </dt>
 <dd> Returns the size of the array. </dd>
+<dt> is-empty </dt>
+<dd> Returns whether the array is empty. </dd>
 
 <dt> [](<i>index</i>) </dt>
 <dd> Return the item at the index.  Negative indexes select items from the back of the array.  Results in an error if the index is out-of-range. </dd>
@@ -181,8 +186,10 @@ Return a slice of the array from the start index (inclusive) to the end index (n
 <dt> contains(<i>item</i>) </dt>
 <dd> Returns whether the array contains the item. </dd>
 
-<dt> replace(<i>old</i>, <i>new</i>) </dt>
-<dd> Returns a new string with all occurrances of <i>old</i> replaced by <i>new</i>.
+<dt> remove-index(<i>index</i>) </dt>
+<dd> Removes the item at <i>index</i>. <dd>
+<dt> remove-item(<i>item</i>) </dt>
+<dd> If <i>item</i> is in the array, it is removed.  If there are multiple copies of it, only the first is removed. </dd>
 
 </dl>
 

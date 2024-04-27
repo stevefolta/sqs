@@ -157,6 +157,10 @@ test("Array add", (foo + bar).join(', ') == "foo, yuhuh, baz, alpha, beta, gamma
 test("Array negative index", foo[-2] == "yuhuh")
 foo[-1] = "nuhuh"
 test("Array negative index set", foo[2] == "nuhuh")
+foo = [ "foo" "bar", "baz" ]
+foo.remove-index(0).remove-item("bar")
+test("Array remove", foo.size == 1 && foo[0] == "baz")
+test("Array is-empty", !foo.is-empty && [].is-empty)
 
 foo = [
 	# Comment in array literal.
