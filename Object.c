@@ -41,23 +41,6 @@ Object* Object_find_method(Object* self, struct String* name)
 }
 
 
-Object* Object_find_super_method(Object* self, struct String* name)
-{
-	Class* class_ = (self ? self->class_ : &Nil_class);
-	class_ = (class_->superclass ? class_->superclass : NULL);
-	while (class_) {
-		if (class_->methods) {
-			Object* method = Dict_at(class_->methods, name);
-			if (method)
-				return method;
-			}
-		class_ = class_->superclass;
-		}
-
-	return NULL;
-}
-
-
 #define IvarAccessor(index) 	\
 	Object* ivar_accessor_##index(Object* self, Object** args) 	\
 	{ 	\

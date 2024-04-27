@@ -8,7 +8,6 @@ typedef struct Object {
 	} Object;
 
 extern Object* Object_find_method(Object* self, struct String* name);
-extern Object* Object_find_super_method(Object* self, struct String* name);
 extern Object* Object_identity(Object* self, Object** args);
 
 
