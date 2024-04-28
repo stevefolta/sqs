@@ -1,12 +1,21 @@
 #!/usr/bin/env sqs
 
 all-ok = true
+compact = false
+clear-last-test = false
+
+if argv.size > 1 && argv[1] == "--compact"
+	compact = true
 
 fn test(name, ok)
+	if clear-last-test && compact
+		print("\e[A\r\e[K", { end = "" })
 	if ok
 		print("{name}:\t\e[32mok\e[m")
+		clear-last-test = true
 	else
 		print("{name}:\t\e[31mFAIL\e[m")
+		clear-last-test = false
 		all-ok = false
 
 fn outer-test(name, ok)
@@ -441,7 +450,8 @@ test('Comment before "else"', ok)
 
 ### FINAL ###
 
-print()
+if !compact
+	print()
 test("All", all-ok)
 
 
