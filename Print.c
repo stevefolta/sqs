@@ -62,8 +62,15 @@ struct Object* Print(struct Object* self, struct Object** args)
 	else
 		fwrite(end_string->str, end_string->size, 1, stdout);
 
-	if (flush)
-		fflush(stdout);
+	if (flush) {
+		if (file_object) {
+			declare_static_string(flush_string, "flush");
+			Array args = { &Array_class, 0, 0, NULL };
+			call_object(file_object, &flush_string, &args);
+			}
+		else
+			fflush(stdout);
+		}
 
 	return NULL;
 }
