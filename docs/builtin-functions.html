@@ -22,7 +22,7 @@
 
 <dt> print(<span class="meta">[</span><i>object</i><span class="meta">]</span>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) </dt>
 <dd class="fn">
-Prints the object.  If it's not a String, the <code>string</code> method will be called on it.  <i>options</i>, if given, must be a Dict.  If a <code>file</code> or <code>out</code> option is given, the object is written to it (by calling its <code>write()</code> method) instead of to stdout.  If an <code>end</code> option is given, that is printed at the end instead of a newline (it can be an empty string).  If no arguments are given, a newline is printed to stdout.
+Prints the object.  If it's not a String, the <code>string</code> method will be called on it.  <i>options</i>, if given, must be a Dict.  If a <code>file</code> or <code>out</code> option is given, the object is written to it (by calling its <code>write()</code> method) instead of to stdout.  If an <code>end</code> option is given, that is printed at the end instead of a newline (it can be an empty string).  If a <code>flush</code> argument is given and is truthy, the stream is explicitly flushed after the string is written.  If no arguments are given, a newline is printed to stdout.
 </dd>
 
 <dt> run(<i>arguments</i>, <span class="meta">[</span><i>options</i><span class="meta">]</span>) </dt>

@@ -5,6 +5,7 @@
 #include "Array.h"
 #include "ByteCode.h"
 #include "File.h"
+#include "Boolean.h"
 #include "Error.h"
 #include <stdio.h>
 #include <stdbool.h>
@@ -12,6 +13,7 @@
 declare_static_string(end_option, "end");
 declare_static_string(file_option, "file");
 declare_static_string(out_option, "out");
+declare_static_string(flush_option, "flush");
 
 
 struct Object* Print(struct Object* self, struct Object** args)
@@ -19,6 +21,7 @@ struct Object* Print(struct Object* self, struct Object** args)
 	// Get the options.
 	String* end_string = NULL;
 	Object* file_object = NULL;
+	bool flush = false;
 	Dict* options = (Dict*) args[1];
 	if (options && options->class_ == &Dict_class) {
 		// "end"
@@ -30,6 +33,10 @@ struct Object* Print(struct Object* self, struct Object** args)
 		file_object = Dict_at(options, &file_option);
 		if (file_object == NULL)
 			file_object = Dict_at(options, &out_option);
+
+		// "flush"
+		Object* flush_object = Dict_at(options, &flush_option);
+		flush = IS_TRUTHY(flush_object);
 		}
 
 	if (args[0]) {
@@ -54,6 +61,9 @@ struct Object* Print(struct Object* self, struct Object** args)
 		}
 	else
 		fwrite(end_string->str, end_string->size, 1, stdout);
+
+	if (flush)
+		fflush(stdout);
 
 	return NULL;
 }
