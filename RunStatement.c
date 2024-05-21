@@ -34,6 +34,9 @@ typedef struct RunCapture {
 	} RunCapture;
 extern RunCapture* new_RunCapture(ParseNode* pipeline);
 
+declare_static_string(ok_string, "ok");
+static ParseNode* add_fail_check(ParseNode* run_expr);
+
 
 RunCommand* Parser_parse_run_command(Parser* self)
 {
@@ -140,7 +143,6 @@ ParseNode* Parser_parse_run_pipeline(Parser* self)
 ParseNode* Parser_parse_run_statement(Parser* self)
 {
 	int line_number = Lexer_next(self->lexer).line_number;
-	declare_static_string(ok_string, "ok");
 
 	ParseNode* statement = Parser_parse_run_pipeline(self);
 	if (statement == NULL)
@@ -168,6 +170,9 @@ ParseNode* Parser_parse_run_statement(Parser* self)
 		else
 			break;
 		}
+
+	// If the statement failed, the whole script should fail.
+	statement = add_fail_check(statement);
 
 	Token token = Lexer_next(self->lexer);
 	if (token.type != EOL)
@@ -443,6 +448,28 @@ RunCapture* new_RunCapture(ParseNode* pipeline)
 	self->parse_node.resolve_names = RunCapture_resolve_names;
 	self->pipeline = pipeline;
 	return self;
+}
+
+
+#include "BuiltinMethod.h"
+#include <unistd.h>
+
+static Object* run_fail(Object* self, Object** args)
+{
+	exit(1);
+	return NULL;
+}
+
+static ParseNode* add_fail_check(ParseNode* run_expr)
+{
+	ParseNode* fail_fn = (ParseNode*) new_GlobalExpr((Object*) new_BuiltinMethod(0, &run_fail));
+	if (run_expr->type == PN_RunCommand || run_expr->type == PN_RunPipeline)
+		run_expr = (ParseNode*) new_CallExpr(run_expr, &ok_string);
+	return
+		(ParseNode*) new_ShortCircuitExpr(
+			run_expr,
+			(ParseNode*) new_FunctionCallExpr(fail_fn, new_Array()),
+			false);
 }
 
 
