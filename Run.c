@@ -170,7 +170,7 @@ Object* Run(Object* self, Object** args)
 
 		// Run.
 		execvp(argv[0], argv);
-		Error("run(): Failed to start the program (%s).", strerror(errno));
+		Error("run(): Failed to start \"%s\" (%s).", argv[0], strerror(errno));
 		}
 	else {
 		// This is still the parent process.
