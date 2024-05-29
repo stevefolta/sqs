@@ -419,8 +419,11 @@ Object* String_slice(Object* super, Object** args)
 		Error("Invalid UTF-8 (in string.slice())");
 	int start = args[0] ? Int_enforce(args[0], "String.slice") : 0;
 	int end = args[1] ? Int_enforce(args[1], "String.slice") : num_chars;
-	if (start < 0)
+	if (start < 0) {
 		start += num_chars;
+		if (start < 0)
+			start = 0;
+		}
 	if (start >= num_chars)
 		return (Object*) &empty_string;
 	if (end < 0)
