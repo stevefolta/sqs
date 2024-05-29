@@ -12,13 +12,16 @@
 
 Class LinesIterator_class;
 
+#define INITIAL_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 65536
+
 
 LinesIterator* new_LinesIterator(Object* stream)
 {
 	LinesIterator* self = (LinesIterator*) alloc_obj(LinesIterator);
 	self->class_ = &LinesIterator_class;
 	self->stream = stream;
-	self->buffer_size = 1024;
+	self->buffer_size = INITIAL_BUFFER_SIZE;
 	self->buffer = alloc_mem_no_pointers(self->buffer_size);
 	self->start_point = self->bytes_read = 0;
 	return self;
@@ -65,13 +68,24 @@ Object* LinesIterator_next(Object* super, Object** args)
 			return (Object*) new_String(line_start, line_end - line_start);
 
 		// Read some more.
-		if (self->start_point == 0 && self->bytes_read >= self->buffer_size)
-			Error("File.lines: tried to read a line that's too long.");
+		// Is the buffer full?
+		if (self->start_point == 0 && self->bytes_read >= self->buffer_size) {
+			// Grow the buffer... up to a limit.
+			size_t new_buffer_size = self->buffer_size * 2;
+			if (new_buffer_size > MAX_BUFFER_SIZE)
+				Error("LinesIterator.next: tried to read a line that's too long.");
+			char* new_buffer = alloc_mem_no_pointers(new_buffer_size);
+			memcpy(new_buffer, self->buffer, self->bytes_read);
+			self->buffer = new_buffer;
+			self->buffer_size = new_buffer_size;
+			}
 		// Move the remaining read bytes to the beginning of the buffer.
-		size_t bytes_left = self->bytes_read - self->start_point;
-		memmove(self->buffer, self->buffer + self->start_point, bytes_left);
-		self->start_point = 0;
-		self->bytes_read = bytes_left;
+		if (self->start_point > 0) {
+			size_t bytes_left = self->bytes_read - self->start_point;
+			memmove(self->buffer, self->buffer + self->start_point, bytes_left);
+			self->start_point = 0;
+			self->bytes_read = bytes_left;
+			}
 		// Read the rest of the buffer.
 		size_t bytes_to_read = self->buffer_size - self->bytes_read;
 		ByteArray buffer = {
