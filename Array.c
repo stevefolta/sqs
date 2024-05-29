@@ -295,8 +295,11 @@ static Object* Array_slice_builtin(Object* super, Object** args)
 	Array* self = (Array*) super;
 	int start = args[0] ? Int_enforce(args[0], "Array.slice") : 0;
 	int end = args[1] ? Int_enforce(args[1], "Array.slice") : self->size;
-	if (start < 0)
+	if (start < 0) {
 		start += self->size;
+		if (start < 0)
+			start = 0;
+		}
 	if (start >= self->size)
 		return (Object*) &empty_array;
 	if (end < 0)
