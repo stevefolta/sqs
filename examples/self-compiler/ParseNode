@@ -4,13 +4,12 @@ import Context
 import Codegen
 
 
-indent-spacers = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
-
 export class ParseNode
 	emit(builder)
 		fail('Called unimplemented "emit" on {self.class.name}')
 	emit-set(value, builder)
 		fail('Called unimplemented "emit-set" on {self.class.name}')
+	emit-top-level-declarations(builder)
 	emit-top-level(builder)
 		# This is for functions and class declarations, that need to be at the top
 		# level of the C file.
@@ -32,31 +31,16 @@ export class ParseNode
 		print("{indent-spacers.slice(0, level)}{self.class.name}")
 
 
-export class RawLoc: ParseNode
-	(name)
-	init(name-in)
-		name = name-in
-	emit(builder)
-		return name
-	emit-set(value, builder)
-		value-loc = value.emit(builder)
-		builder.add("{name} = {value-loc};")
-		return name
-
 export class ClassRef: ParseNode
 	(class-statement)
 	init(class-statement-in)
 		class-statement = class-statement-in
 	emit(builder)
-		class-c-name = "{class-statement.c-name}_class"
-		builder.add("extern Class {class-c-name};")
-		return "(Object*) &{class-c-name}"
+		return builder.emit-class-ref(class-statement)
 	superclass
 		return class-statement.superclass
 	name
 		return class-statement.name
-	c-name
-		return class-statement.c-name
 	get-ivar(name)
 		return class-statement.get-ivar(name)
 	total-ivars
@@ -70,9 +54,6 @@ export class FunctionRef: ParseNode
 	num-args
 		return function-statement.arguments.size
 	emit(builder)
-		# Note that this doesn't actually reference an object; it will be treated
-		# specially by FunctionCallExpr.emit().
-		builder.add("extern Object* {function-statement.c-name}(Object* self, Object** args);")
-		return function-statement.c-name
+		return builder.emit-function-ref(function-statement)
 
 

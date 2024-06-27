@@ -462,7 +462,10 @@ export class Parser
 			item = parse-fn-statement
 			module.exported-functions[item.name] = item
 		else
-			fail('Expected "class" or "fn" after "export" {lexer.where}')
+			item = parse-expression
+			if !item.is-a(SetExpr) || !item.left.is-a(Variable)
+				fail('Expected "class", "fn" or "<name> ="  after "export" {lexer.where}')
+			module.exported-vars[item.left.name] = item
 
 		return ExportStatement(item)
 

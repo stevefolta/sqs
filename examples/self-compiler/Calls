@@ -1,6 +1,7 @@
 #!/usr/bin/env sqs
 
 import ParseNode Expressions Builtins
+import Debugging
 
 
 export class CallExpr: ParseNode
@@ -30,12 +31,7 @@ export class CallExpr: ParseNode
 		arg-results = []
 		for arg: arguments
 			arg-results.append(arg.emit(builder))
-		arg-list = "NULL"
-		if arg-results.size > 0
-			arg-list = "(Object*[]) {{ {arg-results.join(', ')} }}"
-		result = builder.new-temp
-		builder.add('Object* {result} = call_("{name}", {receiver-loc}, {arg-results.size}, {arg-list});')
-		return result
+		return builder.emit-call(name, receiver-loc, arg-results)
 
 	emit-set(value, builder)
 		receiver-loc = receiver.emit(builder)
@@ -43,15 +39,13 @@ export class CallExpr: ParseNode
 		for arg: arguments
 			arg-results.append(arg.emit(builder))
 		arg-results.append(value.emit(builder))
-		arg-list = "(Object*[]) {{ {arg-results.join(', ')} }}"
-		result = builder.new-temp
-		builder.add('Object* {result} = call_("{name}=", {receiver-loc}, {arg-results.size}, {arg-list});')
-		return result
+		return builder.emit-call("{name}=", receiver-loc, arg-results)
 
 	resolve-names(builder)
 		receiver.resolve-names(builder)
 		for arg: arguments
 			arg.resolve-names(builder)
+
 
 export class FunctionCallExpr: ParseNode
 	(function arguments)
@@ -72,34 +66,22 @@ export class FunctionCallExpr: ParseNode
 		if resolved-fn.is-a(CallExpr)
 			if !resolved-fn.got-args
 				resolved-fn.arguments = arguments
-				return resolved-fn.emit(builder)
+			return resolved-fn.emit(builder)
 		else if resolved-fn.is-a(FunctionCallExpr)
 			resolved-fn.append-arguments(arguments)
+			arguments = []
 			return resolved-fn.emit(builder)
 
 		# "Calling" a class is special.
 		if resolved-fn.is-a(ClassRef) || resolved-fn.is-a(BuiltinClass)
 			# Emit object instantiation.
-			class-loc = resolved-fn.emit(builder)
-			new-obj = builder.new-temp
-			builder.add("Object* {new-obj} = Class_instantiate((Class*) {class-loc});")
-			# Emit "init" call (if there is one).
-			if resolved-fn.is-a(ClassRef) && !resolved-fn.class-statement.functions["init"]
-				# No "init".
-				return new-obj
 			arg-results = []
 			for arg: arguments
 				arg-results.append(arg.emit(builder))
-			args-text = "NULL"
-			if arg-results.size > 0
-				args-text = "(Object*[]) {{ {arg-results.join(', ')} }}"
-			result = builder.new-temp
-			builder.add('Object* {result} = call_("init", {new-obj}, {arg-results.size}, {args-text});')
-			return result
+			return builder.emit-instantiation(resolved-fn, arg-results)
 
 		# Will be a FunctionRef.
 		fn-loc = resolved-fn.emit(builder)
-		result = builder.new-temp
 		arg-results = []
 		for arg: arguments
 			arg-results.append(arg.emit(builder))
@@ -114,18 +96,14 @@ export class FunctionCallExpr: ParseNode
 		while args-left > 0
 			arg-results.append(NilLiteral().emit(builder))
 			args-left -= 1
-		args-text = "NULL"
-		if arg-results.size > 0
-			args-text = arg-results.join(', ')
-			args-text = "(Object*[]) {{ {arg-results.join(', ')} }}"
-		builder.add("Object* {result} = {fn-loc}(self, {args-text});")
-		return result
+		return builder.emit-function-call(fn-loc, arg-results)
 
 	resolve-names(builder)
 		if function
 			function.resolve-names(builder)
 		for arg: arguments
 			arg.resolve-names(builder)
+
 
 export class SuperCallExpr: ParseNode
 	(name arguments)
@@ -145,10 +123,5 @@ export class SuperCallExpr: ParseNode
 		if arguments
 			for arg: arguments
 				arg-results.append(arg.emit(builder))
-		result = builder.new-temp
-		arg-list = "NULL"
-		if arg-results.size > 0
-			arg-list = "(Object*[]) {{ {arg-results.join(', ')} }}"
-		builder.add('Object* {result} = super_call_("{name}", {builder.cur-class.c-class-loc}, self, {arg-results.size}, {arg-list});')
-		return result
+		return builder.emit-super-call(name, arg-results)
 

@@ -1,0 +1,107 @@
+#!/usr/bin/env sqs
+
+runtime-files = "
+	Object Class String Int Float Array Dict Boolean ByteArray Nil
+	File Pipe Path Print Run Regex Glob MiscFunctions Fail Env
+	BuiltinMethod Error UTF8 LinesIterator
+	Memory
+	examples/self-compiler/sqs_compiled
+	".split
+
+sqs-source = env["SQS_SOURCE"]
+if !sqs-source
+	# We may be at "examples/self-compiler" within the sqs sources.  Verify that.
+	sqs-source = "../.."
+	for runtime-module: runtime-files
+		if !Path("{sqs-source}/{runtime-module}.h").exists
+			fail("Please set $SQS_SOURCE in your environment.")
+
+class FileBuilder
+	(file indentations indentation-level)
+
+	init(filename)
+		file = File(filename, "w")
+		indentations = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
+		indentation-level = 0
+	close
+		file.close()
+
+	add(line)
+		if line
+			print("{indentations.slice(0, indentation-level)}{line}", { out = file })
+		else
+			print(nil, { out = file })
+	indent
+		return Indentor(self)
+	
+	class Indentor
+		(builder)
+		init(builder-in)
+			builder = builder-in
+			builder.indentation-level += 1
+		close
+			builder.indentation-level -= 1
+
+
+fake-files = r`
+[ "ByteCode.h", r'
+#pragma once
+
+#include "sqs_compiled.h"
+#include "Object.h"
+#include "Array.h"
+#include "String.h"
+
+extern Object* call_object(Object* receiver, String* name, Array* args);
+'.ltrim ],
+`.ltrim
+
+postamble = r`
+export fn build-runtime(build-dir, cflags)
+	# First, create the source files.
+	$ mkdir -p "{build-dir}/runtime"
+	cc = env["CC"] || "cc"
+	source-files = []
+	for pair: runtime-files
+		filename = pair[0]
+		source-file = "{build-dir}/runtime/{filename}"
+		if !Path(source-file).exists
+			with file = File(source-file, "w")
+				file.write(pair[1])
+		if filename.ends-with(".c")
+			source-files.append(filename)
+
+	# Then compile them, if needed.
+	object-files = []
+	for filename: source-files
+		source-file = "{build-dir}/runtime/{filename}"
+		object-file = "{build-dir}/{filename.slice(0, -2)}.o"
+		object-files.append(object-file)
+		if !Path(object-file).exists
+			print("Compiling {filename}...")
+			$ {cc} {cflags} -c {source-file} -o {object-file}
+	return object-files
+
+`
+
+with out = FileBuilder("Runtime")
+	out.add("#!/usr/bin/env sqs")
+	out.add()
+	out.add("runtime-files = [")
+	out.add()
+	for runtime-module: runtime-files
+		for runtime-file: [ "{runtime-module}.h" "{runtime-module}.c" ]
+			in-file-path = "{sqs-source}/{runtime-file}"
+			if !Path(in-file-path).exists
+				continue
+			out.add('[ "{Path(runtime-file).basename}", r`')
+			with in-file = File(in-file-path)
+				for line: in-file.lines
+					out.add(line)
+			out.add('`.ltrim ],')
+			out.add()
+	out.add(fake-files)
+	out.add("]")
+	out.add()
+	out.add(postamble)
+

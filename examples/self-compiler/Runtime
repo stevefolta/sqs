@@ -1,0 +1,4888 @@
+#!/usr/bin/env sqs
+
+runtime-files = [
+
+[ "Object.h", r`
+#pragma once
+
+struct Class;
+struct String;
+
+typedef struct Object {
+	struct Class* class_;
+	} Object;
+
+extern Object* Object_find_method(Object* self, struct String* name);
+extern Object* Object_identity(Object* self, Object** args);
+
+
+extern struct Class Object_class;
+extern void Object_init_class();
+
+`.ltrim ],
+
+[ "Object.c", r`
+#include "Object.h"
+#include "Class.h"
+#include "Dict.h"
+#include "String.h"
+#include "Array.h"
+#include "BuiltinMethod.h"
+#include "Nil.h"
+#include "Boolean.h"
+#include "Error.h"
+#include <stddef.h>
+#include <string.h>
+
+
+extern Object* ivar_accessor(int index);
+
+Object* Object_find_method(Object* self, struct String* name)
+{
+	Class* class_ = (self ? self->class_ : &Nil_class);
+	while (class_) {
+		if (class_->methods) {
+			Object* method = Dict_at(class_->methods, name);
+			if (method)
+				return method;
+			}
+		class_ = class_->superclass;
+		}
+
+	// Check if it's accessing an ivar.
+	class_ = (self ? self->class_ : &Nil_class);
+	while (class_) {
+		if (class_->slot_names) {
+			for (int i = 0; i < class_->slot_names->size; ++i) {
+				if (String_equals(name, (String*) Array_at(class_->slot_names, i)))
+					return ivar_accessor(i + (class_->superclass ? class_->superclass->num_ivars : 0));
+				}
+			}
+		class_ = class_->superclass;
+		}
+
+	return NULL;
+}
+
+
+#define IvarAccessor(index) 	\
+	Object* ivar_accessor_##index(Object* self, Object** args) 	\
+	{ 	\
+		return ((Object**) self)[index + 1]; 	\
+	}
+#define max_ivar_accessors 32
+IvarAccessor(0) IvarAccessor(1) IvarAccessor(2) IvarAccessor(3)
+IvarAccessor(4) IvarAccessor(5) IvarAccessor(6) IvarAccessor(7)
+IvarAccessor(8) IvarAccessor(9) IvarAccessor(10) IvarAccessor(11)
+IvarAccessor(12) IvarAccessor(13) IvarAccessor(14) IvarAccessor(15)
+IvarAccessor(16) IvarAccessor(17) IvarAccessor(18) IvarAccessor(19)
+IvarAccessor(20) IvarAccessor(21) IvarAccessor(22) IvarAccessor(23)
+IvarAccessor(24) IvarAccessor(25) IvarAccessor(26) IvarAccessor(27)
+IvarAccessor(28) IvarAccessor(29) IvarAccessor(30) IvarAccessor(31)
+#define IvarAccessorBuiltin(index) { &BuiltinMethod_class, 0, ivar_accessor_##index }
+static BuiltinMethod ivar_accessors[max_ivar_accessors] = {
+	IvarAccessorBuiltin(0), IvarAccessorBuiltin(1), IvarAccessorBuiltin(2), IvarAccessorBuiltin(3),
+	IvarAccessorBuiltin(4), IvarAccessorBuiltin(5), IvarAccessorBuiltin(6), IvarAccessorBuiltin(7),
+	IvarAccessorBuiltin(8), IvarAccessorBuiltin(9), IvarAccessorBuiltin(10), IvarAccessorBuiltin(11),
+	IvarAccessorBuiltin(12), IvarAccessorBuiltin(13), IvarAccessorBuiltin(14), IvarAccessorBuiltin(15),
+	IvarAccessorBuiltin(16), IvarAccessorBuiltin(17), IvarAccessorBuiltin(18), IvarAccessorBuiltin(19),
+	IvarAccessorBuiltin(20), IvarAccessorBuiltin(21), IvarAccessorBuiltin(22), IvarAccessorBuiltin(23),
+	IvarAccessorBuiltin(24), IvarAccessorBuiltin(25), IvarAccessorBuiltin(26), IvarAccessorBuiltin(27),
+	IvarAccessorBuiltin(28), IvarAccessorBuiltin(29), IvarAccessorBuiltin(30), IvarAccessorBuiltin(31),
+	};
+
+Object* ivar_accessor(int index)
+{
+	if (index >= max_ivar_accessors)
+		Error("Sorry, we don't support external access of more than %d ivars.", max_ivar_accessors);
+	return (Object*) &ivar_accessors[index];
+}
+
+
+Object* Object_identity(Object* self, Object** args)
+{
+	return self;
+}
+
+
+Object* Object_string(Object* self, Object** args)
+{
+	String* class_name = self->class_->name;
+	String* prefix =
+		strchr("AEIOUaeiou", self->class_->name->str[0]) ?
+		new_c_static_String("an ") :
+		new_c_static_String("a ");
+	return (Object*) String_add(prefix, class_name);
+}
+
+Object* Object_equals(Object* self, Object** args)
+{
+	// Default: is it the exact same object?
+	return make_bool(self == args[0]);
+}
+
+Object* Object_not_equals(Object* self, Object** args)
+{
+	// Default: is it the exact same object?
+	return make_bool(self != args[0]);
+}
+
+Object* Object_is_a(Object* self, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &Class_class)
+		return &false_obj;
+	Class* test_class = (Class*) args[0];
+	Class* cur_class = self->class_;
+	for (; cur_class; cur_class = cur_class->superclass) {
+		if (cur_class == test_class)
+			return &true_obj;
+		}
+	return &false_obj;
+}
+
+Object* Object_class_builtin(Object* self, Object** args)
+{
+	return (Object*) self->class_;
+}
+
+
+Class Object_class;
+void Object_init_class()
+{
+	init_static_class(Object);
+	Object_class.superclass = NULL;
+
+	static BuiltinMethodSpec builtin_methods[] = {
+		{ "string", 0, Object_string },
+		{ "==", 1, Object_equals },
+		{ "!=", 1, Object_not_equals },
+		{ "is-a", 1, Object_is_a },
+		{ "class", 0, Object_class_builtin },
+		{ NULL, 0, NULL },
+		};
+	Class_add_builtin_methods(&Object_class, builtin_methods);
+}
+
+
+
+`.ltrim ],
+
+[ "Class.h", r`
+#pragma once
+
+struct String;
+struct Dict;
+struct Object;
+struct Array;
+
+typedef struct Class {
+	struct Class* class_;
+	struct String* name;
+	struct Class* superclass;
+	struct Dict* methods;
+	int num_ivars;
+	struct Array* slot_names;
+	} Class;
+
+
+typedef struct BuiltinMethodSpec {
+	const char* name;
+	int num_args;
+	struct Object* (*fn)(struct Object* self, struct Object** args);
+	} BuiltinMethodSpec;
+
+extern void Class_init_static(Class* self, const char* name, int num_ivars);
+extern void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* specs);
+	// "specs" is a list, terminated by a NULL entry.
+extern Class* new_Class(struct String* name);
+extern struct Object* Class_instantiate(Class* self);
+extern struct Object* Class_find_super_method(Class* self, struct String* name);
+
+extern Class Class_class;
+extern void Class_init_class();
+
+#define NumIvarsFor(type) ((sizeof(type) + sizeof(struct Object*) - 1) / sizeof(struct Object*) - 1)
+#define init_static_class(type) (Class_init_static(&type##_class, #type, NumIvarsFor(type)))
+
+
+`.ltrim ],
+
+[ "Class.c", r`
+#include "Class.h"
+#include "BuiltinMethod.h"
+#include "String.h"
+#include "Dict.h"
+#include "Object.h"
+#include "Int.h"
+#include "Memory.h"
+
+Class Class_class;
+
+
+void Class_init_static(Class* self, const char* name, int num_ivars)
+{
+	self->class_ = &Class_class;
+	self->superclass = &Object_class;
+	self->name = new_c_static_String(name);
+	self->num_ivars = num_ivars;
+}
+
+
+Class* new_Class(struct String* name)
+{
+	Class* self = alloc_obj(Class);
+	self->class_ = &Class_class;
+	self->superclass = &Object_class;
+	self->name = name;
+	return self;
+}
+
+
+Object* Class_instantiate(Class* self)
+{
+	Object* object = alloc_mem((self->num_ivars + 1) * sizeof(Object*));
+	object->class_ = self;
+	return object;
+}
+
+
+void Class_add_builtin_methods(Class* self, const BuiltinMethodSpec* specs)
+{
+	if (self->methods == NULL)
+		self->methods = new_Dict();
+
+	// Count the specs.
+	int num_specs = 0;
+	for (const BuiltinMethodSpec* spec = specs; spec->name; ++spec)
+		num_specs += 1;
+
+	// We'll make them as one big chunk with all the objects in it.
+	BuiltinMethod* methods = (BuiltinMethod*) alloc_mem(num_specs * sizeof(BuiltinMethod));
+	BuiltinMethod* method = methods;
+	for (const BuiltinMethodSpec* spec = specs; spec->name; ++spec, ++method) {
+		method->class_ = &BuiltinMethod_class;
+		method->num_args = spec->num_args;
+		method->fn = spec->fn;
+		Dict_set_at(self->methods, new_c_static_String(spec->name), (Object*) method);
+		}
+}
+
+
+Object* Class_find_super_method(Class* self, struct String* name)
+{
+	Class* class_ = (self->superclass ? self->superclass : NULL);
+	while (class_) {
+		if (class_->methods) {
+			Object* method = Dict_at(class_->methods, name);
+			if (method)
+				return method;
+			}
+		class_ = class_->superclass;
+		}
+	return NULL;
+}
+
+
+Object* Class_string(Object* super, Object** args)
+{
+	Class* self = (Class*) super;
+	declare_static_string(class_suffix_string, " class");
+	return (Object*) String_add(self->name, &class_suffix_string);
+}
+
+Object* Class_name(Object* super, Object** args)
+{
+	return (Object*) ((Class*) super)->name;
+}
+
+Object* Class_superclass(Object* super, Object** args)
+{
+	return (Object*) ((Class*) super)->superclass;
+}
+
+Object* Class_num_ivars(Object* super, Object** args)
+{
+	return (Object*) new_Int(((Class*) super)->num_ivars);
+}
+
+
+void Class_init_class()
+{
+	init_static_class(Class);
+
+	static BuiltinMethodSpec builtin_methods[] = {
+		{ "string", 0, Class_string },
+		{ "name", 0, Class_name },
+		{ "superclass", 0, Class_superclass },
+		{ "num-ivars", 0, Class_num_ivars },
+		{ NULL, 0, NULL },
+		};
+	Class_add_builtin_methods(&Class_class, builtin_methods);
+}
+
+
+
+`.ltrim ],
+
+[ "String.h", r`
+#pragma once
+
+#include <stdlib.h>
+#include <stdbool.h>
+
+struct Class;
+struct Object;
+
+typedef struct String {
+	struct Class* class_;
+	const char* str;
+	size_t size;
+	} String;
+
+
+extern String* new_String(const char* str, size_t size);
+extern String* new_c_String(const char* str);
+extern String* new_c_static_String(const char* str);
+extern String* new_static_String(const char* str, size_t size);
+extern bool String_equals(String* self, String* other);
+extern bool String_equals_c(String* self, const char* other);
+extern bool String_less_than(String* self, String* other);
+extern int String_cmp(String* self, String* other);
+extern bool String_starts_with(String* self, String* other);
+extern bool String_ends_with(String* self, String* other);
+extern const char* String_c_str(String* self);
+extern String* String_enforce(struct Object* object, const char* name);
+extern String* String_copy(String* other);
+
+extern String* String_add(String* self, String* other);
+
+#define make_string(str) (new_String(str, 0))
+
+extern void String_init_static(String* self, const char* str, size_t size);
+extern void String_init_static_c(String* self, const char* str);
+
+extern void String_init_class();
+
+extern struct Class String_class;
+
+#define declare_static_string(name, value) 	\
+	static const char name##_chars[] = value; 	\
+	static String name = { &String_class, name##_chars, sizeof(value) - 1 };
+#define declare_string(name, value) 	\
+	static const char name##_chars[] = value; 	\
+	String name = { &String_class, name##_chars, sizeof(value) - 1 };
+
+// A few widely-used strings.
+extern String empty_string;
+extern String iterator_string;
+extern String next_string;
+
+
+`.ltrim ],
+
+[ "String.c", r`
+#include "String.h"
+#include "Class.h"
+#include "Array.h"
+#include "Object.h"
+#include "Boolean.h"
+#include "Int.h"
+#include "Nil.h"
+#include "ByteArray.h"
+#include "Memory.h"
+#include "UTF8.h"
+#include "Error.h"
+#include <string.h>
+#include <stdbool.h>
+
+Class String_class;
+String empty_string = { &String_class, NULL, 0 };
+declare_string(iterator_string, "iterator");
+declare_string(next_string, "next");
+
+extern void String_init(String* self, const char* str, size_t size);
+
+String* new_String(const char* str, size_t size)
+{
+	String* string = alloc_obj(String);
+	String_init(string, str, size);
+	return string;
+}
+
+String* new_c_String(const char* str)
+{
+	String* string = alloc_obj(String);
+	String_init(string, str, strlen(str));
+	return string;
+}
+
+String* new_c_static_String(const char* str)
+{
+	String* string = alloc_obj(String);
+	String_init_static_c(string, str);
+	return string;
+}
+
+String* new_static_String(const char* str, size_t size)
+{
+	String* string = alloc_obj(String);
+	String_init_static(string, str, size);
+	return string;
+}
+
+
+
+bool String_equals(struct String* self, struct String* other)
+{
+	return self->size == other->size && memcmp(self->str, other->str, self->size) == 0;
+}
+
+bool String_equals_c(struct String* self, const char* other)
+{
+	return self->size == strlen(other) && memcmp(self->str, other, self->size) == 0;
+}
+
+
+bool String_less_than(struct String* self, struct String* other)
+{
+	if (self->size == other->size)
+		return memcmp(self->str, other->str, self->size) < 0;
+	else if (self->size < other->size) {
+		int result = memcmp(self->str, other->str, self->size);
+		// "abc" < "abcdef": true
+		// "abb" < "abcdef": true
+		// "abd" < "abcdef": false
+		return result <= 0;
+		}
+	else {
+		int result = memcmp(self->str, other->str, other->size);
+		// "abbdef" < "abc": true
+		// "abcdef" < "abc": false
+		// "abddef" < "abc:: false
+		return result < 0;
+		}
+}
+
+int String_cmp(String* self, String* other)
+{
+	int size = self->size;
+	if (other->size < size)
+		size = other->size;
+	int cmp = memcmp(self->str, other->str, size);
+	if (cmp == 0)
+		cmp = self->size - other->size;
+	return cmp;
+}
+
+bool String_starts_with(String* self, String* other)
+{
+	if (self->size < other->size)
+		return false;
+	return memcmp(self->str, other->str, other->size) == 0;
+}
+
+bool String_ends_with(String* self, String* other)
+{
+	if (self->size < other->size)
+		return false;
+	return memcmp(self->str + self->size - other->size, other->str, other->size) == 0;
+}
+
+
+const char* String_c_str(struct String* self)
+{
+	// Useful for debugging.
+
+	char* str = (char*) alloc_mem_no_pointers(self->size + 1);
+	memcpy(str, self->str, self->size);
+	str[self->size] = 0;
+	return str;
+}
+
+
+String* String_enforce(Object* object, const char* name)
+{
+	if (object == NULL || object->class_ != &String_class) {
+		Class* class_ = (object ? object->class_ : &Nil_class);
+		Error("String required, but got a %s, in \"%s\".", String_c_str(class_->name), name);
+		}
+	return (String*) object;
+}
+
+
+String* String_copy(String* other)
+{
+	return new_String(other->str, other->size);
+}
+
+
+String* String_add(String* self, String* other)
+{
+	String* result = alloc_obj(String);
+	result->class_ = &String_class;
+	int total_size = self->size + other->size;
+	result->size = total_size;
+	char* result_str = alloc_mem_no_pointers(total_size);
+	memcpy(result_str, self->str, self->size);
+	memcpy(result_str + self->size, other->str, other->size);
+	result->str = result_str;
+	return result;
+}
+
+
+void String_init(String* self, const char* str, size_t size)
+{
+	self->class_ = &String_class;
+
+	self->size = size;
+	self->str = alloc_mem_no_pointers(size);
+	memcpy((char*) self->str, str, size);
+}
+
+
+void String_init_static(String* self, const char* str, size_t size)
+{
+	self->class_ = &String_class;
+	self->str = str;
+	self->size = size;
+}
+
+void String_init_static_c(String* self, const char* str)
+{
+	self->class_ = &String_class;
+	self->str = str;
+	self->size = strlen(str);
+}
+
+
+static Object* String_add_builtin(Object* self, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &String_class)
+		Error("Attempt to add a non-string to a string.");
+
+	return (Object*) String_add((String*) self, (String*) args[0]);
+}
+
+static Object* String_equals_builtin(Object* self, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &String_class)
+		return &false_obj;
+	return make_bool(String_equals((String*) self, (String*) args[0]));
+}
+
+static Object* String_not_equals_builtin(Object* self, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &String_class)
+		return &false_obj;
+	return make_bool(!String_equals((String*) self, (String*) args[0]));
+}
+
+static Object* String_less_than_builtin(Object* self, Object** args)
+{
+	return make_bool(String_cmp((String*) self, String_enforce(args[0], "<")) < 0);
+}
+
+static Object* String_greater_than_builtin(Object* self, Object** args)
+{
+	return make_bool(String_cmp((String*) self, String_enforce(args[0], ">")) > 0);
+}
+
+static Object* String_less_than_equals_builtin(Object* self, Object** args)
+{
+	return make_bool(String_cmp((String*) self, String_enforce(args[0], "<=")) <= 0);
+}
+
+static Object* String_greater_than_equals_builtin(Object* self, Object** args)
+{
+	return make_bool(String_cmp((String*) self, String_enforce(args[0], ">=")) >= 0);
+}
+
+static Object* String_strip_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	const char* new_start = self->str;
+	const char* end = new_start + self->size;
+	while (new_start < end) {
+		char c = *new_start;
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			new_start += 1;
+		else
+			break;
+		}
+	if (new_start >= end)
+		return (Object*) new_static_String(NULL, 0);
+	const char* new_end = end;
+	while (new_end > new_start) {
+		char c = new_end[-1];
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			new_end -= 1;
+		else
+			break;
+		}
+	if (new_start >= new_end)
+		return (Object*) new_static_String(NULL, 0);
+	return (Object*) new_static_String(new_start, new_end - new_start);
+}
+
+static Object* String_lstrip_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	const char* new_start = self->str;
+	const char* end = new_start + self->size;
+	while (new_start < end) {
+		char c = *new_start;
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			new_start += 1;
+		else
+			break;
+		}
+	if (new_start >= end)
+		return (Object*) new_static_String(NULL, 0);
+	return (Object*) new_static_String(new_start, end - new_start);
+}
+
+static Object* String_rstrip_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	const char* start = self->str;
+	const char* new_end = start + self->size;
+	while (new_end > start) {
+		char c = new_end[-1];
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			new_end -= 1;
+		else
+			break;
+		}
+	if (start >= new_end)
+		return (Object*) new_static_String(NULL, 0);
+	return (Object*) new_static_String(start, new_end - start);
+}
+
+static Object* String_split_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	Array* result = new_Array();
+	const char* p = self->str;
+	const char* end = p + self->size;
+
+	// Whiltespace splitting.
+	if (args[0] == NULL) {
+		while (p < end) {
+			// Skip initial whitespace.
+			while (p < end) {
+				char c = *p;
+				if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+					p += 1;
+				else
+					break;
+				}
+
+			// Add the non-whitespace run.
+			const char* word_start = p;
+			while (p < end) {
+				char c = *p;
+				if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+					break;
+				p += 1;
+				}
+			if (p > word_start)
+				Array_append(result, (Object*) new_static_String(word_start, p - word_start));
+			}
+		}
+
+	// Splitting by delimiter string.
+	else {
+		String* delimiter = String_enforce(args[0], "String.split");
+		size_t delimiter_size = delimiter->size;
+		while (true) {
+			// Find the start of the delimiter.
+			// (We'd use memmem() but it's not part of POSIX.)
+			const char* delimiter_start = NULL;
+			const char* search_p = p;
+			while (search_p < end) {
+				if (memcmp(search_p, delimiter->str, delimiter_size) == 0) {
+					delimiter_start = search_p;
+					break;
+					}
+				search_p += 1;
+				}
+
+			if (delimiter_start) {
+				Array_append(result, (Object*) new_static_String(p, delimiter_start - p));
+				p = delimiter_start + delimiter_size;
+				}
+			else {
+				Array_append(result, (Object*) new_static_String(p, end - p));
+				break;
+				}
+			}
+		}
+
+	return (Object*) result;
+}
+
+Object* String_starts_with_builtin(Object* super, Object** args)
+{
+	String* other = String_enforce(args[0], "String.starts-with");
+	return make_bool(String_starts_with((String*) super, other));
+}
+
+Object* String_ends_with_builtin(Object* super, Object** args)
+{
+	String* other = String_enforce(args[0], "String.ends-with");
+	return make_bool(String_ends_with((String*) super, other));
+}
+
+int index_of(const char* haystack, size_t haystack_size, const char* needle, size_t needle_size)
+{
+	// memmem() is not part of Posix, so we have to do it ourself.
+	const char* haystack_end = haystack + haystack_size - needle_size + 1;
+	const char* needle_end = needle + needle_size;
+	for (const char* haystack_p = haystack; haystack_p < haystack_end; ++haystack_p) {
+		const char* needle_p = needle;
+		const char* cur_haystack_p = haystack_p;
+		for (; needle_p < needle_end; ++needle_p, ++cur_haystack_p) {
+			if (*cur_haystack_p != *needle_p)
+				break;
+			}
+		if (needle_p == needle_end)
+			return haystack_p - haystack;
+		}
+	return -1;
+}
+
+Object* String_contains_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	String* other = String_enforce(args[0], "String.contains");
+	return make_bool(index_of(self->str, self->size, other->str, other->size) >= 0);
+}
+
+Object* String_is_valid_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	return make_bool(is_valid_utf8(self->str, self->size));
+}
+
+Object* String_decode_8859_1_builtin(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	return (Object*) decode_8859_1((uint8_t*) self->str, self->size);
+}
+
+Object* String_bytes(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	ByteArray* byte_array = new_ByteArray();
+	byte_array->size = byte_array->capacity = self->size;
+	byte_array->array = (uint8_t*) self->str;
+	return (Object*) byte_array;
+}
+
+Object* String_size(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	int num_chars = chars_in_utf8(self->str, self->size);
+	if (num_chars < 0)
+		Error("Invalid UTF-8 (in string.size).");
+	return (Object*) new_Int(num_chars);
+}
+
+Object* String_is_empty(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	return make_bool(self->size <= 0);
+}
+
+Object* String_slice(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	int num_chars = chars_in_utf8(self->str, self->size);
+	if (num_chars < 0)
+		Error("Invalid UTF-8 (in string.slice())");
+	int start = args[0] ? Int_enforce(args[0], "String.slice") : 0;
+	int end = args[1] ? Int_enforce(args[1], "String.slice") : num_chars;
+	if (start < 0) {
+		start += num_chars;
+		if (start < 0)
+			start = 0;
+		}
+	if (start >= num_chars)
+		return (Object*) &empty_string;
+	if (end < 0)
+		end += num_chars;
+	if (end < start)
+		return (Object*) &empty_string;
+	else if (end > num_chars)
+		end = num_chars;
+
+	String* result = alloc_obj(String);
+	result->class_ = &String_class;
+	result->str = self->str + bytes_in_n_characters(self->str, start);
+	result->size = bytes_in_n_characters(result->str, end - start);
+	return (Object*) result;
+}
+
+Object* String_replace(Object* super, Object** args)
+{
+	String* self = (String*) super;
+	String* old_str = String_enforce(args[0], "String.replace");
+	String* new_str = String_enforce(args[1], "String.replace");
+	Array* segments = NULL;
+	const char* remainder = self->str;
+	size_t remainder_size = self->size;
+	while (true) {
+		// Where is the old string?
+		int index = index_of(remainder, remainder_size, old_str->str, old_str->size);
+		if (index < 0) {
+			// No old string.
+			if (segments && remainder_size > 0) {
+				// Add in the last segment.
+				Array_append(segments, (Object*) new_static_String(remainder, remainder_size));
+				}
+			break;
+			}
+
+		// Add the bit leading up to the old string.
+		if (segments == NULL)
+			segments = new_Array();
+		if (index > 0)
+			Array_append(segments, (Object*) new_static_String(remainder, index));
+
+		// Add the replaced string.
+		Array_append(segments, (Object*) new_str);
+
+		// Go around again.
+		size_t taken = index + old_str->size;
+		remainder += taken;
+		remainder_size -= taken;
+		}
+
+	return segments ? (Object*) Array_join(segments, NULL) : (Object*) self;
+}
+
+
+void String_init_class()
+{
+	init_static_class(String);
+
+	static const BuiltinMethodSpec specs[] = {
+		{ "+", 1, String_add_builtin, },
+		{ "string", 0, Object_identity },
+		{ "==", 1, String_equals_builtin },
+		{ "!=", 1, String_not_equals_builtin },
+		{ "<", 1, String_less_than_builtin },
+		{ ">", 1, String_greater_than_builtin },
+		{ "<=", 1, String_less_than_equals_builtin },
+		{ ">=", 1, String_greater_than_equals_builtin },
+		{ "strip", 0, String_strip_builtin },
+		{ "lstrip", 0, String_lstrip_builtin },
+		{ "rstrip", 0, String_rstrip_builtin },
+		{ "trim", 0, String_strip_builtin },
+		{ "ltrim", 0, String_lstrip_builtin },
+		{ "rtrim", 0, String_rstrip_builtin },
+		{ "split", 1, String_split_builtin },
+		{ "starts-with", 1, String_starts_with_builtin },
+		{ "ends-with", 1, String_ends_with_builtin },
+		{ "contains", 1, String_contains_builtin },
+		{ "is-valid", 0, String_is_valid_builtin },
+		{ "decode-8859-1", 0, String_decode_8859_1_builtin },
+		{ "bytes", 0, String_bytes },
+		{ "size", 0, String_size },
+		{ "is-empty", 0, String_is_empty },
+		{ "slice", 2, String_slice },
+		{ "replace", 2, String_replace },
+		{ NULL, 0, NULL },
+		};
+	Class_add_builtin_methods(&String_class, specs);
+}
+
+
+
+`.ltrim ],
+
+[ "Int.h", r`
+#pragma once
+
+struct Class;
+struct Object;
+
+typedef struct Int {
+	struct Class* class_;
+	int value;
+	} Int;
+extern Int* new_Int(int value);
+
+#define Int_value(object) (((Int*) object)->value)
+
+extern int Int_enforce(struct Object* object, const char* name);
+
+extern struct Class Int_class;
+extern void Int_init_class();
+
+`.ltrim ],
+
+[ "Int.c", r`
+#include "Int.h"
+#include "Class.h"
+#include "Object.h"
+#include "String.h"
+#include "Nil.h"
+#include "Boolean.h"
+#include "Memory.h"
+#include "UTF8.h"
+#include "Error.h"
+#include <stdio.h>
+
+Class Int_class;
+
+
+Int* new_Int(int value)
+{
+	Int* self = alloc_obj(Int);
+	self->class_ = &Int_class;
+	self->value = value;
+	return self;
+}
+
+
+int Int_enforce(Object* object, const char* name)
+{
+	if (object == NULL || object->class_ != &Int_class) {
+		Class* class_ = (object ? object->class_ : &Nil_class);
+		Error("Int required, but got a %s, in \"%s\".", String_c_str(class_->name), name);
+		}
+	return Int_value(object);
+}
+
+
+Object* Int_init(Object* super, Object** args)
+{
+	Int* self = (Int*) super;
+	if (args[0] == NULL)
+		self->value = 0;
+	else if (args[0]->class_ == &Int_class)
+		self->value = ((Int*) args[0])->value;
+	else if (args[0]->class_ == &String_class) {
+		char* end_ptr = NULL;
+		self->value = strtol(String_c_str((String*) args[0]), &end_ptr, 0);
+		if (*end_ptr != 0)
+			Error("Invalid conversion from string \"%s\" to Int.", String_c_str((String*) args[0]));
+		}
+	else
+		Error("Int.init() takes a String or another Int.");
+	return (Object*) self;
+}
+
+Object* Int_string(Object* super, Object** args)
+{
+	char str[64];
+	snprintf(str, sizeof(str), "%d", ((Int*) super)->value);
+	return (Object*) new_c_String(str);
+}
+
+Object* Int_plus(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.+");
+	return (Object*) new_Int(Int_value(super) + Int_value(args[0]));
+}
+
+Object* Int_minus(Object* super, Object** args)
+{
+	if (args[0] == NULL)
+		return (Object*) new_Int(-Int_value(super));
+	Int_enforce(args[0], "Int.-");
+	return (Object*) new_Int(Int_value(super) - Int_value(args[0]));
+}
+
+Object* Int_times(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.*");
+	return (Object*) new_Int(Int_value(super) * Int_value(args[0]));
+}
+
+Object* Int_divide(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int./");
+	return (Object*) new_Int(Int_value(super) / Int_value(args[0]));
+}
+
+Object* Int_mod(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.%");
+	return (Object*) new_Int(Int_value(super) % Int_value(args[0]));
+}
+
+Object* Int_or(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.+");
+	return (Object*) new_Int(Int_value(super) | Int_value(args[0]));
+}
+
+Object* Int_exclusive_or(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.+");
+	return (Object*) new_Int(Int_value(super) ^ Int_value(args[0]));
+}
+
+Object* Int_and(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.+");
+	return (Object*) new_Int(Int_value(super) & Int_value(args[0]));
+}
+
+Object* Int_not(Object* super, Object** args)
+{
+	return (Object*) new_Int(~Int_value(super));
+}
+
+Object* Int_left_shift(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.+");
+	return (Object*) new_Int(Int_value(super) << Int_value(args[0]));
+}
+
+Object* Int_right_shift(Object* super, Object** args)
+{
+	Int_enforce(args[0], "Int.+");
+	return (Object*) new_Int(Int_value(super) >> Int_value(args[0]));
+}
+
+Object* Int_equals(Object* super, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
+		return &false_obj;
+	return make_bool(Int_value(super) == Int_value(args[0]));
+}
+
+Object* Int_not_equals(Object* super, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
+		return &true_obj;
+	return make_bool(Int_value(super) != Int_value(args[0]));
+}
+
+Object* Int_less_than(Object* super, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
+		return &false_obj;
+	return make_bool(Int_value(super) < Int_value(args[0]));
+}
+
+Object* Int_greater_than(Object* super, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
+		return &false_obj;
+	return make_bool(Int_value(super) > Int_value(args[0]));
+}
+
+Object* Int_less_than_or_equal(Object* super, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
+		return &false_obj;
+	return make_bool(Int_value(super) <= Int_value(args[0]));
+}
+
+Object* Int_greater_than_or_equal(Object* super, Object** args)
+{
+	if (args[0] == NULL || args[0]->class_ != &Int_class)
+		return &false_obj;
+	return make_bool(Int_value(super) >= Int_value(args[0]));
+}
+
+Object* Int_as_utf8(Object* super, Object** args)
+{
+	char utf8[32];
+	int size = put_utf8(Int_value(super), utf8);
+	return (Object*) new_String(utf8, size);
+}
+
+
+void Int_init_class()
+{
+	init_static_class(Int);
+
+	BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 1, Int_init },
+		{ "string", 0, Int_string },
+		{ "+", 1, Int_plus },
+		{ "-", 1, Int_minus },
+		{ "*", 1, Int_times },
+		{ "/", 1, Int_divide },
+		{ "%", 1, Int_mod },
+		{ "|", 1, Int_or },
+		{ "^", 1, Int_exclusive_or },
+		{ "&", 1, Int_and },
+		{ "~", 0, Int_not },
+		{ "==", 1, Int_equals },
+		{ "!=", 1, Int_not_equals },
+		{ "<", 1, Int_less_than },
+		{ ">", 1, Int_greater_than },
+		{ "<=", 1, Int_less_than_or_equal },
+		{ ">=", 1, Int_greater_than_or_equal },
+		{ "<<", 1, Int_left_shift },
+		{ ">>", 1, Int_right_shift },
+		{ "as-utf8", 0, Int_as_utf8 },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Int_class, builtin_methods);
+}
+
+
+
+`.ltrim ],
+
+[ "Float.h", r`
+#pragma once
+
+struct Class;
+struct Object;
+
+typedef struct Float {
+	struct Class* class_;
+	double value;
+	} Float;
+extern Float* new_Float(double value);
+
+#define Float_value(object) (((Float*) object)->value)
+
+extern double Float_enforce(struct Object* object, const char* name);
+
+extern struct Class Float_class;
+extern void Float_init_class();
+
+
+
+
+`.ltrim ],
+
+[ "Float.c", r`
+#include "Float.h"
+#include "Int.h"
+#include "Class.h"
+#include "Object.h"
+#include "String.h"
+#include "Nil.h"
+#include "Boolean.h"
+#include "Memory.h"
+#include "UTF8.h"
+#include "Error.h"
+#include <stdio.h>
+
+Class Float_class;
+
+
+Float* new_Float(double value)
+{
+	Float* self = alloc_obj(Float);
+	self->class_ = &Float_class;
+	self->value = value;
+	return self;
+}
+
+
+double Float_enforce(Object* object, const char* name)
+{
+	if (object != NULL) {
+		if (object->class_ == &Float_class)
+			return Float_value(object);
+		else if (object->class_ == &Int_class)
+			return Int_value(object);
+		}
+	Error("Float required, but got a %s, in \"%s\".", String_c_str(object->class_->name), name);
+	return 0.0;
+}
+
+
+Object* Float_init(Object* super, Object** args)
+{
+	Float* self = (Float*) super;
+	if (args[0] == NULL)
+		self->value = 0;
+	else if (args[0]->class_ == &Float_class)
+		self->value = ((Float*) args[0])->value;
+	else if (args[0]->class_ == &Int_class)
+		self->value = Int_value(args[0]);
+	else if (args[0]->class_ == &String_class) {
+		char* end_ptr = NULL;
+		self->value = strtod(String_c_str((String*) args[0]), &end_ptr);
+		if (*end_ptr != 0)
+			Error("Invalid conversion from string \"%s\" to Float.", String_c_str((String*) args[0]));
+		}
+	else
+		Error("Float.init() takes a String, a Float, or another Int.");
+	return (Object*) self;
+}
+
+Object* Float_string(Object* super, Object** args)
+{
+	char str[64];
+	snprintf(str, sizeof(str), "%g", ((Float*) super)->value);
+	return (Object*) new_c_String(str);
+}
+
+Object* Float_plus(Object* super, Object** args)
+{
+	return (Object*) new_Float(Float_value(super) + Float_enforce(args[0], "Float.+"));
+}
+
+Object* Float_minus(Object* super, Object** args)
+{
+	if (args[0] == NULL)
+		return (Object*) new_Float(-Float_value(super));
+	return (Object*) new_Float(Float_value(super) - Float_enforce(args[0], "Float.-"));
+}
+
+Object* Float_times(Object* super, Object** args)
+{
+	return (Object*) new_Float(Float_value(super) * Float_enforce(args[0], "Float.*"));
+}
+
+Object* Float_divide(Object* super, Object** args)
+{
+	return (Object*) new_Float(Float_value(super) / Float_enforce(args[0], "Float./"));
+}
+
+static bool is_floatable(Object* object)
+{
+	if (object == NULL)
+		return false;
+	return object->class_ == &Float_class || object->class_ == &Int_class;
+}
+
+Object* Float_equals(Object* super, Object** args)
+{
+	if (!is_floatable(args[0]))
+		return &false_obj;
+	return make_bool(Float_value(super) == Float_enforce(args[0], ""));
+}
+
+Object* Float_not_equals(Object* super, Object** args)
+{
+	if (!is_floatable(args[0]))
+		return &true_obj;
+	return make_bool(Float_value(super) != Float_enforce(args[0], ""));
+}
+
+Object* Float_less_than(Object* super, Object** args)
+{
+	if (!is_floatable(args[0]))
+		return &false_obj;
+	return make_bool(Float_value(super) < Float_enforce(args[0], ""));
+}
+
+Object* Float_greater_than(Object* super, Object** args)
+{
+	if (!is_floatable(args[0]))
+		return &false_obj;
+	return make_bool(Float_value(super) > Float_enforce(args[0], ""));
+}
+
+Object* Float_less_than_or_equal(Object* super, Object** args)
+{
+	if (!is_floatable(args[0]))
+		return &false_obj;
+	return make_bool(Float_value(super) <= Float_enforce(args[0], ""));
+}
+
+Object* Float_greater_than_or_equal(Object* super, Object** args)
+{
+	if (!is_floatable(args[0]))
+		return &false_obj;
+	return make_bool(Float_value(super) >= Float_enforce(args[0], ""));
+}
+
+
+void Float_init_class()
+{
+	init_static_class(Float);
+
+	BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 1, Float_init },
+		{ "string", 0, Float_string },
+		{ "+", 1, Float_plus },
+		{ "-", 1, Float_minus },
+		{ "*", 1, Float_times },
+		{ "/", 1, Float_divide },
+		{ "==", 1, Float_equals },
+		{ "!=", 1, Float_not_equals },
+		{ "<", 1, Float_less_than },
+		{ ">", 1, Float_greater_than },
+		{ "<=", 1, Float_less_than_or_equal },
+		{ ">=", 1, Float_greater_than_or_equal },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Float_class, builtin_methods);
+}
+
+
+
+`.ltrim ],
+
+[ "Array.h", r`
+#pragma once
+
+#include <stddef.h>
+#include <stdlib.h>
+
+struct Object;
+struct Class;
+struct String;
+
+
+typedef struct Array {
+	struct Class* class_;
+	size_t size, capacity;
+	struct Object** items;
+	} Array;
+
+
+extern Array* new_Array();
+extern struct Object* Array_at(Array* self, size_t index);
+extern struct Object* Array_set_at(Array* self, size_t index, struct Object* value);
+extern struct Object* Array_append(Array* self, struct Object* value);
+extern void Array_append_strings(Array* self, struct Object* value);
+extern struct Object* Array_pop_back(Array* self);
+extern struct Object* Array_back(Array* self);
+extern Array* Array_copy(Array* self);
+extern struct String* Array_join(Array* self, struct String* joiner);
+
+
+extern struct Class Array_class;
+extern void Array_init_class();
+
+`.ltrim ],
+
+[ "Array.c", r`
+#include "Array.h"
+#include "Class.h"
+#include "Object.h"
+#include "String.h"
+#include "Int.h"
+#include "Boolean.h"
+#include "ByteCode.h"
+#include "Memory.h"
+#include "Error.h"
+#include <string.h>
+
+struct ArrayIterator;
+extern struct ArrayIterator* new_ArrayIterator(Array* array);
+extern void ArrayIterator_init_class();
+
+#define capacity_increment 16
+
+Class Array_class;
+
+Array empty_array = { &Array_class, 0, 0, NULL };
+
+
+Array* new_Array()
+{
+	Array* self = alloc_obj(Array);
+	self->class_ = &Array_class;
+	self->size = self->capacity = 0;
+	self->items = NULL;
+	return self;
+}
+
+
+Object* Array_at(struct Array* self, size_t index)
+{
+	if (index >= self->size)
+		Error("Array index out of bounds.");
+	return self->items[index];
+}
+
+
+Object* Array_set_at(struct Array* self, size_t index, Object* value)
+{
+	if (index >= self->size) {
+		if (index >= self->capacity) {
+			size_t needed_size = index + 1;
+			size_t old_capacity = self->capacity;
+			self->capacity = needed_size + capacity_increment - (needed_size % capacity_increment);
+			if (self->items) {
+				self->items = (Object**) realloc_mem(self->items, self->capacity * sizeof(Object*));
+				memset(self->items + old_capacity, 0, (self->capacity - old_capacity) * sizeof(Object*));
+				}
+			else
+				self->items = (Object**) alloc_mem(self->capacity * sizeof(Object*));
+			}
+		self->size = index + 1;
+		}
+
+	self->items[index] = value;
+
+	return value;
+}
+
+
+Object* Array_append(struct Array* self, Object* value)
+{
+	return Array_set_at(self, self->size, value);
+}
+
+
+void Array_append_strings(Array* self, Object* value)
+{
+	declare_static_string(string_string, "string");
+
+	if (value == NULL)
+		return;
+	if (value->class_ == &Array_class) {
+		// Splice in the array.
+		Array* other = (Array*) value;
+		for (int i = 0; i < other->size; ++i) {
+			Object* item = other->items[i];
+			if (item->class_ != &String_class)
+				item = call_object(item, &string_string, NULL);
+			Array_append(self, item);
+			}
+		}
+	else {
+		if (value->class_ != &String_class)
+			value = call_object(value, &string_string, NULL);
+		if (((String*) value)->size != 0)
+			Array_append(self, value);
+		}
+}
+
+
+Object* Array_pop_back(Array* self)
+{
+	if (self->size == 0)
+		return NULL;
+
+	Object* item = self->items[self->size - 1];
+	self->size -= 1;
+	return item;
+}
+
+
+Object* Array_back(Array* self)
+{
+	if (self->size == 0)
+		return NULL;
+
+	return self->items[self->size - 1];
+}
+
+
+Array* Array_copy(Array* self)
+{
+	Array* copy = alloc_obj(Array);
+	copy->class_ = &Array_class;
+	copy->size = self->size;
+	copy->capacity = self->capacity;
+	copy->items = NULL;
+	if (self->items) {
+		copy->items = (Object**) alloc_mem(self->capacity);
+		memcpy(copy->items, self->items, self->size * sizeof(Object*));
+		}
+	return copy;
+}
+
+
+String* Array_join(Array* self, String* joiner)
+{
+	Array* stringized_items = new_Array();
+
+	// Get the total size.
+	size_t total_size = 0;
+	for (int i = 0; i < self->size; ++i) {
+		Object* item = self->items[i];
+		String* str;
+		if (item == NULL || item->class_ != &String_class) {
+			String name_str;
+			String_init_static_c(&name_str, "string");
+			str = (String*) call_object(item, &name_str, NULL);
+			Array_append(stringized_items, (Object*) str);
+			}
+		else
+			str = (String*) item;
+		total_size += str->size;
+		}
+	if (joiner && self->size > 0)
+		total_size += (self->size - 1) * joiner->size;
+
+	// Do the join.
+	char* joined = alloc_mem(total_size);
+	char* out = joined;
+	bool need_joiner = false;
+	Object** next_stringized_item = stringized_items->items;
+	for (int i = 0; i < self->size; ++i) {
+		if (need_joiner && joiner) {
+			memcpy(out, joiner->str, joiner->size);
+			out += joiner->size;
+			}
+		else
+			need_joiner = true;
+
+		Object* item = self->items[i];
+		if (item == NULL || item->class_ != &String_class)
+			item = *next_stringized_item++;
+		String* str = (String*) item;
+		memcpy(out, str->str, str->size);
+		out += str->size;
+		}
+
+	// Return the string.
+	return new_static_String(joined, total_size);
+}
+
+
+static Object* Array_size_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	return (Object*) new_Int(self->size);
+}
+
+static Object* Array_is_empty_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	return make_bool(self->size == 0);
+}
+
+static Object* Array_string_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	if (self->size == 0)
+		return (Object*) new_c_static_String("[]");
+	String* joined = Array_join(self, new_c_static_String(", "));
+	Array* capped = new_Array();
+	Array_append(capped, (Object*) new_c_static_String("["));
+	Array_append(capped, (Object*) joined);
+	Array_append(capped, (Object*) new_c_static_String("]"));
+	return (Object*) Array_join(capped, new_c_static_String(" "));
+}
+
+static Object* Array_at_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	int index = Int_enforce(args[0], "Array.[]");
+	if (index < 0)
+		index += self->size;
+	return Array_at(self, index);
+}
+
+static Object* Array_at_set_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	int index = Int_enforce(args[0], "Array.[]=");
+	if (index < 0) {
+		index += self->size;
+		if (index >= self->size) {
+			// Don't allow this, it would grow the array to way too large a size.
+			Error("Negative array index out of bounds.");
+			}
+		}
+	return Array_set_at(self, index, args[1]);
+}
+
+static Object* Array_append_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	Array_append(self, args[0]);
+	return args[0];
+}
+
+static Object* Array_plus_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	Array* other = (Array*) args[0];
+	if (other == NULL || other->class_ != &Array_class)
+		Error("Array.+ called without another Array.");
+
+	size_t needed_size = self->size + other->size;
+	Array* result = alloc_obj(Array);
+	result->class_ = &Array_class;
+	result->size = result->capacity = needed_size;
+	result->items = (Object**) alloc_mem(needed_size * sizeof(Object*));
+	memcpy(result->items, self->items, self->size * sizeof(Object*));
+	memcpy(result->items + self->size, other->items, other->size * sizeof(Object*));
+
+	return (Object*) result;
+}
+
+static Object* Array_iterator_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	return (Object*) new_ArrayIterator(self);
+}
+
+static Object* Array_join_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	String* joiner = (String*) args[0];
+	if (joiner && joiner->class_ != &String_class)
+		Error("Argument to Array.join() must be a String.");
+	return (Object*) Array_join(self, joiner);
+}
+
+static Object* Array_pop_back_builtin(Object* super, Object** args)
+{
+	return Array_pop_back((Array*) super);
+}
+
+static Object* Array_pop_front_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	if (self->size == 0)
+		return NULL;
+	Object* item = self->items[0];
+	self->items += 1;
+	self->size -= 1;
+	self->capacity -= 1;
+	return item;
+}
+
+static Object* Array_back_builtin(Object* super, Object** args)
+{
+	return Array_back((Array*) super);
+}
+
+static Object* Array_copy_builtin(Object* super, Object** args)
+{
+	return (Object*) Array_copy((Array*) super);
+}
+
+static Object* Array_slice_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	int start = args[0] ? Int_enforce(args[0], "Array.slice") : 0;
+	int end = args[1] ? Int_enforce(args[1], "Array.slice") : self->size;
+	if (start < 0) {
+		start += self->size;
+		if (start < 0)
+			start = 0;
+		}
+	if (start >= self->size)
+		return (Object*) &empty_array;
+	if (end < 0)
+		end += self->size;
+	if (end < start)
+		return (Object*) &empty_array;
+	else if (end > self->size)
+		end = self->size;
+
+	Array* slice = alloc_obj(Array);
+	slice->class_ = &Array_class;
+	slice->size = slice->capacity = end - start;
+	slice->items = self->items + start;
+	return (Object*) slice;
+}
+
+declare_static_string(equals_string, "==");
+
+static Object* Array_contains_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	for (int i = 0; i < self->size; ++i) {
+		Object* items[] = { self->items[i] };
+		Array args_array = { &Array_class, 1, 1, items };
+		if (IS_TRUTHY(call_object(args[0], &equals_string, &args_array)))
+			return &true_obj;
+		}
+	return &false_obj;
+}
+
+static void Array_remove_index(Array* array, int index)
+{
+	if (index < 0 || index >= array->size)
+		return;
+	if (index != array->size - 1)
+		memmove(&array->items[index], &array->items[index + 1], (array->size - index - 1) * sizeof(Object*));
+	array->size -= 1;
+}
+
+static Object* Array_remove_index_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	Array_remove_index(self, Int_enforce(args[0], "Array.remove-index"));
+	return super;
+}
+
+static Object* Array_remove_item_builtin(Object* super, Object** args)
+{
+	Array* self = (Array*) super;
+	for (int i = 0; i < self->size; ++i) {
+		Object* items[] = { self->items[i] };
+		Array args_array = { &Array_class, 1, 1, items };
+		if (IS_TRUTHY(call_object(args[0], &equals_string, &args_array))) {
+			Array_remove_index(self, i);
+			break;
+			}
+		}
+	return super;
+}
+
+
+void Array_init_class()
+{
+	init_static_class(Array);
+
+	static BuiltinMethodSpec builtin_methods[] = {
+		{ "size", 0, Array_size_builtin },
+		{ "is-empty", 0, Array_is_empty_builtin },
+		{ "string", 0, Array_string_builtin },
+		{ "[]", 1, Array_at_builtin },
+		{ "[]=", 2, Array_at_set_builtin },
+		{ "+", 1, Array_plus_builtin },
+		{ "append", 1, Array_append_builtin },
+		{ "iterator", 0, Array_iterator_builtin },
+		{ "join", 1, Array_join_builtin },
+		{ "pop", 0, Array_pop_back_builtin },
+		{ "pop-back", 0, Array_pop_back_builtin },
+		{ "pop-front", 0, Array_pop_front_builtin },
+		{ "back", 0, Array_back_builtin },
+		{ "copy", 0, Array_copy_builtin },
+		{ "slice", 2, Array_slice_builtin },
+		{ "contains", 1, Array_contains_builtin },
+		{ "remove-index", 1, Array_remove_index_builtin },
+		{ "remove-item", 1, Array_remove_item_builtin },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Array_class, builtin_methods);
+
+	ArrayIterator_init_class();
+}
+
+
+
+
+typedef struct ArrayIterator {
+	Class* class_;
+	Array* array;
+	int index;
+	} ArrayIterator;
+Class ArrayIterator_class;
+
+ArrayIterator* new_ArrayIterator(Array* array)
+{
+	ArrayIterator* self = alloc_obj(ArrayIterator);
+	self->class_ = &ArrayIterator_class;
+	self->array = array;
+	self->index = 0;
+	return self;
+}
+
+
+Object* ArrayIterator_next(Object* super, Object** args)
+{
+	ArrayIterator* self = (ArrayIterator*) super;
+	if (self->index >= self->array->size)
+		return NULL;
+	return self->array->items[self->index++];
+}
+
+void ArrayIterator_init_class()
+{
+	init_static_class(ArrayIterator);
+
+	static BuiltinMethodSpec builtin_methods[] = {
+		{ "next", 0, ArrayIterator_next },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&ArrayIterator_class, builtin_methods);
+}
+
+
+
+`.ltrim ],
+
+[ "Dict.h", r`
+#pragma once
+
+#include <stdint.h>
+#include <stdbool.h>
+
+struct DictNode;
+struct String;
+struct Object;
+struct Class;
+struct Array;
+
+typedef struct Dict {
+	struct Class* class_;
+	struct DictNode* tree;
+	int capacity, size;
+	} Dict;
+
+extern Dict* new_Dict();
+extern void Dict_init(Dict* self);
+extern void Dict_set_at(Dict* self, struct String* key, struct Object* value);
+extern struct Object* Dict_at(Dict* self, struct String* key);
+extern struct String* Dict_key_at(Dict* self, struct String* key);
+	// Useful to avoid proliferations of the same string.
+extern void Dict_dump(Dict* self);
+
+extern struct Object* IdentityDict_at(Dict* self, struct Object* key);
+extern void IdentityDict_set_at(Dict* self, struct Object* key, struct Object* value);
+
+
+typedef struct DictIteratorResult {
+	struct String* key;
+	struct Object* value;
+	} DictIteratorResult;
+
+typedef struct DictIterator {
+	struct Class* class_;
+	struct Dict* dict;
+	struct Array* stack;
+	} DictIterator;
+
+struct DictIterator* new_DictIterator(Dict* dict);
+DictIteratorResult DictIterator_next(DictIterator* self);
+
+
+extern struct Class Dict_class;
+extern void Dict_init_class();
+
+// Helpers when used for function options.
+bool Dict_option_turned_on(Dict* dict, struct String* option_name);
+bool Dict_option_turned_off(Dict* dict, struct String* option_name);
+
+
+`.ltrim ],
+
+[ "Dict.c", r`
+#include "Dict.h"
+#include "String.h"
+#include "Class.h"
+#include "Array.h"
+#include "Object.h"
+#include "Boolean.h"
+#include "Int.h"
+#include "Memory.h"
+#include "Error.h"
+#include <string.h>
+#include <stdio.h>
+
+typedef uint16_t Dict_index_t;
+#define MAX_NODES UINT16_MAX
+
+typedef struct DictNode {
+	Dict_index_t left, right;
+	Dict_index_t level;
+	String* key;
+	struct Object* value;
+	} DictNode;
+
+#define capacity_increment 32
+
+// Index zero represents a null "pointer".  The node at index zero has the tree
+// root as its "left".
+
+#define Node(index) (self->tree[index])
+
+
+Class Dict_class;
+static Class DictIterator_class;
+static Class DictIteratorKeyValue_class;
+
+
+
+static Dict_index_t Dict_skew(Dict* self, Dict_index_t node)
+{
+	if (node == 0)
+		return 0;
+	DictNode* t = &Node(node);
+	if (t->left == 0)
+		return node;
+	Dict_index_t left = t->left;
+	DictNode* l = &Node(left);
+	if (l->level == t->level) {
+		// Swap the pointers of the horizontal left links.
+		t->left = l->right;
+		l->right = node;
+		return left;
+		}
+	return node;
+}
+
+
+static Dict_index_t Dict_split(Dict* self, Dict_index_t node)
+{
+	if (node == 0)
+		return 0;
+	DictNode* t = &Node(node);
+	Dict_index_t right = t->right;
+	if (right == 0)
+		return node;
+	DictNode* r = &Node(right);
+	Dict_index_t right_right = r->right;
+	if (right_right == 0)
+		return node;
+	if (Node(node).level == Node(right_right).level) {
+		// We have two horizontal right links.  Elevate the middle node as the root
+		// of this subtree.
+		t->right = r->left;
+		r->left = node;
+		r->level += 1;
+		return right;
+		}
+	return node;
+}
+
+static Dict_index_t Dict_create_node(Dict* self, struct String* key, struct Object* value)
+{
+	if (self->size + 1 >= self->capacity) {
+		int old_capacity = self->capacity;
+		self->capacity += capacity_increment;
+		if (self->capacity > MAX_NODES)
+			Error("Dictionary overflow!  Dicts only support up to %d entries.", MAX_NODES);
+		self->tree = realloc_mem(self->tree, self->capacity * sizeof(DictNode));
+		memset(self->tree + old_capacity, 0, capacity_increment * sizeof(DictNode));
+		}
+
+	self->size += 1;
+	Dict_index_t node = self->size;
+	DictNode* t = &Node(node);
+	t->key = key;
+	t->value = value;
+	return node;
+}
+
+
+static Dict_index_t Dict_insert(Dict* self, struct String* key, struct Object* value, Dict_index_t node)
+{
+	if (node == 0)
+		return Dict_create_node(self, key, value);
+	DictNode* t = &Node(node);
+	// Note: "t" can be invalidated by Dict_insert().
+	int cmp = String_cmp(key, t->key);
+	if (cmp < 0) {
+		// Stupid GCC caches the address of self->tree[node], even at -O0!
+		Dict_index_t new_left = Dict_insert(self, key, value, t->left);
+		self->tree[node].left = new_left;
+		}
+	else if (cmp > 0) {
+		Dict_index_t new_right = Dict_insert(self, key, value, t->right);
+		self->tree[node].right = new_right;
+		}
+	else
+		self->tree[node].value = value;
+
+	node = Dict_skew(self, node);
+	node = Dict_split(self, node);
+	return node;
+}
+
+static Dict_index_t IdentityDict_insert(Dict* self, Object* key, Object* value, Dict_index_t node)
+{
+	if (node == 0)
+		return Dict_create_node(self, (String*) key, value);
+	DictNode* t = &Node(node);
+	// Note: "t" can be invalidated by IdentityDict_insert().
+	ptrdiff_t cmp = key - (Object*) t->key;
+	if (cmp < 0) {
+		// Stupid GCC caches the address of self->tree[node], even at -O0!
+		Dict_index_t new_left = IdentityDict_insert(self, key, value, t->left);
+		self->tree[node].left = new_left;
+		}
+	else if (cmp > 0) {
+		Dict_index_t new_right = IdentityDict_insert(self, key, value, t->right);
+		self->tree[node].right = new_right;
+		}
+	else
+		self->tree[node].value = value;
+
+	node = Dict_skew(self, node);
+	node = Dict_split(self, node);
+	return node;
+}
+
+
+Dict* new_Dict()
+{
+	Dict* dict = alloc_obj(Dict);
+	Dict_init(dict);
+	return dict;
+}
+
+
+void Dict_init(Dict* self)
+{
+	self->class_ = &Dict_class;
+	self->capacity = capacity_increment;
+	self->size = 0;
+	self->tree = (DictNode*) alloc_mem(self->capacity * sizeof(DictNode));
+	Node(0).left = 0;
+}
+
+
+void Dict_set_at(Dict* self, String* key, Object* value)
+{
+	Dict_index_t new_left = Dict_insert(self, key, value, Node(0).left);
+	Node(0).left = new_left;
+}
+
+void IdentityDict_set_at(Dict* self, Object* key, Object* value)
+{
+	Dict_index_t new_left = IdentityDict_insert(self, key, value, Node(0).left);
+	Node(0).left = new_left;
+}
+
+
+
+struct Object* Dict_at(Dict* self, String* key)
+{
+	if (self->size == 0)
+		return NULL;
+
+	int node = Node(0).left;
+	while (node != 0) {
+		DictNode* t = &Node(node);
+		int cmp = String_cmp(key, t->key);
+		if (cmp < 0)
+			node = t->left;
+		else if (cmp > 0)
+			node = t->right;
+		else
+			return t->value;
+		}
+
+	return NULL;
+}
+
+
+struct String* Dict_key_at(Dict* self, struct String* key)
+{
+	if (self->size == 0)
+		return NULL;
+
+	int node = Node(0).left;
+	while (node != 0) {
+		DictNode* t = &Node(node);
+		int cmp = String_cmp(key, t->key);
+		if (cmp < 0)
+			node = t->left;
+		else if (cmp > 0)
+			node = t->right;
+		else
+			return t->key;
+		}
+
+	return NULL;
+}
+
+Object* IdentityDict_at(Dict* self, Object* key)
+{
+	if (self->size == 0)
+		return NULL;
+
+	int node = Node(0).left;
+	while (node != 0) {
+		DictNode* t = &Node(node);
+		ptrdiff_t cmp = key - (Object*) t->key;
+		if (cmp < 0)
+			node = t->left;
+		else if (cmp > 0)
+			node = t->right;
+		else
+			return t->value;
+		}
+
+	return NULL;
+}
+
+
+static void Dict_dump_node(Dict* self, Dict_index_t node, int level)
+{
+	DictNode* t = &Node(node);
+	for (int i = level; i > 0; --i)
+		printf("  ");
+	printf("\"%s\" (%d) [%d]\n", String_c_str(t->key), t->level, node);
+	if (t->left)
+		Dict_dump_node(self, t->left, level + 1);
+	else if (t->right) {
+		for (int i = level + 1; i > 0; --i)
+			printf("  ");
+		printf("-\n");
+		}
+	if (t->right)
+		Dict_dump_node(self, t->right, level + 1);
+	else if (t->left) {
+		for (int i = level + 1; i > 0; --i)
+			printf("  ");
+		printf("-\n");
+		}
+}
+
+
+void Dict_dump(Dict* self)
+{
+	if (Node(0).left == 0)
+		printf("Empty Dict.\n");
+	else
+		Dict_dump_node(self, Node(0).left, 0);
+}
+
+
+
+
+static void DictIterator_push_tree(DictIterator* self, size_t node)
+{
+	while (node) {
+		Array_append(self->stack, (Object*) node);
+		node = self->dict->tree[node].left;
+		}
+}
+
+
+DictIterator* new_DictIterator(Dict* dict)
+{
+	DictIterator* self = alloc_obj(DictIterator);
+	self->class_ = &DictIterator_class;
+	self->dict = dict;
+	self->stack = new_Array();
+
+	DictIterator_push_tree(self, dict->tree[0].left);
+
+	return self;
+}
+
+
+DictIteratorResult DictIterator_next(DictIterator* self)
+{
+	DictIteratorResult result = { NULL, NULL };
+
+	if (self->stack->size == 0)
+		return result;
+
+	// Get the result.
+	DictNode* node = &self->dict->tree[(size_t) Array_back(self->stack)];
+	result.key = node->key;
+	result.value = node->value;
+
+	// Go forward.
+	int right = node->right;
+	Array_pop_back(self->stack);
+	DictIterator_push_tree(self, right);
+
+	return result;
+}
+
+
+typedef struct DictIteratorKeyValue {
+	Class* class_;
+	DictIteratorResult result;
+	} DictIteratorKeyValue;
+
+
+static Object* Dict_init_builtin(Object* super, Object** args)
+{
+	Dict_init((Dict*) super);
+	return super;
+}
+
+static Object* Dict_at_builtin(Object* super, Object** args)
+{
+	String* key = String_enforce(args[0], "Dict.[]");
+	return (Object*) Dict_at((Dict*) super, key);
+}
+
+static Object* Dict_set_at_builtin(Object* super, Object** args)
+{
+	String* key = String_enforce(args[0], "Dict.[]=");
+	Dict_set_at((Dict*) super, key, args[1]);
+	return args[1];
+}
+
+static Object* Dict_iterator_builtin(Object* super, Object** args)
+{
+	return (Object*) new_DictIterator((Dict*) super);
+}
+
+static Object* Dict_size_builtin(Object* super, Object** args)
+{
+	return (Object*) new_Int(((Dict*) super)->size);
+}
+
+static Object* Dict_contains_builtin(Object* super, Object** args)
+{
+	Dict* self = (Dict*) super;
+	String* key = String_enforce(args[0], "Dict.contains");
+	return make_bool(Dict_at(self, key) != NULL);
+}
+
+
+static Object* DictIterator_next_builtin(Object* super, Object** args)
+{
+	DictIteratorResult result = DictIterator_next((DictIterator*) super);
+	if (result.key == NULL)
+		return NULL;
+
+	DictIteratorKeyValue* kv = alloc_obj(DictIteratorKeyValue);
+	kv->class_ = &DictIteratorKeyValue_class;
+	kv->result = result;
+	return (Object*) kv;
+}
+
+static Object* DictIteratorKeyValue_key(Object* super, Object** args)
+{
+	return (Object*) ((DictIteratorKeyValue*) super)->result.key;
+}
+
+static Object* DictIteratorKeyValue_value(Object* super, Object** args)
+{
+	return ((DictIteratorKeyValue*) super)->result.value;
+}
+
+
+void Dict_init_class()
+{
+	init_static_class(Dict);
+	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 0, Dict_init_builtin },
+		{ "[]", 1, Dict_at_builtin },
+		{ "[]=", 1, Dict_set_at_builtin },
+		{ "iterator", 0, Dict_iterator_builtin },
+		{ "size", 0, Dict_size_builtin },
+		{ "contains", 0, Dict_contains_builtin },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Dict_class, builtin_methods);
+
+	init_static_class(DictIterator);
+	static const BuiltinMethodSpec builtin_iterator_methods[] = {
+		{ "next", 0, DictIterator_next_builtin },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&DictIterator_class, builtin_iterator_methods);
+
+	init_static_class(DictIteratorKeyValue);
+	static const BuiltinMethodSpec builtin_kv_methods[] = {
+		{ "key", 0, DictIteratorKeyValue_key },
+		{ "value", 0, DictIteratorKeyValue_value },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&DictIteratorKeyValue_class, builtin_kv_methods);
+}
+
+
+bool Dict_option_turned_on(Dict* dict, String* option_name)
+{
+	Object* option_value = Dict_at(dict, option_name);
+	return IS_TRUTHY(option_value);
+}
+
+
+bool Dict_option_turned_off(Dict* dict, String* option_name)
+{
+	Object* option_value = Dict_at(dict, option_name);
+	if (option_value == NULL)
+		return false;
+	return !IS_TRUTHY(option_value);
+}
+
+
+
+`.ltrim ],
+
+[ "Boolean.h", r`
+#pragma once
+
+#include "Class.h"
+#include "Object.h"
+#include <stdbool.h>
+
+extern Object true_obj;
+extern Object false_obj;
+
+
+#define make_bool(value) ((value) ? &true_obj : &false_obj)
+#define IS_TRUTHY(obj) ((obj) != NULL && (obj) != &false_obj)
+#define NOT(obj) (IS_TRUTHY(obj) ? &false_obj : &true_obj)
+
+extern void Boolean_init_class();
+
+
+`.ltrim ],
+
+[ "Boolean.c", r`
+#include "Boolean.h"
+#include "String.h"
+
+Object true_obj;
+Object false_obj;
+String true_name, false_name;
+
+
+static Class Boolean_class;
+
+
+Object* Boolean_string(Object* self, Object** args)
+{
+	return (self == &true_obj ? (Object*) &true_name : (Object*) &false_name);
+}
+
+void Boolean_init_class()
+{
+	Class_init_static(&Boolean_class, "Boolean", 0);
+	true_obj.class_ = &Boolean_class;
+	false_obj.class_ = &Boolean_class;
+	String_init_static_c(&true_name, "true");
+	String_init_static_c(&false_name, "false");
+
+	static const BuiltinMethodSpec specs[] = {
+		{ "string", 0, Boolean_string },
+		{ NULL, 0, NULL },
+		};
+	Class_add_builtin_methods(&Boolean_class, specs);
+}
+
+
+
+`.ltrim ],
+
+[ "ByteArray.h", r`
+#pragma once
+
+#include "Class.h"
+#include "Object.h"
+#include <stdint.h>
+#include <stddef.h>
+
+struct String;
+
+
+typedef struct ByteArray {
+	Class* class_;
+	size_t size, capacity;
+	uint8_t* array;
+	} ByteArray;
+
+
+extern ByteArray* new_ByteArray();
+extern Object* ByteArray_init(ByteArray* self);
+extern uint8_t ByteArray_at(struct ByteArray* self, size_t index);
+extern void ByteArray_set_at(struct ByteArray* self, size_t index, uint8_t value);
+extern void ByteArray_append(struct ByteArray* self, uint8_t value);
+extern void ByteArray_append_bytes(ByteArray* self, uint8_t* values, size_t size);
+extern struct String* ByteArray_as_string(ByteArray* self);
+
+extern Class ByteArray_class;
+extern void ByteArray_init_class();
+`.ltrim ],
+
+[ "ByteArray.c", r`
+#include "ByteArray.h"
+#include "Int.h"
+#include "String.h"
+#include "Boolean.h"
+#include "Memory.h"
+#include "UTF8.h"
+#include "Error.h"
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define capacity_increment 16
+
+Class ByteArray_class;
+ByteArray empty_byte_array = { &ByteArray_class, 0, 0, NULL };
+
+
+ByteArray* new_ByteArray()
+{
+	ByteArray* self = (ByteArray*) alloc_mem(sizeof(ByteArray));
+	ByteArray_init(self);
+	return self;
+}
+
+
+Object* ByteArray_init(struct ByteArray* self)
+{
+	self->class_ = &ByteArray_class;
+	self->size = self->capacity = 0;
+	self->array = NULL;
+	return (Object*) self;
+}
+
+
+uint8_t ByteArray_at(struct ByteArray* self, size_t index)
+{
+	if (index > self->size)
+		Error("ByteArray index out of bounds.");
+	return self->array[index];
+}
+
+
+void ByteArray_ensure_capacity(struct ByteArray* self, size_t needed_size)
+{
+	if (needed_size <= self->capacity)
+		return;
+
+	size_t old_capacity = self->capacity;
+	self->capacity = needed_size + capacity_increment - (needed_size % capacity_increment);
+	uint8_t* new_array = (uint8_t*) alloc_mem_no_pointers(self->capacity * sizeof(uint8_t));
+	memset(new_array + old_capacity, 0, (self->capacity - old_capacity) * sizeof(uint8_t));
+	if (self->array) {
+		// We'd use realloc_mem(), but this might be a slice of another ByteArray.
+		memcpy(new_array, self->array, old_capacity * sizeof(uint8_t));
+		}
+	self->array = new_array;
+}
+
+void ByteArray_set_at(struct ByteArray* self, size_t index, uint8_t value)
+{
+	if (index >= self->size) {
+		ByteArray_ensure_capacity(self, index + 1);
+		self->size = index + 1;
+		}
+
+	self->array[index] = value;
+}
+
+
+void ByteArray_append(struct ByteArray* self, uint8_t value)
+{
+	ByteArray_set_at(self, self->size, value);
+}
+
+
+void ByteArray_append_bytes(struct ByteArray* self, uint8_t* values, size_t size)
+{
+	size_t needed_size = self->size + size;
+	ByteArray_ensure_capacity(self, needed_size);
+	memcpy(self->array + self->size, values, size);
+	self->size = needed_size;
+}
+
+
+String* ByteArray_as_string(ByteArray* self)
+{
+	return new_static_String((char*) self->array, self->size);
+}
+
+
+
+Object* ByteArray_init_builtin(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	ByteArray_init(self);
+
+	if (args[0]) {
+		size_t size = Int_enforce(args[0], "ByteArray.init");
+		self->size = self->capacity = size;
+		self->array = (uint8_t*) alloc_mem_no_pointers(size * sizeof(uint8_t));
+		}
+
+	return (Object*) self;
+}
+
+Object* ByteArray_size_builtin(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	return (Object*) new_Int(self->size);
+}
+
+Object* ByteArray_at_builtin(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	return (Object*) new_Int(ByteArray_at(self, Int_enforce(args[0], "ByteArray.[]")));
+}
+
+Object* ByteArray_set_at_builtin(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	int value = Int_enforce(args[1], "ByteArray[]= value");
+	ByteArray_set_at(self, Int_enforce(args[0], "ByteArray.[]="), value);
+	return args[1];
+}
+
+Object* ByteArray_append_builtin(Object* super, Object** args)
+{
+	ByteArray_append((ByteArray*) super, Int_enforce(args[0], "ByteArray.append"));
+	return NULL;
+}
+
+Object* ByteArray_as_string_builtin(Object* super, Object** args)
+{
+	return (Object*) ByteArray_as_string((ByteArray*) super);
+}
+
+Object* ByteArray_slice(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+
+	int start = args[0] ? Int_enforce(args[0], "ByteArray.slice") : 0;
+	int end = args[1] ? Int_enforce(args[1], "ByteArray.slice") : self->size;
+	if (start < 0)
+		start += self->size;
+	if (start >= self->size)
+		return (Object*) &empty_byte_array;
+	if (end < 0)
+		end += self->size;
+	if (end < start)
+		return (Object*) &empty_byte_array;
+	else if (end > self->size)
+		end = self->size;
+
+	ByteArray* result = alloc_obj(ByteArray);
+	result->class_ = &ByteArray_class;
+	result->size = result->capacity = end - start;
+	result->array = self->array + start;
+	return (Object*) result;
+}
+
+Object* ByteArray_is_valid_utf8(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	return make_bool(is_valid_utf8((const char*) self->array, self->size));
+}
+
+Object* ByteArray_decode_8859_1(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	return (Object*) decode_8859_1(self->array, self->size);
+}
+
+
+typedef struct ByteArrayIterator {
+	Class* class_;
+	ByteArray* byte_array;
+	size_t index;
+	} ByteArrayIterator;
+Class ByteArrayIterator_class;
+
+Object* ByteArrayIterator_next(Object* super, Object** args)
+{
+	ByteArrayIterator* self = (ByteArrayIterator*) super;
+	if (self->index >= self->byte_array->size)
+		return NULL;
+	return (Object*) new_Int(self->byte_array->array[self->index++]);
+}
+
+Object* ByteArray_iterator(Object* super, Object** args)
+{
+	ByteArray* self = (ByteArray*) super;
+	ByteArrayIterator* iterator = alloc_obj(ByteArrayIterator);
+	iterator->class_ = &ByteArrayIterator_class;
+	iterator->byte_array = self;
+	iterator->index = 0;
+	return (Object*) iterator;
+}
+
+
+void ByteArray_init_class()
+{
+	init_static_class(ByteArray);
+	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 1, ByteArray_init_builtin },
+		{ "size", 0, ByteArray_size_builtin },
+		{ "[]", 1, ByteArray_at_builtin },
+		{ "[]=", 1, ByteArray_set_at_builtin },
+		{ "append", 1, ByteArray_append_builtin },
+		{ "as-string", 0, ByteArray_as_string_builtin },
+		{ "slice", 2, ByteArray_slice },
+		{ "is-valid-utf8", 0, ByteArray_is_valid_utf8 },
+		{ "decode-8859-1", 0, ByteArray_decode_8859_1 },
+		{ "iterator", 0, ByteArray_iterator },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&ByteArray_class, builtin_methods);
+
+	init_static_class(ByteArrayIterator);
+	static const BuiltinMethodSpec iterator_methods[] = {
+		{ "next", 0, ByteArrayIterator_next },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&ByteArrayIterator_class, iterator_methods);
+}
+
+
+`.ltrim ],
+
+[ "Nil.h", r`
+#pragma once
+
+struct Class;
+
+extern struct Class Nil_class;
+extern void Nil_init_class();
+
+`.ltrim ],
+
+[ "Nil.c", r`
+#include "Nil.h"
+#include "Class.h"
+#include "String.h"
+#include "Object.h"
+
+Class Nil_class;
+
+Object* Nil_string(Object* self, Object** args)
+{
+	return (Object*) new_c_static_String("nil");
+}
+
+
+void Nil_init_class()
+{
+	Class_init_static(&Nil_class, "Nil", 0);
+
+	static BuiltinMethodSpec builtin_methods[] = {
+		{ "string", 0, Nil_string },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Nil_class, builtin_methods);
+}
+
+
+`.ltrim ],
+
+[ "File.h", r`
+#pragma once
+
+#include <stdio.h>
+
+struct File;
+struct Class;
+struct Object;
+struct File;
+
+extern struct Class File_class;
+void File_init_class();
+
+FILE* File_get_file(struct File* file);
+int File_fd(struct File* file);
+struct Object* File_flush(struct Object* super, struct Object** args);
+
+
+// Helpers.
+extern struct String* file_contents(const char* file_path);
+
+
+`.ltrim ],
+
+[ "File.c", r`
+#include "File.h"
+#include "String.h"
+#include "Path.h"
+#include "LinesIterator.h"
+#include "ByteArray.h"
+#include "Int.h"
+#include "ByteCode.h"
+#include "Memory.h"
+#include "Error.h"
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+Class File_class;
+
+typedef struct File {
+	struct Class* class_;
+	FILE* file;
+	} File;
+
+
+Object* File_init(Object* super, Object** args)
+{
+	File* self = (File*) super;
+
+	// Arguments.
+	const char* path = NULL;
+	if (args[0] == NULL)
+		Error("File() needs a path.");
+	else if (args[0]->class_ == &Path_class)
+		path = ((Path*) args[0])->path;
+	else if (args[0]->class_ == &String_class)
+		path = String_c_str((String*) args[0]);
+	else {
+		String* obj_string = (String*) call_object(args[0], new_c_static_String("string"), NULL);
+		Error("File()'s path argument must be a Path or a String (got %s).", String_c_str(obj_string));
+		}
+	const char* mode = "r";
+	if (args[1] && args[1]->class_ == &String_class)
+		mode = String_c_str((String*) args[1]);
+
+	self->file = fopen(path, mode);
+	if (self->file == NULL)
+		Error("Error opening file \"%s\" (%s).", path, strerror(errno));
+
+	return super;
+}
+
+Object* File_write(Object* super, Object** args)
+{
+	File* self = (File*) super;
+	if (self->file == NULL)
+		Error("Attempt to write to a closed file.");
+	if (args[0] == NULL)
+		Error("Missing argument to File.write().");
+
+	if (args[0]->class_ == &String_class) {
+		String* str = (String*) args[0];
+		fwrite(str->str, str->size, 1, self->file);
+		}
+
+	else if (args[0]->class_ == &ByteArray_class) {
+		ByteArray* byte_array = (ByteArray*) args[0];
+		fwrite(byte_array->array, byte_array->size, 1, self->file);
+		}
+
+	else
+		Error("File.write() needs a String or a ByteArray.");
+	
+	return super;
+}
+
+Object* File_read(Object* super, Object** args)
+{
+	File* self = (File*) super;
+	if (self->file == NULL)
+		Error("Attempt to read from a closed file.");
+	if (args[0] == NULL || args[0]->class_ != &ByteArray_class)
+		Error("File.read() requires a ByteArray.");
+	ByteArray* buffer = (ByteArray*) args[0];
+
+	size_t bytes_read = fread(buffer->array, 1, buffer->size, self->file);
+	if (bytes_read == 0) {
+		if (ferror(self->file))
+			Error("Error while reading a file (%s).", strerror(errno));
+		}
+
+	return (Object*) new_Int(bytes_read);
+}
+
+Object* File_flush(Object* super, Object** args)
+{
+	File* self = (File*) super;
+	if (self->file)
+		fflush(self->file);
+
+	return (Object*) self;
+}
+
+Object* File_close(Object* super, Object** args)
+{
+	File* self = (File*) super;
+	if (self->file) {
+		fclose(self->file);
+		self->file = NULL;
+		}
+
+	return NULL;
+}
+
+
+Object* File_lines(Object* super, Object** args)
+{
+	return (Object*) new_LinesIterator(super);
+}
+
+
+void File_init_class()
+{
+	init_static_class(File);
+	static const BuiltinMethodSpec file_methods[] = {
+		{ "init", 2, File_init },
+		{ "write", 1, File_write },
+		{ "read", 1, File_read },
+		{ "flush", 0, File_flush },
+		{ "close", 0, File_close },
+		{ "lines", 0, File_lines },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&File_class, file_methods);
+}
+
+
+FILE* File_get_file(File* file)
+{
+	return file->file;
+}
+
+
+int File_fd(struct File* file)
+{
+	return fileno(file->file);
+}
+
+
+String* file_contents(const char* file_path)
+{
+	FILE* file = fopen(file_path, "r");
+	if (file == NULL)
+		return NULL;
+	fseek(file, 0, SEEK_END);
+	size_t size = ftell(file);
+	rewind(file);
+	char* text = (char*) alloc_mem(size);
+	size_t bytes_read = fread(text, 1, size, file);
+	fclose(file);
+	return new_static_String(text, bytes_read);
+}
+
+
+`.ltrim ],
+
+[ "Pipe.h", r`
+#pragma once
+
+#include <stdbool.h>
+#include <stddef.h>
+
+struct Class;
+
+typedef struct Pipe {
+	struct Class* class_;
+	int read_fd, write_fd;
+	} Pipe;
+extern Pipe* new_Pipe();
+extern void Pipe_close(Pipe* self);
+extern struct Object* Pipe_capture(Pipe* self, bool as_string, size_t size_limit);
+
+extern struct Class Pipe_class;
+extern void Pipe_init_class();
+
+`.ltrim ],
+
+[ "Pipe.c", r`
+#include "Pipe.h"
+#include "Class.h"
+#include "Object.h"
+#include "String.h"
+#include "ByteArray.h"
+#include "Int.h"
+#include "Memory.h"
+#include "Error.h"
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+
+Class Pipe_class;
+
+
+Object* Pipe_init(Object* super, Object** args)
+{
+	Pipe* self = (Pipe*) super;
+	self->class_ = &Pipe_class;
+
+	int fds[2];
+	int result = pipe(fds);
+	if (result != 0)
+		Error("Error creating a pipe (%s).", strerror(errno));
+	self->read_fd = fds[0];
+	self->write_fd = fds[1];
+
+	extern void close_pipe(void* ptr, void* data);
+	mem_add_finalizer(self, close_pipe, NULL);
+
+	return (Object*) self;
+}
+
+Pipe* new_Pipe()
+{
+	Pipe* self = alloc_obj(Pipe);
+	Pipe_init((Object*) self, NULL);
+	return self;
+}
+
+
+void Pipe_close(Pipe* self)
+{
+	if (self->read_fd >= 0)
+		close(self->read_fd);
+	if (self->write_fd >= 0)
+		close(self->write_fd);
+	self->read_fd = -1;
+	self->write_fd = -1;
+}
+
+
+Object* Pipe_capture(Pipe* self, bool as_string, size_t size_limit)
+{
+	ByteArray* bytes = new_ByteArray();
+
+	int buf_size = 1024;
+	uint8_t* buffer = alloc_mem_no_pointers(buf_size);
+	while (true) {
+		ssize_t bytes_read = read(self->read_fd, buffer, buf_size);
+		if (bytes_read < 0)
+			Error("Error while capturing run() output (%s).", strerror(errno));
+		else if (bytes_read == 0) {
+			// EOF.
+			break;
+			}
+		ByteArray_append_bytes(bytes, buffer, bytes_read);
+		if (size_limit != 0 && bytes->size >= size_limit)
+			Error("Capturing too much output in Pipe.capture().");
+		}
+
+	return (as_string ? (Object*) ByteArray_as_string(bytes) : (Object*) bytes);
+}
+
+
+void close_pipe(void* ptr, void* data)
+{
+	Pipe_close((Pipe*) ptr);
+}
+
+
+Object* Pipe_close_builtin(Object* super, Object** args)
+{
+	Pipe_close((Pipe*) super);
+	return NULL;
+}
+
+Object* Pipe_capture_builtin(Object* super, Object** args)
+{
+	Pipe* self = (Pipe*) super;
+	return Pipe_capture(self, true, 0);
+}
+
+Object* Pipe_read(Object* super, Object** args)
+{
+	Pipe* self = (Pipe*) super;
+	if (self->read_fd < 0)
+		Error("Attempt to read from a closed Pipe.");
+	if (args[0] == NULL || args[0]->class_ != &ByteArray_class)
+		Error("Pipe.read() requires a ByteArray.");
+	ByteArray* buffer = (ByteArray*) args[0];
+
+	ssize_t bytes_read = read(self->read_fd, buffer->array, buffer->size);
+	if (bytes_read < 0)
+		Error("Error while reading from a Pipe (%s).", strerror(errno));
+	return (Object*) new_Int(bytes_read);
+}
+
+Object* Pipe_write(Object* super, Object** args)
+{
+	Pipe* self = (Pipe*) super;
+	if (self->write_fd < 0)
+		Error("Attempt to write to a closed Pipe.");
+
+	const uint8_t* p = NULL;
+	size_t bytes_left = 0;
+	if (args[0] == NULL)
+		Error("Missing argument to Pipe.write().");
+	else if (args[0]->class_ == &ByteArray_class) {
+		ByteArray* buffer = (ByteArray*) args[0];
+		p = buffer->array;
+		bytes_left = buffer->size;
+		}
+	else if (args[0]->class_ == &String_class) {
+		String* str = (String*) args[0];
+		p = (const uint8_t*) str->str;
+		bytes_left = str->size;
+		}
+	else
+		Error("Pipe.write() requires a ByteArray or a String.");
+
+	size_t total_bytes_written = 0;
+	while (bytes_left > 0) {
+		ssize_t bytes_written = write(self->write_fd, p, bytes_left);
+		if (bytes_written < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				continue;
+			Error("Error while writing to a Pipe (%s).", strerror(errno));
+			}
+		total_bytes_written += bytes_written;
+		bytes_left -= bytes_written;
+		p += bytes_written;
+		}
+
+	return (Object*) new_Int(total_bytes_written);
+}
+
+
+void Pipe_init_class()
+{
+	init_static_class(Pipe);
+	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 0, Pipe_init },
+		{ "close", 0, Pipe_close_builtin },
+		{ "capture", 0, Pipe_capture_builtin },
+		{ "read-all", 0, Pipe_capture_builtin },
+		{ "read", 1, Pipe_read },
+		{ "write", 1, Pipe_write },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Pipe_class, builtin_methods);
+}
+
+
+
+`.ltrim ],
+
+[ "Path.h", r`
+#pragma once
+
+struct Class;
+struct String;
+
+typedef struct Path {
+	struct Class* class_;
+	char* path;
+		// "path" is stored as a null-terminated C string.
+	} Path;
+
+extern struct Class Path_class;
+extern void Path_init_class();
+
+
+`.ltrim ],
+
+[ "Path.c", r`
+#include "Path.h"
+#include "Class.h"
+#include "String.h"
+#include "Boolean.h"
+#include "Int.h"
+#include "Object.h"
+#include "Memory.h"
+#include "Error.h"
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+
+Class Path_class;
+
+
+Object* Path_init(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+
+	// Set up "self->path", doing basic tilde expansion.
+	// We'll be using the path with C calls, so we'll include a trailing null
+	// byte.
+	String* initial_path = String_enforce(args[0], "Path.init");
+	if (initial_path->size > 0 && initial_path->str[0] == '~') {
+		char* home_dir = getenv("HOME");
+		if (home_dir == NULL)
+			Error("\"~\" used in a Path, but $HOME isn't set.");
+		size_t home_dir_size = strlen(home_dir);
+		if (initial_path->size == 1) {
+			self->path = alloc_mem(home_dir_size + 1);
+			memcpy(self->path, home_dir, home_dir_size);
+			self->path[home_dir_size] = 0;
+			}
+		else if (initial_path->str[1] == '/') {
+			self->path = alloc_mem(home_dir_size + initial_path->size - 1 + 1);
+			memcpy(self->path, home_dir, home_dir_size);
+			memcpy(self->path + home_dir_size, &initial_path->str[1], initial_path->size - 1);
+			self->path[home_dir_size + initial_path->size - 1] = 0;
+			}
+		else
+			Error("Only basic tilde expansion is available in Path (\"%s\").", String_c_str(initial_path));
+		}
+	else {
+		self->path = alloc_mem(initial_path->size + 1);
+		memcpy(self->path, initial_path->str, initial_path->size);
+		self->path[initial_path->size] = 0;
+		}
+
+	return super;
+}
+
+
+Object* Path_string(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+	return (Object*) new_static_String(self->path, strlen(self->path));
+}
+
+Object* Path_basename(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+	char* start_char = strrchr(self->path, '/');
+	if (start_char)
+		start_char += 1;
+	else
+		start_char = self->path;
+	return (Object*) new_static_String(start_char, strlen(start_char));
+}
+
+Object* Path_dirname(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+	char* end_char = strrchr(self->path, '/');
+	if (end_char == NULL)
+		return (Object*) new_c_static_String(".");
+
+	// Trim any additional trailing slashes.
+	while (end_char > self->path && end_char[-1] == '/')
+		end_char -= 1;
+	if (end_char == self->path) {
+		// Went too far!  The path is "/".
+		end_char += 1;
+		}
+
+	return (Object*) new_static_String(self->path, end_char - self->path);
+}
+
+Object* Path_exists(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+
+	struct stat info;
+	int result = stat(self->path, &info);
+	if (result != 0) {
+		if (errno == ENOENT)
+			return &false_obj;
+		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+		}
+	return &true_obj;
+}
+
+Object* Path_is_file(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+
+	struct stat info;
+	int result = stat(self->path, &info);
+	if (result != 0) {
+		if (errno == ENOENT)
+			return &false_obj;
+		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+		}
+	return make_bool(S_ISREG(info.st_mode));
+}
+
+Object* Path_is_dir(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+
+	struct stat info;
+	int result = stat(self->path, &info);
+	if (result != 0) {
+		if (errno == ENOENT)
+			return &false_obj;
+		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+		}
+	return make_bool(S_ISDIR(info.st_mode));
+}
+
+Object* Path_is_symlink(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+
+	struct stat info;
+	int result = lstat(self->path, &info);
+	if (result != 0) {
+		if (errno == ENOENT)
+			return &false_obj;
+		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+		}
+	return make_bool(S_ISLNK(info.st_mode));
+}
+
+Object* Path_size(Object* super, Object** args)
+{
+	Path* self = (Path*) super;
+
+	struct stat info;
+	int result = stat(self->path, &info);
+	if (result != 0)
+		Error("Error when getting info about \"%s\" (%s).", self->path, strerror(errno));
+	return (Object*) new_Int(info.st_size);
+}
+
+
+Object* Path_can_access(Object* super, int mode)
+{
+	Path* self = (Path*) super;
+	int result = faccessat(AT_FDCWD, self->path, mode, AT_EACCESS);
+	return make_bool(result == 0);
+}
+
+Object* Path_can_read(Object* super, Object** args)
+{
+	return Path_can_access(super, R_OK);
+}
+
+Object* Path_can_write(Object* super, Object** args)
+{
+	return Path_can_access(super, W_OK);
+}
+
+Object* Path_can_execute(Object* super, Object** args)
+{
+	return Path_can_access(super, X_OK);
+}
+
+
+void Path_init_class()
+{
+	init_static_class(Path);
+
+	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 2, Path_init },
+		{ "string", 0, Path_string },
+		{ "basename", 0, Path_basename },
+		{ "base-name", 0, Path_basename },
+		{ "dirname", 0, Path_dirname },
+		{ "dir-name", 0, Path_dirname },
+		{ "exists", 0, Path_exists },
+		{ "is-file", 0, Path_is_file },
+		{ "is-dir", 0, Path_is_dir },
+		{ "is-symlink", 0, Path_is_symlink },
+		{ "size", 0, Path_size },
+		{ "can-read", 0, Path_can_read },
+		{ "can-write", 0, Path_can_write },
+		{ "can-execute", 0, Path_can_execute },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Path_class, builtin_methods);
+}
+
+
+
+
+`.ltrim ],
+
+[ "Print.h", r`
+#pragma once
+
+struct Object;
+
+struct Object* Print(struct Object* self, struct Object** args);
+
+`.ltrim ],
+
+[ "Print.c", r`
+#include "Print.h"
+#include "String.h"
+#include "Object.h"
+#include "Dict.h"
+#include "Array.h"
+#include "ByteCode.h"
+#include "File.h"
+#include "Boolean.h"
+#include "Error.h"
+#include <stdio.h>
+#include <stdbool.h>
+
+declare_static_string(end_option, "end");
+declare_static_string(file_option, "file");
+declare_static_string(out_option, "out");
+declare_static_string(flush_option, "flush");
+
+
+struct Object* Print(struct Object* self, struct Object** args)
+{
+	// Get the options.
+	String* end_string = NULL;
+	Object* file_object = NULL;
+	bool flush = false;
+	Dict* options = (Dict*) args[1];
+	if (options && options->class_ == &Dict_class) {
+		// "end"
+		end_string = (String*) Dict_at(options, &end_option);
+		if (end_string)
+			String_enforce((Object*) end_string, "print() \"end\" option");
+
+		// "file" or "out"
+		file_object = Dict_at(options, &file_option);
+		if (file_object == NULL)
+			file_object = Dict_at(options, &out_option);
+
+		// "flush"
+		Object* flush_object = Dict_at(options, &flush_option);
+		flush = IS_TRUTHY(flush_object);
+		}
+
+	if (args[0]) {
+		if (args[0]->class_ != &String_class)
+			args[0] = call_object(args[0], new_c_static_String("string"), NULL);
+		String* str = (String*) args[0];
+		if (file_object) {
+			Object* args_array[] = { args[0] };
+			Array args = { &Array_class, 1, 1, args_array };
+			call_object(file_object, new_c_static_String("write"), &args);
+			}
+		else
+			fwrite(str->str, str->size, 1, stdout);
+		}
+
+	if (end_string == NULL)
+		end_string = new_c_static_String("\n");
+	if (file_object) {
+		Object* args_array[] = { (Object*) end_string };
+		Array args = { &Array_class, 1, 1, args_array };
+		call_object(file_object, new_c_static_String("write"), &args);
+		}
+	else
+		fwrite(end_string->str, end_string->size, 1, stdout);
+
+	if (flush) {
+		if (file_object) {
+			declare_static_string(flush_string, "flush");
+			Array args = { &Array_class, 0, 0, NULL };
+			call_object(file_object, &flush_string, &args);
+			}
+		else
+			fflush(stdout);
+		}
+
+	return NULL;
+}
+
+
+`.ltrim ],
+
+[ "Run.h", r`
+#pragma once
+
+struct Object;
+struct String;
+
+struct Object* Run(struct Object* self, struct Object** args);
+
+extern void Run_init();
+
+extern struct String capture_string;
+extern struct String wait_string;
+extern struct String stdin_string;
+extern struct String stdout_string;
+extern struct String stderr_string;
+extern struct String env_string;
+
+`.ltrim ],
+
+[ "Run.c", r`
+#include "Run.h"
+#include "Pipe.h"
+#include "File.h"
+#include "Object.h"
+#include "Class.h"
+#include "Array.h"
+#include "String.h"
+#include "Dict.h"
+#include "ByteArray.h"
+#include "ByteCode.h"
+#include "Int.h"
+#include "Boolean.h"
+#include "Memory.h"
+#include "Error.h"
+#include <unistd.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <stdbool.h>
+#include <errno.h>
+
+declare_string(capture_string, "capture");
+declare_string(wait_string, "wait");
+declare_string(stdin_string, "stdin");
+declare_string(stdout_string, "stdout");
+declare_string(stderr_string, "stderr");
+declare_string(env_string, "env");
+
+extern char** build_environ(Dict* env);
+
+
+typedef struct RunResult {
+	Class* class_;
+	pid_t pid;
+	bool done;
+	int return_code;
+	Pipe* capture_pipe;
+	Object* captured_output;
+	} RunResult;
+Class RunResult_class;
+static RunResult* new_RunResult(pid_t pid, Pipe* capture_pipe);
+Object* RunResult_wait(Object* super, Object** args);
+void RunResult_capture(RunResult* self);
+
+
+Object* Run(Object* self, Object** args)
+{
+	// The command: Array or String?
+	Array* args_array = (Array*) args[0];
+	if (args_array == NULL || args_array->class_ != &Array_class) {
+		if (args_array != NULL && args_array->class_ == &String_class) {
+			// Following the example of the system(3) man page.
+			args_array = new_Array();
+			Array_append(args_array, (Object*) new_c_static_String("/bin/sh"));
+			Array_append(args_array, (Object*) new_c_static_String("-c"));
+			Array_append(args_array, args[0]);
+			}
+		else
+			Error("run() needs an Array or String as its first argument.");
+		}
+
+	// Options.
+	bool capture = false;
+	bool wait = true;
+	int stdin_fd = -1, stdout_fd = -1, stderr_fd = -1;
+	Pipe* stdin_pipe = NULL;
+	Pipe* stdout_pipe = NULL;
+	Pipe* stderr_pipe = NULL;
+	Dict* env = NULL;
+	Dict* options = (Dict*) args[1];
+	if (options && options->class_ == &Dict_class) {
+		capture = Dict_option_turned_on(options, &capture_string);
+		if (Dict_option_turned_off(options, &wait_string))
+			wait = false;
+		Object* option = Dict_at(options, &stdin_string);
+		if (option) {
+			if (option->class_ == &Pipe_class) {
+				stdin_pipe = (Pipe*) option;
+				stdin_fd = stdin_pipe->read_fd;
+				}
+			else if (option->class_ == &File_class)
+				stdin_fd = File_fd((struct File*) option);
+			else
+				Error("run(): \"stdin\" must be a Pipe or a File.");
+			}
+		option = Dict_at(options, &stdout_string);
+		if (option) {
+			if (capture)
+				Error("run(): Can't use \"capture\" and \"stdout\" options at the same time.");
+			if (option->class_ == &Pipe_class) {
+				stdout_pipe = (Pipe*) option;
+				stdout_fd = stdout_pipe->write_fd;
+				}
+			else if (option->class_ == &File_class) {
+				stdout_fd = File_fd((struct File*) option);
+				File_flush(option, NULL);
+				}
+			else
+				Error("run(): \"stdout\" must be a Pipe or a File.");
+			}
+		option = Dict_at(options, &stderr_string);
+		if (option) {
+			if (option->class_ == &Pipe_class) {
+				stderr_pipe = (Pipe*) option;
+				stderr_fd = stderr_pipe->write_fd;
+				}
+			else if (option->class_ == &File_class) {
+				stderr_fd = File_fd((struct File*) option);
+				File_flush(option, NULL);
+				}
+			else
+				Error("run(): \"stderr\" must be a Pipe or a File.");
+			}
+		env = (Dict*) Dict_at(options, &env_string);
+		if (env && env->class_ != &Dict_class)
+			Error("run(): \"env\" must be a Dict.");
+		}
+
+	// Make the argv.
+	char* argv[args_array->size + 1];
+	for (int i = 0; i < args_array->size; ++i) {
+		String* arg = (String*) Array_at(args_array, i);
+		if (arg->class_ != &String_class)
+			Error("run(): All program arguments must be strings.");
+		argv[i] = (char*) String_c_str(arg);
+		}
+	argv[args_array->size] = NULL;
+
+	// Set up to capture.
+	if (capture) {
+		stdout_pipe = new_Pipe();
+		stdout_fd = stdout_pipe->write_fd;
+		}
+
+	// Fork.
+	pid_t pid = fork();
+	if (pid < 0)
+		Error("run(): fork() failed (%s).", strerror(errno));
+	else if (pid == 0) {
+		// We're now in the child.
+
+		// If piping or redirecting, set that up.
+		if (stdin_fd >= 0) {
+			dup2(stdin_fd, STDIN_FILENO);
+			if (stdin_pipe) {
+				close(stdin_pipe->write_fd);
+				stdin_pipe->write_fd = -1;
+				}
+			}
+		if (stdout_fd >= 0) {
+			dup2(stdout_fd, STDOUT_FILENO);
+			if (stdout_pipe) {
+				close(stdout_pipe->read_fd); 	// Close the read end.
+				stdout_pipe->read_fd = -1;
+				}
+			}
+		if (stderr_fd >= 0) {
+			dup2(stderr_fd, STDERR_FILENO);
+			if (stderr_pipe) {
+				close(stderr_pipe->read_fd);
+				stderr_pipe->read_fd = -1;
+				}
+			}
+
+		// Environment.
+		// We'd use execvpe(), but that's not part of POSIX.
+		if (env) {
+			extern char** environ;
+			environ = build_environ(env);
+			}
+
+		// Run.
+		execvp(argv[0], argv);
+		Error("run(): Failed to start \"%s\" (%s).", argv[0], strerror(errno));
+		}
+	else {
+		// This is still the parent process.
+
+		// Piping and capturing output.
+		if (stdin_pipe) {
+			close(stdin_pipe->read_fd);
+			stdin_pipe->read_fd = -1;
+			}
+		if (stdout_pipe) {
+			close(stdout_pipe->write_fd);
+			stdout_pipe->write_fd = -1;
+			}
+		if (stderr_pipe) {
+			close(stderr_pipe->write_fd);
+			stderr_pipe->write_fd = -1;
+			}
+
+		// Wait for child to exit.
+		RunResult* run_result = new_RunResult(pid, stdout_pipe);
+		if (wait) {
+			if (capture)
+				RunResult_capture(run_result);
+			RunResult_wait((Object*) run_result, NULL);
+			}
+		return (Object*) run_result;
+		}
+
+	return NULL;
+}
+
+
+static RunResult* new_RunResult(pid_t pid, Pipe* capture_pipe)
+{
+	RunResult* self = alloc_obj(RunResult);
+	self->class_ = &RunResult_class;
+	self->pid = pid;
+	self->capture_pipe = capture_pipe;
+	return self;
+}
+
+
+Object* RunResult_return_code(Object* super, Object** args)
+{
+	RunResult_wait(super, NULL);
+	return (Object*) new_Int(((RunResult*) super)->return_code);
+}
+
+Object* RunResult_ok(Object* super, Object** args)
+{
+	RunResult_wait(super, NULL);
+	return make_bool(((RunResult*) super)->return_code == 0);
+}
+
+Object* RunResult_output(Object* super, Object** args)
+{
+	RunResult_capture((RunResult*) super);
+	RunResult_wait(super, NULL);
+	return ((RunResult*) super)->captured_output;
+}
+
+Object* RunResult_wait(Object* super, Object** args)
+{
+	RunResult* self = (RunResult*) super;
+	if (!self->done) {
+		int status = 0;
+		waitpid(self->pid, &status, 0);
+		self->return_code = WEXITSTATUS(status);
+		self->done = true;
+		}
+	return (Object*) self;
+}
+
+Object* RunResult_is_done(Object* super, Object** args)
+{
+	RunResult* self = (RunResult*) super;
+	if (self->done)
+		return &true_obj;
+
+	int status = 0;
+	pid_t result = waitpid(self->pid, &status, WNOHANG);
+	if (result == 0)
+		return &false_obj;
+	self->return_code = WEXITSTATUS(status);
+	self->done = true;
+	return &true_obj;
+}
+
+void RunResult_capture(RunResult* self)
+{
+	if (self->capture_pipe == NULL || self->captured_output)
+		return;
+
+	self->captured_output = Pipe_capture(self->capture_pipe, true, 0);
+	Pipe_close(self->capture_pipe);
+}
+
+
+void Run_init()
+{
+	init_static_class(RunResult);
+	static const BuiltinMethodSpec run_result_methods[] = {
+		{ "return-code", 0, RunResult_return_code },
+		{ "ok", 0, RunResult_ok },
+		{ "output", 0, RunResult_output },
+		{ "wait", 0, RunResult_wait },
+		{ "is-done", 0, RunResult_is_done },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&RunResult_class, run_result_methods);
+}
+
+
+
+char** build_environ(Dict* env)
+{
+	char** environ = (char**) alloc_mem((env->size + 1) * sizeof(char*));
+	DictIterator* iterator = new_DictIterator(env);
+	declare_static_string(equals_string, "=");
+
+	char** next_env_entry = environ;
+	while (true) {
+		DictIteratorResult kv = DictIterator_next(iterator);
+		if (kv.key == NULL)
+			break;
+		if (kv.value == NULL)
+			continue;
+		String* value = String_enforce(kv.value, "run(): \"env\" values must be strings.");
+		String* entry = String_add(kv.key, String_add(&equals_string, value));
+		*next_env_entry++ = (char*) String_c_str(entry);
+		}
+	// Null-terminate the list.
+	*next_env_entry++ = NULL;
+
+	return environ;
+}
+
+
+
+`.ltrim ],
+
+[ "Regex.h", r`
+#pragma once
+
+#include <regex.h>
+
+struct Class;
+struct Dict;
+
+
+typedef struct Regex {
+	struct Class* class_;
+	regex_t* regex;
+	int num_groups;
+	struct Dict* capture_groups;
+	} Regex;
+
+extern struct Class Regex_class;
+extern void Regex_init_class();
+
+`.ltrim ],
+
+[ "Regex.c", r`
+#include "Regex.h"
+#include "Class.h"
+#include "Object.h"
+#include "String.h"
+#include "Dict.h"
+#include "Int.h"
+#include "Boolean.h"
+#include "Memory.h"
+#include "Error.h"
+#include <string.h>
+
+Class Regex_class;
+Class RegexMatch_class;
+
+static String extended_syntax, case_insensitive, newline;
+static String not_bol, not_eol;
+
+
+void free_regex(void* ptr, void* data)
+{
+	regfree((regex_t*) ptr);
+}
+
+extern char* Regex_adjust_regex(Regex* self, String* regex_string);
+
+Object* Regex_init(Object* super, Object** args)
+{
+	Regex* self = (Regex*) super;
+
+	// Options.
+	int flags = REG_EXTENDED;
+	if (args[1] && args[1]->class_ == &Dict_class) {
+		Dict* options = (Dict*) args[1];
+		if (Dict_option_turned_off(options, &extended_syntax))
+			flags &= ~REG_EXTENDED;
+		if (Dict_option_turned_on(options, &case_insensitive))
+			flags |= REG_ICASE;
+		if (Dict_option_turned_on(options, &newline))
+			flags |= REG_NEWLINE;
+		}
+
+	String* regex_string = String_enforce(args[0], "Regex.init");
+	char* adjusted_regex = Regex_adjust_regex(self, regex_string);
+
+	// Compile the regex.
+	self->regex = (regex_t*) alloc_mem(sizeof(regex_t));
+	int result = regcomp(self->regex, adjusted_regex, flags);
+	if (result) {
+		size_t error_length = regerror(result, self->regex, NULL, 0);
+		char* message = alloc_mem_no_pointers(error_length);
+		regerror(result, self->regex, message, error_length);
+		Error("Couldn't compile regex (%s).", message);
+		}
+	mem_add_finalizer(self->regex, free_regex, NULL);
+
+	return super;
+}
+
+char* Regex_adjust_regex(Regex* self, String* regex_string)
+{
+	// Count the groups, and get the named groups.
+	self->num_groups = 0;
+	char* adjusted_regex_string = alloc_mem(regex_string->size + 1);
+	const char* p = regex_string->str;
+	const char* end = p + regex_string->size;
+	char* out = adjusted_regex_string;
+	while (p < end) {
+		char c = *p++;
+		*out++ = c;
+		if (p < end && *p == '\'')
+			*out++ = *p++;
+
+		else if (c == '(') {
+			self->num_groups += 1;
+			String* group_name = NULL;
+			if (p + 3 < end && memcmp(p, "?P<", 3) == 0) {
+				// Named capture group.
+				p += 3;
+				const char* name_start = p;
+
+				// Find the end of the name.
+				while (true) {
+					if (p >= end)
+						Error("Unterminated capture group name in regex.");
+					if (*p == '>') {
+						group_name = new_String(name_start, p - name_start);
+						p += 1;
+						break;
+						}
+					p += 1;
+					}
+
+				// Add the name.
+				if (self->capture_groups == NULL)
+					self->capture_groups = new_Dict();
+				// We need a non-zero index (zero == NULL == no entry in the Dict), so
+				// leave it +1, which will be the index we eventually want anyway.
+				Dict_set_at(self->capture_groups, group_name, (Object*) (size_t) self->num_groups);
+				}
+			}
+		}
+
+	// Make it a C string.
+	*out++ = 0;
+	return adjusted_regex_string;
+}
+
+
+typedef struct RegexMatch {
+	Class* class_;
+	String* str;
+	Regex* regex;
+	regmatch_t* matches;
+	} RegexMatch;
+
+
+Object* Regex_match(Object* super, Object** args)
+{
+	Regex* self = (Regex*) super;
+
+	String* str = String_enforce(args[0], "Regex.match");
+
+	// Options.
+	int flags = 0;
+	if (args[1] && args[1]->class_ == &Dict_class) {
+		Dict* options = (Dict*) args[1];
+		if (IS_TRUTHY(Dict_at(options, &not_bol)))
+			flags |= REG_NOTBOL;
+		if (IS_TRUTHY(Dict_at(options, &not_eol)))
+			flags |= REG_NOTEOL;
+		}
+
+	// Match.
+	regmatch_t* matches =
+		(regmatch_t*) alloc_mem_no_pointers((self->num_groups + 1) * sizeof(regmatch_t));
+	int result = regexec(self->regex, String_c_str(str), self->num_groups + 1, matches, flags);
+	if (result != 0)
+		return NULL;
+
+	// Create the RegexMatch.
+	RegexMatch* match = alloc_obj(RegexMatch);
+	match->class_ = &RegexMatch_class;
+	match->str = str;
+	match->regex = self;
+	match->matches = matches;
+	return (Object*) match;
+}
+
+
+Object* RegexMatch_at(Object* super, Object** args)
+{
+	RegexMatch* self = (RegexMatch*) super;
+
+	// Get the index, either given directly or as the name of a group.
+	size_t index = 0;
+	if (args[0] && args[0]->class_ == &String_class) {
+		if (self->regex->capture_groups)
+			index = (size_t) Dict_at(self->regex->capture_groups, (String*) args[0]);
+		if (index == 0)
+			Error("No capture group named \"%s\" in regex.", String_c_str((String*) args[0]));
+		}
+	else
+		index = Int_enforce(args[0], "RegexMatch.[]");
+
+	if (index >= self->regex->num_groups + 1)
+		return NULL;
+	regmatch_t* match = &self->matches[index];
+	if (match->rm_so == -1)
+		return (Object*) &empty_string;
+	return (Object*) new_static_String(self->str->str + match->rm_so, match->rm_eo - match->rm_so);
+}
+
+Object* RegexMatch_remainder(Object* super, Object** args)
+{
+	RegexMatch* self = (RegexMatch*) super;
+
+	regoff_t remainder_start = self->matches[0].rm_eo;
+	return (Object*) new_static_String(self->str->str + remainder_start, self->str->size - remainder_start);
+}
+
+
+void Regex_init_class()
+{
+	init_static_class(Regex);
+	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "init", 2, Regex_init },
+		{ "match", 2, Regex_match },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Regex_class, builtin_methods);
+
+	String_init_static_c(&extended_syntax, "extended-syntax");
+	String_init_static_c(&case_insensitive, "case-insensitive");
+	String_init_static_c(&newline, "newline");
+	String_init_static_c(&not_bol, "not-bol");
+	String_init_static_c(&not_eol, "not-eol");
+
+	init_static_class(RegexMatch);
+	static const BuiltinMethodSpec match_methods[] = {
+		{ "[]", 1, RegexMatch_at },
+		{ "remainder", 0, RegexMatch_remainder },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&RegexMatch_class, match_methods);
+}
+
+
+
+`.ltrim ],
+
+[ "Glob.h", r`
+#pragma once
+
+struct Object;
+
+struct Object* Glob(struct Object* self, struct Object** args);
+
+`.ltrim ],
+
+[ "Glob.c", r`
+#include "Glob.h"
+#include "Object.h"
+#include "String.h"
+#include "Array.h"
+#include "Dict.h"
+#include "Error.h"
+#include <glob.h>
+
+static bool Glob_initialized = false;
+static String mark_directories, sort, escape;
+static String tilde;
+
+static void Glob_init()
+{
+	String_init_static_c(&mark_directories, "mark-directories");
+	String_init_static_c(&sort, "sort");
+	String_init_static_c(&escape, "escape");
+	String_init_static_c(&tilde, "tilde");
+
+	Glob_initialized = true;
+}
+
+
+Object* Glob(Object* self, Object** args)
+{
+	Glob_init();
+	String* pattern = String_enforce(args[0], "glob()");
+
+	// Flags.
+	int flags = 0;
+	Dict* options = (Dict*) args[1];
+	if (options && options->class_ == &Dict_class) {
+		if (Dict_option_turned_on(options, &mark_directories))
+			flags |= GLOB_MARK;
+		if (Dict_option_turned_off(options, &sort))
+			flags |= GLOB_NOSORT;
+		if (Dict_option_turned_off(options, &escape))
+			flags |= GLOB_NOESCAPE;
+		if (Dict_option_turned_on(options, &tilde)) {
+			// Not POSIX, a GNU extension, but musl supports it too.
+			flags |= GLOB_TILDE;
+			}
+		}
+
+	// Do it.
+	Array* result = new_Array();
+	glob_t found_files;
+	int err = glob(String_c_str(pattern), flags, NULL, &found_files);
+	if (err == GLOB_NOMATCH) {
+		globfree(&found_files);
+		return (Object*) result;
+		}
+	else if (err != 0)
+		Error("glob() failed for some reason.");
+
+	// Build the result.
+	for (int i = 0; i < found_files.gl_pathc; ++i)
+		Array_append(result, (Object*) new_c_String(found_files.gl_pathv[i]));
+
+	globfree(&found_files);
+	return (Object*) result;
+}
+
+
+
+`.ltrim ],
+
+[ "MiscFunctions.h", r`
+#pragma once
+
+struct Object;
+
+struct Object* Sleep(struct Object* self, struct Object** args);
+struct Object* Getpid(struct Object* self, struct Object** args);
+struct Object* Get_cwd(struct Object* self, struct Object** args);
+struct Object* Chdir(struct Object* self, struct Object** args);
+struct Object* Rename(struct Object* self, struct Object** args);
+
+`.ltrim ],
+
+[ "MiscFunctions.c", r`
+#include "MiscFunctions.h"
+#include "Int.h"
+#include "Float.h"
+#include "Object.h"
+#include "Class.h"
+#include "String.h"
+#include "Path.h"
+#include "Nil.h"
+#include "Memory.h"
+#include "Error.h"
+#include <time.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include <errno.h>
+
+
+Object* Sleep(Object* self, Object** args)
+{
+	double seconds = Float_enforce(args[0], "sleep");
+	struct timespec ts = { seconds, (seconds - (int) seconds) * 1000000000 };
+	while (true) {
+		int result = nanosleep(&ts, &ts);
+		if (result == 0)
+			break;
+		if (errno != EINTR)
+			Error("Error in sleep() (%s).", strerror(errno));
+		}
+	return NULL;
+}
+
+
+Object* Getpid(Object* self, Object** args)
+{
+	return (Object*) new_Int(getpid());
+}
+
+
+Object* Get_cwd(Object* self, Object** args)
+{
+	size_t buf_size = 64;
+	char* buffer = NULL;
+	while (true) {
+		buffer = alloc_mem_no_pointers(buf_size);
+		if (getcwd(buffer, buf_size) == NULL) {
+			if (errno != ERANGE)
+				Error("Error getting the cwd() (%s).", strerror(errno));
+			}
+		else
+			break;
+		buf_size += 64;
+		}
+	return (Object*) new_c_String(buffer);
+}
+
+
+const char* enforce_path(Object* object, const char* where)
+{
+	const char* c_str = NULL;
+	if (object) {
+		if (object->class_ == &String_class)
+			c_str = String_c_str((String*) object);
+		else if (object->class_ == &Path_class)
+			c_str = ((Path*) object)->path;
+		}
+	if (c_str == NULL) {
+		Class* class_ = (object ? object->class_ : &Nil_class);
+		Error("String required, but got a %s, in \"%s\".", String_c_str(class_->name), where);
+		}
+	return c_str;
+}
+
+Object* Chdir(Object* self, Object** args)
+{
+	const char* new_wd = enforce_path(args[0], "chdir()");
+	int result = chdir(new_wd);
+	if (result != 0)
+		Error("Failure to set working directory (%s).", strerror(errno));
+	return args[0];
+}
+
+
+Object* Rename(Object* self, Object** args)
+{
+	const char* old_path = enforce_path(args[0], "rename old-path");
+	const char* new_path = enforce_path(args[1], "rename new-path");
+	int result = rename(old_path, new_path);
+	if (result != 0)
+		Error("rename() failed (%s)\n", strerror(errno));
+	return NULL;
+}
+
+
+
+`.ltrim ],
+
+[ "Fail.h", r`
+#pragma once
+
+struct Object;
+
+struct Object* Fail(struct Object* self, struct Object** args);
+
+
+`.ltrim ],
+
+[ "Fail.c", r`
+#include "Fail.h"
+#include "Object.h"
+#include "String.h"
+#include <unistd.h>
+#include <stdlib.h>
+
+
+Object* Fail(Object* self, Object** args)
+{
+	if (args[0]) {
+		String* message = String_enforce(args[0], "fail()");
+		write(STDERR_FILENO, message->str, message->size);
+		write(STDERR_FILENO, "\n", 1);
+		}
+	exit(1);
+	return NULL;
+}
+
+
+
+`.ltrim ],
+
+[ "Env.h", r`
+#pragma once
+
+struct Class;
+
+typedef struct Env {
+	struct Class* class_;
+	} Env;
+
+extern Env env_obj;
+extern struct Class Env_class;
+extern void Env_init_class();
+
+`.ltrim ],
+
+[ "Env.c", r`
+#include "Env.h"
+#include "String.h"
+#include "Dict.h"
+#include "Class.h"
+#include "Object.h"
+#include <stdlib.h>
+#include <string.h>
+
+Class Env_class;
+Env env_obj = { &Env_class };
+
+
+Object* Env_at(Object* super, Object** args)
+{
+	String* key = String_enforce(args[0], "env.[]");
+	char* result = getenv(String_c_str(key));
+	return (result ? (Object*) new_c_String(result) : NULL);
+}
+
+Object* Env_as_dict(Object* super, Object** args)
+{
+	Dict* dict = new_Dict();
+	extern char** environ;
+	for (char** e = environ; *e; ++e) {
+		const char* entry = *e;
+		char* delim = strchr(entry, '=');
+		if (delim == NULL)
+			continue;
+		String* key = new_String(entry, delim - entry);
+		String* value = new_c_String(delim + 1);
+		Dict_set_at(dict, key, (Object*) value);
+		}
+	return (Object*) dict;
+}
+
+
+void Env_init_class()
+{
+	init_static_class(Env);
+
+	static const BuiltinMethodSpec builtin_methods[] = {
+		{ "[]", 1, Env_at },
+		{ "as-dict", 0, Env_as_dict },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&Env_class, builtin_methods);
+}
+
+
+
+`.ltrim ],
+
+[ "BuiltinMethod.h", r`
+#pragma once
+
+struct Class;
+struct Object;
+
+typedef struct BuiltinMethod {
+	struct Class* class_;
+	int num_args; 	// Put this in the same position in both Method and BuiltinMethod.
+	struct Object* (*fn)(struct Object* self, struct Object** args);
+	} BuiltinMethod;
+extern BuiltinMethod* new_BuiltinMethod(int num_args, struct Object* (*fn)(struct Object* self, struct Object** args));
+
+extern struct Class BuiltinMethod_class;
+extern void BuiltinMethod_init_class();
+
+`.ltrim ],
+
+[ "BuiltinMethod.c", r`
+#include "BuiltinMethod.h"
+#include "Class.h"
+#include "Memory.h"
+
+
+BuiltinMethod* new_BuiltinMethod(int num_args, struct Object* (*fn)(struct Object* self, struct Object** args))
+{
+	BuiltinMethod* self = alloc_obj(BuiltinMethod);
+	self->class_ = &BuiltinMethod_class;
+	self->num_args = num_args;
+	self->fn = fn;
+	return self;
+}
+
+
+struct Class BuiltinMethod_class;
+
+void BuiltinMethod_init_class()
+{
+	init_static_class(BuiltinMethod);
+}
+
+
+`.ltrim ],
+
+[ "Error.h", r`
+#pragma once
+
+extern void Error(const char* message, ...);
+
+// For error messages, builds a C string.
+struct String;
+extern const char* where(int line_number, struct String* filename);
+
+
+`.ltrim ],
+
+[ "Error.c", r`
+#include "Error.h"
+#include "String.h"
+#include "Array.h"
+#include "Object.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+
+
+void Error(const char* message, ...)
+{
+	va_list args;
+	va_start(args, message);
+
+	vfprintf(stderr, message, args);
+	fprintf(stderr, "\n");
+
+	va_end(args);
+	exit(EXIT_FAILURE);
+}
+
+
+const char* where(int line_number, struct String* filename)
+{
+	Array* strings = new_Array();
+	declare_static_string(line_str, "on line ");
+	Array_append(strings, (Object*) &line_str);
+	char buf[32];
+	snprintf(buf, sizeof(buf), "%d", line_number);
+	Array_append(strings, (Object*) new_c_String(buf));
+	if (filename) {
+		declare_static_string(filename_start_str, " of \"");
+		declare_static_string(filename_end_str, "\"");
+		Array_append(strings, (Object*) &filename_start_str);
+		Array_append(strings, (Object*) filename);
+		Array_append(strings, (Object*) &filename_end_str);
+		}
+	return String_c_str(Array_join(strings, NULL));
+}
+
+
+`.ltrim ],
+
+[ "UTF8.h", r`
+#pragma once
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+struct String;
+
+
+extern bool is_valid_utf8(const char* bytes, int num_bytes);
+extern int bytes_in_utf8_character(uint8_t byte);
+extern int bytes_in_n_characters(const char* bytes, int num_characters);
+extern int chars_in_utf8(const char* bytes, int num_bytes);
+extern int put_utf8(uint32_t character, char* utf8_out);
+extern struct String* decode_8859_1(const uint8_t* bytes, size_t size);
+
+`.ltrim ],
+
+[ "UTF8.c", r`
+#include "UTF8.h"
+#include "String.h"
+#include "Memory.h"
+
+
+int bytes_in_utf8_character(uint8_t byte)
+{
+	if ((byte & 0x80) == 0)
+		return 1;
+
+	if ((byte & 0xC0) == 0x80 || byte == 0xC0 || byte == 0xC1)
+		return -1;
+	int num_bytes = 1;
+	while (true) {
+		num_bytes += 1;
+		byte <<= 1;
+		if ((byte & 0xC0) == 0x80)
+			break;
+		if (byte == 0)
+			return -1;
+		}
+	return (num_bytes > 6 ? -1 : num_bytes);
+}
+
+
+int bytes_in_n_characters(const char* bytes, int num_characters)
+{
+	int total_bytes = 0;
+	for (; num_characters > 0; --num_characters) {
+		int char_bytes = bytes_in_utf8_character(*bytes);
+		if (char_bytes < 0)
+			return -1;
+		total_bytes += char_bytes;
+		bytes += char_bytes;
+		}
+	return total_bytes;
+}
+
+
+int chars_in_utf8(const char* bytes_in, int num_bytes)
+{
+	int total_chars = 0;
+	const uint8_t* bytes = (const uint8_t*) bytes_in;
+	const uint8_t* end = bytes + num_bytes;
+	while (bytes < end) {
+		int char_bytes = bytes_in_utf8_character(*bytes);
+		if (char_bytes < 0)
+			return -1;
+		total_chars += 1;
+		bytes += char_bytes;
+		if (bytes > end)
+			return -1;
+		}
+	return total_chars;
+}
+
+
+bool is_valid_utf8(const char* bytes, int num_bytes)
+{
+	const uint8_t* p = (const uint8_t*) bytes;
+	const uint8_t* end = p + num_bytes;
+	while (p < end) {
+		// Single-byte characters.
+		uint8_t c = *p++;
+		if ((c & 0x80) == 0)
+			continue;
+
+		// How many bytes?
+		int bytes_left = bytes_in_utf8_character(c) - 1;
+		if (bytes_left < 0 || p + bytes_left > end)
+			return false;
+
+		while (bytes_left-- > 0) {
+			if ((*p++ & 0xC0) != 0x80)
+				return false;
+			}
+		}
+
+	return true;
+}
+
+
+int put_utf8(uint32_t c, char* utf8_out)
+{
+	uint8_t* p = (uint8_t*) utf8_out;
+
+	int bytes_left = 0;
+	if (c < 0x80)
+		*p++ = c;
+	else if (c < 0x800) {
+		*p++ = 0xC0 | (c >> 6);
+		bytes_left = 1;
+		}
+	else if (c < 0x10000) {
+		*p++ = 0xE0 | (c >> 12);
+		bytes_left = 2;
+		}
+	else if (c < 200000) {
+		*p++ = 0xF0 | (c >> 18);
+		bytes_left = 3;
+		}
+	else if (c < 0x04000000) {
+		*p++ = 0xF8 | (c >> 24);
+		bytes_left = 4;
+		}
+	else {
+		*p++ = 0xFC | (c >> 30);
+		bytes_left = 5;
+		}
+
+	int shift = (bytes_left - 1) * 6;
+	while (bytes_left-- > 0) {
+		*p++ = 0x80 | ((c >> shift) & 0x3F);
+		shift -= 6;
+		}
+
+	return p - (uint8_t*) utf8_out;
+}
+
+
+String* decode_8859_1(const uint8_t* bytes, size_t size)
+{
+	// First, figure out how many bytes we'll need.
+	size_t extra_bytes = 0;
+	const uint8_t* p = bytes;
+	const uint8_t* end = bytes + size;
+	while (p < end) {
+		uint8_t c = *p++;
+		if (c >= 0x80) {
+			if (c < 0xA0) {
+				// These characters are actually Windows-1252, and are not valid in
+				// ISO-8859-1, but standard practice is to accept Windows-1252 (a
+				// superset of ISO-8859-1) whenever ISO-8859-1 is specified.
+				// These characters range from U+0152 to U+2122, which all are
+				// represented in 3 bytes in UTF-8.
+				extra_bytes += 2;
+				}
+			else
+				extra_bytes += 1;
+			}
+		}
+
+	static uint32_t cp_1252_chars[32] = {
+		0x20AC, 0, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+		0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0, 0x017D, 0,
+		0, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+		0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0, 0x017E, 0x0178,
+		};
+
+	// Decode.
+	char* utf8_bytes = alloc_mem(size + extra_bytes);
+	p = bytes;
+	char* out = utf8_bytes;
+	while (p < end) {
+		uint8_t c = *p++;
+		if (c < 0x80)
+			*out++ = (char) c;
+		else if (c < 0xA0)
+			out += put_utf8(cp_1252_chars[c - 0x80], out);
+		else
+			out += put_utf8(c, out);
+		}
+
+	// Make and return the String.
+	String* result = alloc_obj(String);
+	result->class_ = &String_class;
+	result->str = utf8_bytes;
+	result->size = size + extra_bytes;
+	return result;
+}
+
+
+
+`.ltrim ],
+
+[ "LinesIterator.h", r`
+#pragma once
+
+#include <stddef.h>
+
+struct Class;
+struct Object;
+
+
+typedef struct LinesIterator {
+	struct Class* class_;
+	struct Object* stream;
+	size_t buffer_size;
+	char* buffer;
+	size_t start_point, bytes_read;
+	} LinesIterator;
+extern struct Class LinesIterator_class;
+
+LinesIterator* new_LinesIterator(struct Object* stream);
+
+extern void LinesIterator_init_class();
+
+`.ltrim ],
+
+[ "LinesIterator.c", r`
+#include "LinesIterator.h"
+#include "String.h"
+#include "ByteArray.h"
+#include "Array.h"
+#include "Int.h"
+#include "Object.h"
+#include "Class.h"
+#include "ByteCode.h"
+#include "Memory.h"
+#include "Error.h"
+#include <string.h>
+
+Class LinesIterator_class;
+
+#define INITIAL_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 65536
+
+
+LinesIterator* new_LinesIterator(Object* stream)
+{
+	LinesIterator* self = (LinesIterator*) alloc_obj(LinesIterator);
+	self->class_ = &LinesIterator_class;
+	self->stream = stream;
+	self->buffer_size = INITIAL_BUFFER_SIZE;
+	self->buffer = alloc_mem_no_pointers(self->buffer_size);
+	self->start_point = self->bytes_read = 0;
+	return self;
+}
+
+Object* LinesIterator_next(Object* super, Object** args)
+{
+	LinesIterator* self = (LinesIterator*) super;
+
+	while (true) {
+		// Find the next end-of-line.
+		const char* p = self->buffer + self->start_point;
+		const char* end = self->buffer + self->bytes_read;
+		const char* line_start = p;
+		const char* line_end = NULL;
+		while (p < end) {
+			char c = *p++;
+			if (c == '\n') {
+				line_end = p - 1;
+				self->start_point = p - self->buffer;
+				break;
+				}
+			else if (c == '\r') {
+				// Followed by '\n'?
+				if (p >= end) {
+					if (self->start_point == 0) {
+						// We've reached the EOF, so this is the end of the last line.
+						line_end = p - 1;
+						self->start_point = self->bytes_read = 0;
+						}
+					else {
+						// Read some more.
+						}
+					break;
+					}
+				else if (*p == '\n') {
+					line_end = p - 1;
+					self->start_point = p + 1 - self->buffer;
+					break;
+					}
+				}
+			}
+		if (line_end)
+			return (Object*) new_String(line_start, line_end - line_start);
+
+		// Read some more.
+		// Is the buffer full?
+		if (self->start_point == 0 && self->bytes_read >= self->buffer_size) {
+			// Grow the buffer... up to a limit.
+			size_t new_buffer_size = self->buffer_size * 2;
+			if (new_buffer_size > MAX_BUFFER_SIZE)
+				Error("LinesIterator.next: tried to read a line that's too long.");
+			char* new_buffer = alloc_mem_no_pointers(new_buffer_size);
+			memcpy(new_buffer, self->buffer, self->bytes_read);
+			self->buffer = new_buffer;
+			self->buffer_size = new_buffer_size;
+			}
+		// Move the remaining read bytes to the beginning of the buffer.
+		if (self->start_point > 0) {
+			size_t bytes_left = self->bytes_read - self->start_point;
+			memmove(self->buffer, self->buffer + self->start_point, bytes_left);
+			self->start_point = 0;
+			self->bytes_read = bytes_left;
+			}
+		// Read the rest of the buffer.
+		size_t bytes_to_read = self->buffer_size - self->bytes_read;
+		ByteArray buffer = {
+			&ByteArray_class,
+			bytes_to_read, bytes_to_read,
+			(uint8_t*) self->buffer + self->bytes_read };
+		Object* args_array[] = { (Object*) &buffer };
+		Array args = { &Array_class, 1, 1, args_array };
+		Object* result = call_object(self->stream, new_c_static_String("read"), &args);
+		int bytes_read = Int_enforce(result, "LinesIterator.next");
+		if (bytes_read == 0) {
+			if (self->bytes_read == 0)
+				return NULL;
+			else {
+				// Last line didn't have a line ending.
+				String* last_line = new_String(self->buffer, self->bytes_read);
+				self->bytes_read = 0;
+				return (Object*) last_line;
+				}
+			}
+		self->bytes_read += bytes_read;
+		}
+
+	return NULL;
+}
+
+
+void LinesIterator_init_class()
+{
+	init_static_class(LinesIterator);
+	static const BuiltinMethodSpec lines_methods[] = {
+		{ "next", 0, LinesIterator_next },
+		{ "iterator", 0, Object_identity },
+		{ NULL },
+		};
+	Class_add_builtin_methods(&LinesIterator_class, lines_methods);
+}
+
+`.ltrim ],
+
+[ "Memory.h", r`
+#pragma once
+
+#include "gc.h"
+
+// Note that these will clear the allocated memory.
+
+#define alloc_mem(size) (GC_MALLOC(size))
+#define alloc_mem_no_pointers(size) (GC_MALLOC_ATOMIC(size))
+#define realloc_mem(ptr, size) (GC_REALLOC(ptr, size))
+
+#define alloc_obj(Type) ((Type*) alloc_mem(sizeof(Type)))
+
+#define mem_add_finalizer(ptr, fn, data) (GC_REGISTER_FINALIZER(ptr, fn, data, NULL, NULL))
+
+`.ltrim ],
+
+[ "sqs_compiled.h", r`
+#pragma once
+
+#include "Object.h"
+#include "Class.h"
+#include "String.h"
+#include "Int.h"
+#include "Float.h"
+#include "Array.h"
+#include "Dict.h"
+#include "Boolean.h"
+#include "ByteArray.h"
+#include "Nil.h"
+#include "File.h"
+#include "Pipe.h"
+#include "Path.h"
+#include "BuiltinMethod.h"
+
+#include "Print.h"
+#include "Run.h"
+#include "Regex.h"
+#include "Glob.h"
+#include "MiscFunctions.h"
+#include "Fail.h"
+#include "Env.h"
+
+
+typedef Object* Object_ptr;
+
+#define ivar_get_(index) ( ((Object**) self)[index + 1] )
+#define ivar_set_(index, value) ( ((Object**) self)[index + 1] = value )
+
+extern Object* call_(const char* name, Object* receiver, int num_args, Object** args);
+extern Object* super_call_(const char* name, Class* child_class, Object* receiver, int num_args, Object** args);
+
+typedef struct UpvalFrame UpvalFrame;
+struct UpvalFrame {
+	int capture_id;
+	UpvalFrame* up;
+	Object*** captures;
+	};
+extern Object** get_upvalue_(int capture_id, int index);
+extern UpvalFrame* cur_upval_frame_;
+
+extern Array argv_obj;
+
+#define inline_string_(value) ((Object*) &(String) { &String_class, value, sizeof(value) - 1 })
+
+`.ltrim ],
+
+[ "sqs_compiled.c", r`
+#include "sqs_compiled.h"
+#include "LinesIterator.h"
+#include "Error.h"
+#include <string.h>
+
+
+UpvalFrame* cur_upval_frame_ = NULL;
+Array argv_obj = { &Array_class, 0, 0, NULL };
+
+
+Object* call_(const char* name, Object* receiver, int num_args, Object** args)
+{
+	// Find the method.
+	String name_str;
+	String_init_static_c(&name_str, name);
+	Object* method = Object_find_method(receiver, &name_str);
+	if (method == NULL || method->class_ != &BuiltinMethod_class) {
+		Class* receiver_class = (receiver ? receiver->class_ : &Nil_class);
+		Error("Unhandled method call: \"%s\" on %s.", name, String_c_str(receiver_class->name));
+		}
+
+	// Call it.
+	BuiltinMethod* builtin_method = (BuiltinMethod*) method;
+	int method_num_args = builtin_method->num_args;
+	if (num_args < method_num_args) {
+		Object* more_args[method_num_args];
+		memset(more_args, 0, sizeof(more_args));
+		int i = 0;
+		for (; i < num_args; ++i)
+			more_args[i] = args[i];
+		for (; i < method_num_args; ++i)
+			more_args[i] = NULL;
+		return builtin_method->fn(receiver, more_args);
+		}
+	else
+		return builtin_method->fn(receiver, args);
+}
+
+
+Object* super_call_(const char* name, Class* child_class, Object* receiver, int num_args, Object** args)
+{
+	// Find the method.
+	String name_str;
+	String_init_static_c(&name_str, name);
+	Object* method = Class_find_super_method(child_class, &name_str);
+	if (method == NULL || method->class_ != &BuiltinMethod_class) {
+		Class* receiver_class = (receiver ? receiver->class_ : &Nil_class);
+		Error("Unhandled method call: \"%s\" on %s.", name, String_c_str(receiver_class->name));
+		}
+
+	// Call it.
+	BuiltinMethod* builtin_method = (BuiltinMethod*) method;
+	int method_num_args = builtin_method->num_args;
+	if (num_args < method_num_args) {
+		Object* more_args[method_num_args];
+		memset(more_args, 0, sizeof(more_args));
+		int i = 0;
+		for (; i < num_args; ++i)
+			more_args[i] = args[i];
+		for (; i < method_num_args; ++i)
+			more_args[i] = NULL;
+		return builtin_method->fn(receiver, more_args);
+		}
+	else
+		return builtin_method->fn(receiver, args);
+}
+
+
+Object** get_upvalue_(int capture_id, int index)
+{
+	for (UpvalFrame* frame = cur_upval_frame_; frame; frame = frame->up) {
+		if (frame->capture_id == capture_id)
+			return frame->captures[index];
+		}
+	Error("Internal error: bad capture ID (%d)", capture_id);
+	return NULL;
+}
+
+Object* call_object(Object* receiver, String* name, Array* args)
+{
+	// Find the method.
+	Object* method = Object_find_method(receiver, name);
+	if (method == NULL || method->class_ != &BuiltinMethod_class) {
+		Class* receiver_class = (receiver ? receiver->class_ : &Nil_class);
+		Error("Unhandled method call: \"%s\" on %s.", name, String_c_str(receiver_class->name));
+		}
+
+	// Call it.
+	BuiltinMethod* builtin_method = (BuiltinMethod*) method;
+	int num_args = (args ? args->size : 0);
+	int method_num_args = builtin_method->num_args;
+	if (num_args < method_num_args) {
+		Object* more_args[method_num_args];
+		memset(more_args, 0, sizeof(more_args));
+		int i = 0;
+		for (; i < num_args; ++i)
+			more_args[i] = args->items[i];
+		for (; i < method_num_args; ++i)
+			more_args[i] = NULL;
+		return builtin_method->fn(receiver, more_args);
+		}
+	else
+		return builtin_method->fn(receiver, (args ? args->items : NULL));
+}
+
+
+static void init_all()
+{
+	Class_init_class();
+	Object_init_class();
+	String_init_class();
+	Int_init_class();
+	Float_init_class();
+	Boolean_init_class();
+	Array_init_class();
+	ByteArray_init_class();
+	Dict_init_class();
+	BuiltinMethod_init_class();
+	Nil_init_class();
+	File_init_class();
+	Pipe_init_class();
+	LinesIterator_init_class();
+	Regex_init_class();
+	Path_init_class();
+	Env_init_class();
+	Run_init();
+}
+
+
+int main(int argc, char* argv[])
+{
+	init_all();
+	extern void sqs_init_classes();
+	sqs_init_classes();
+
+	for (int i = 0; i < argc; ++i)
+		Array_append(&argv_obj, (Object*) new_c_static_String(argv[i]));
+	extern Object* sqs_main(Object* self, Object** args);
+	Object* result = sqs_main(NULL, NULL);
+	if (result)
+		return Int_enforce(result, "main result");
+	return 0;
+}
+
+
+`.ltrim ],
+
+[ "ByteCode.h", r'
+#pragma once
+
+#include "sqs_compiled.h"
+#include "Object.h"
+#include "Array.h"
+#include "String.h"
+
+extern Object* call_object(Object* receiver, String* name, Array* args);
+'.ltrim ],
+
+]
+
+
+export fn build-runtime(build-dir, cflags)
+	# First, create the source files.
+	$ mkdir -p "{build-dir}/runtime"
+	cc = env["CC"] || "cc"
+	source-files = []
+	for pair: runtime-files
+		filename = pair[0]
+		source-file = "{build-dir}/runtime/{filename}"
+		if !Path(source-file).exists
+			with file = File(source-file, "w")
+				file.write(pair[1])
+		if filename.ends-with(".c")
+			source-files.append(filename)
+
+	# Then compile them, if needed.
+	object-files = []
+	for filename: source-files
+		source-file = "{build-dir}/runtime/{filename}"
+		object-file = "{build-dir}/{filename.slice(0, -2)}.o"
+		object-files.append(object-file)
+		if !Path(object-file).exists
+			print("Compiling {filename}...")
+			$ {cc} {cflags} -c {source-file} -o {object-file}
+	return object-files
+
+

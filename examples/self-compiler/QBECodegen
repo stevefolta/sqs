@@ -1,0 +1,775 @@
+#!/usr/bin/env sqs
+
+import Codegen ParseNode FunctionStatement Builtins
+import Debugging
+
+string-start-re = Regex(r'^[[:alnum:]_-]{1,8}')
+quoteable = r'][:alnum:] !#-/:-@[^_`'
+quotable-run-re = Regex("^[{quoteable}]+")
+unquotable-run-re = Regex("^[^{quoteable}]+")
+
+
+export class QBEProgramBuilder: ProgramBuilder
+	(out next-block-id next-label-id next-temp-id next-string-id break-stack)
+	(identifiers strings)
+	(max-call-args)
+	(deferred-lines extra-preamble)
+
+	init(context-in, build-dir)
+		super.init(context-in)
+		out = File("{build-dir}/main.qbe", "w")
+		next-block-id = next-label-id = next-temp-id = next-string-id = max-call-args = 0
+		break-stack = []
+		strings = {}
+		deferred-lines = []
+	close
+		out.close()
+
+	mangle-name(name)
+		return name.replace("-", "_").replace("=", "_eq_")
+	function-prefix(parent-context, name)
+		prefix = parent-context && parent-context.generated-prefix(self)
+		name = mangle-name(name)
+		if prefix
+			return "{prefix}.{name}"
+		return name
+	class-prefix(parent-context, name)
+		prefix = parent-context && parent-context.generated-prefix(self)
+		name = mangle-name(name)
+		if prefix
+			return "{prefix}.{name}"
+		return name
+
+	add(line)
+		deferred-lines.append("{indent-spacers.slice(0, indentation)}{line}")
+	flush(lines)
+		if !lines
+			lines = deferred-lines
+		for line: lines
+			out.write(line)
+			out.write("\n")
+		deferred-lines = []
+	indent
+		indentation += 1
+	dedent
+		if indentation > 0
+			indentation -= 1
+
+	new-label
+		next-label-id += 1
+		return "@label.{next-label-id}"
+	new-temp
+		next-temp-id += 1
+		return "%temp.{next-temp-id}"
+
+	start-function()
+		next-block-id = next-label-id = next-temp-id = 0
+		max-call-args = 0
+		extra-preamble = []
+	emit-extra-preamble()
+		for line: extra-preamble
+			add(line)
+		extra-preamble = []
+
+	emit(ast)
+		ast.resolve-names(self)
+		ast.emit-top-level-declarations(self)
+		flush()
+		ast.emit-top-level(self)
+		flush()
+
+		# sqs_init_classes()
+		add("export function $sqs_init_classes() {{")
+		indent
+		add("@start")
+		for class-statement: all-classes
+			class-name = class-statement.generated-name
+			if class-statement.functions.size > 0
+				add("call $Class_add_builtin_methods(l ${class-name}_class, l ${class-name}.builtin_methods)")
+		add("ret")
+		dedent
+		add(r"}")
+		add("")
+		flush()
+
+		# sqs_main()
+		# Body (deferred).
+		start-function()
+		indent()
+		ast.emit(self)
+		dedent()
+		body-lines = deferred-lines
+		deferred-lines = []
+		# Preamble.
+		add("export function l $sqs_main(l %self, l %args) {{")
+		indent()
+		add("@start")
+		add("%fn.call_args =l alloc8 {max-call-args * 8}")
+		emit-extra-preamble()
+		flush()
+		# Body.
+		flush(body-lines)
+		# Postamble.
+		add("ret 0")
+		dedent()
+		add(r"}")
+		add("")
+		flush()
+
+		emit-strings()
+		add("")
+		flush()
+
+	emit-function(function-statement)
+		start-function()
+
+		# Initial preamble.
+		add("function l ${function-statement.generated-name}(l %self, l %fn.args) {{")
+		indent
+		add("@start")
+		if function-statement.arguments
+			offset = 0
+			for arg: function-statement.arguments
+				add("%temp.ptr =l add %fn.args, {offset}")
+				add("%{mangle-name(arg)} =l loadl %temp.ptr")
+				offset += 8
+		flush()
+
+		# Body.
+		if function-statement.body
+			# Deferred emission of body, during which time we'll gather more info for
+			# the preamble.
+			function-statement.body.emit(self)
+			body-lines = deferred-lines
+			deferred-lines = []
+
+			# Further preamble.
+			add("%fn.call_args =l alloc8 {max-call-args * 8}")
+			emit-extra-preamble()
+			flush
+			flush(body-lines)
+
+		# Postamble.
+		if (function-statement.name == "init")
+			add("ret %self")
+		else
+			add("ret 0")
+		dedent
+		add(r"}")
+		add("")
+		flush()
+
+	emit-block-start(block)
+		# Block ID.
+		next-block-id += 1
+		block.generated-id = next-block-id
+		block-prefix = "%block.{block.generated-id}."
+
+		# Set up locals.
+		if block.locals && block.locals.size > 0
+			# QBE names.
+			num-captured = 0
+			for kv: block.locals
+				mangled-name = mangle-name(kv.key)
+				kv.value.generated = "{block-prefix}{mangled-name}"
+				if kv.value.is-captured
+					num-captured += 1
+			# Captures.
+			if num-captured > 0
+				captured-locals-loc = "{block-prefix}locals_"
+				extra-preamble.append("{captured-locals-loc} =l alloc8 {num-captured * 8}")
+				offset = 0
+				for kv: block.locals
+					if kv.value.is-captured
+						add("{kv.value.generated} =l add {captured-locals-loc}, {offset}")
+						offset += 8
+			# Initialize.
+			for kv: block.locals
+				local = kv.value
+				if local.is-captured
+					add("storel 0, {local.generated}")
+				else
+					add("{local.generated} =l copy 0")
+
+		# Captures frame.
+		if block.captured-locals
+			# Pointers to captured variables.
+			captures-loc = "{block-prefix}captures_"
+			extra-preamble.append("{captures-loc} =l alloc8 {block.captured-locals.size * 8}")
+			ptr-loc = new-temp
+			offset = 0
+			for local: block.captured-locals
+				add("{ptr-loc} =l add {captures-loc}, {offset}")
+				add("storel {local.generated}, {ptr-loc}")
+				offset += 8
+			# Make the frame
+			frame-loc = "{block-prefix}capture_frame_"
+			extra-preamble.append("{frame-loc} =l alloc8 24")
+			add("storel {block.capture-id}, {frame-loc}")
+			add("{ptr-loc} =l add {frame-loc}, 8")
+			cur-frame-loc = new-temp
+			add("{cur-frame-loc} =l loadl $cur_upval_frame_")
+			add("storel {cur-frame-loc}, {ptr-loc}")
+			add("{ptr-loc} =l add {frame-loc}, 16")
+			add("storel {captures-loc}, {ptr-loc}")
+			# Push the frame.
+			add("storel {frame-loc}, $cur_upval_frame_")
+			push-unwinding(block)
+
+	emit-block-end(block)
+		if block.captured-locals
+			pop-unwinding(block)
+			block.emit-unwind(self)
+	emit-block-unwind(block)
+		if block.captured-locals
+			block-prefix = "%block.{block.generated-id}."
+			frame-loc = "{block-prefix}capture_frame_"
+			ptr-loc = new-temp
+			add("{ptr-loc} =l add {frame-loc}, 8")
+			up = new-temp
+			add("{up} =l loadl {ptr-loc}")
+			add("storel {up}, $cur_upval_frame_")
+
+	emit-truthy-test(loc, true-label, false-label)
+		false-test-label = new-label
+		add("jnz {loc}, {false-test-label}, {false-label}")
+		add(false-test-label)
+		false-test-temp = new-temp
+		add("{false-test-temp} =w ceql {loc}, $false_obj")
+		add("jnz {false-test-temp}, {false-label}, {true-label}")
+
+	class BreakContinue
+		(break-label continue-label)
+		init(break-in, continue-in)
+			break-label = break-in
+			continue-label = continue-in
+	push-break(break-label, continue-label)
+		break-stack.append(BreakContinue(break-label, continue-label))
+	pop-break()
+		break-stack.pop-back()
+
+	emit-if-statement(statement)
+		condition-loc = statement.condition.emit(self)
+		if-block-label = new-label
+		else-block-label = new-label
+		end-label = new-label
+		emit-truthy-test(condition-loc, if-block-label, else-block-label)
+		add(if-block-label)
+		if statement.if-block
+			indent
+			statement.if-block.emit(self)
+			dedent
+		add("jmp {end-label}")
+		add(else-block-label)
+		if statement.else-block
+			indent
+			statement.else-block.emit(self)
+			dedent
+		add("jmp {end-label}")
+		add(end-label)
+	emit-while-statement(statement)
+		loop-label = new-label
+		body-label = new-label
+		end-label = new-label
+		push-break(end-label, loop-label)
+		add(loop-label)
+		indent
+		condition-loc = statement.condition.emit(self)
+		emit-truthy-test(condition-loc, body-label, end-label)
+		add(body-label)
+		if statement.body
+			push-unwinding(statement)
+			statement.body.emit(self)
+			pop-unwinding(statement)
+		add("jmp {loop-label}")
+		dedent
+		pop-break()
+		add(end-label)
+	emit-for-statement(statement)
+		collection-loc = statement.collection.emit(self)
+		iterator-loc = new-temp
+		next-temp-id += 1
+		variable-loc = "%{mangle-name(statement.variable-name)}.{next-temp-id}"
+		statement.generated = variable-loc
+		iterator-str-loc = string-loc("iterator")
+		add("{iterator-loc} =l call $call_(l {iterator-str-loc}.c, l {collection-loc}, l 0, l 0)")
+		loop-label = new-label
+		body-label = new-label
+		end-label = new-label
+		push-break(end-label, loop-label)
+		add(loop-label)
+		indent
+		next-str-loc = string-loc("next")
+		add("{variable-loc} =l call $call_(l {next-str-loc}.c, l {iterator-loc}, l 0, l 0)")
+		add("jnz {variable-loc}, {body-label}, {end-label}")
+		add(body-label)
+		if statement.body
+			push-unwinding(statement)
+			statement.body.emit(self)
+			pop-unwinding(statement)
+		add("jmp {loop-label}")
+		dedent
+		pop-break()
+		add(end-label)
+	emit-for-statement-variable(statement)
+		return statement.generated
+	emit-continue
+		if break-stack.is-empty
+			fail('"continue" statement is not inside a loop')
+		emit-unwind-loop()
+		add("jmp {break-stack.back.continue-label} \t# continue")
+		add(new-label)
+	emit-break
+		if break-stack.is-empty
+			fail('"break" statement is not inside a loop')
+		emit-unwind-loop()
+		add("jmp {break-stack.back.break-label} \t# break")
+		add(new-label)
+
+	emit-return-statement(value-loc)
+		emit-unwind-function()
+		if !value-loc
+			value-loc = "0"
+		add("ret {value-loc}")
+		add("{new-label}")
+
+	emit-with-statement(statement)
+		# We'll augment the name, to make sure it isn't shadowed by a sublock (but
+		# is that even possible?).
+		next-temp-id += 1
+		var-loc = "%{mangle-name(statement.name)}.{next-temp-id}"
+		statement.unwind-loc = var-loc
+		expr-loc = statement.expr.emit(self)
+		add("{var-loc} =l copy {expr-loc}")
+		if statement.body
+			push-unwinding(statement)
+			statement.body.emit(self)
+			pop-unwinding(statement)
+		statement.emit-unwind(self)
+	emit-with-statement-variable(statement)
+		return statement.unwind-loc
+	emit-with-unwind(statement)
+		close-str = string-loc("close")
+		add("call $call_(l {close-str}.c, l {statement.unwind-loc}, l 0, l 0)")
+
+	emit-run-statement(statement)
+		# Create the array of arguments.
+		args-array = new-temp
+		add("{args-array} =l call $new_Array()")
+		for arg: statement.arguments
+			arg-loc = arg.emit(self)
+			add("call $Array_append_strings(l {args-array}, l {arg-loc})")
+
+		# Create the options.
+		options-dict = "0"
+		if statement.in-pipe-loc || statement.out-pipe-loc || statement.capture
+			options-dict = new-temp
+			add("{options-dict} =l call $new_Dict()")
+			if statement.in-pipe-loc
+				stdin-str-loc = string-loc("stdin")
+				add("call $Dict_set_at(l {options-dict}, l {stdin-str-loc}.obj, l {statement.in-pipe-loc})")
+			if statement.out-pipe-loc
+				stdout-str-loc = string-loc("stdout")
+				add("call $Dict_set_at(l {options-dict}, l {stdout-str-loc}.obj, l {statement.out-pipe-loc})")
+				# Don't wait for this process, only wait for the last process in the
+				# pipeline.
+				wait-str-loc = string-loc("wait")
+				add("call $Dict_set_at(l {options-dict}, l {wait-str-loc}.obj, l $false_obj)")
+			else if statement.capture
+				capture-str-loc = string-loc("capture")
+				add("call $Dict_set_at(l {options-dict}, l {capture-str-loc}.obj, l $true_obj)")
+
+		# Emit the call.
+		if max-call-args < 2
+			max-call-args = 2
+		run-fn-args = "%fn.call_args"
+		add("storel {args-array}, {run-fn-args}")
+		arg-ptr = new-temp
+		add("{arg-ptr} =l add {run-fn-args}, 8")
+		add("storel {options-dict}, {arg-ptr}")
+		result = new-temp
+		add("{result} =l call $Run(l 0, l {run-fn-args})")
+		return result
+
+	emit-args-list(arg-locs)
+		if arg-locs.size == 0
+			return "0"
+		args-list-loc = "%fn.call_args"
+		cur-arg-loc = new-temp
+		offset = 0
+		for arg-loc: arg-locs
+			add("{cur-arg-loc} =l add {args-list-loc}, {offset}")
+			add("storel {arg-loc}, {cur-arg-loc}")
+			offset += 8
+		return args-list-loc
+	update-max-call-args(arg-locs)
+		num-args = arg-locs.size
+		if num-args > max-call-args
+			max-call-args = num-args
+	emit-call(name, receiver-loc, arg-locs)
+		update-max-call-args(arg-locs)
+		result-loc = new-temp
+		id-loc = string-loc(name)
+		args-list-loc = emit-args-list(arg-locs)
+		add("{result-loc} =l call $call_(l {id-loc}.c, l {receiver-loc}, l {arg-locs.size}, l {args-list-loc})")
+		return result-loc
+	emit-super-call(name, arg-locs)
+		update-max-call-args(arg-locs)
+		result-loc = new-temp
+		id-loc = string-loc(name)
+		args-list-loc = emit-args-list(arg-locs)
+		class-loc = "${cur-class.generated-name}_class"
+		add("{result-loc} =l call $super_call_(l {id-loc}.c, l {class-loc}, l %self, l {arg-locs.size}, l {args-list-loc})")
+		return result-loc
+	emit-function-call(fn-loc, arg-locs)
+		if !arg-locs
+			arg-locs = []
+		update-max-call-args(arg-locs)
+		result-loc = new-temp
+		args-list-loc = emit-args-list(arg-locs)
+		add("{result-loc} =l call {fn-loc}(l %self, l {args-list-loc})")
+		return result-loc
+	emit-instantiation(class-node, arg-locs)
+		update-max-call-args(arg-locs)
+		class-loc = class-node.emit(self)
+		new-obj = new-temp
+		add("{new-obj} =l call $Class_instantiate(l {class-loc})")
+		# Emit "init" call (if there is one).
+		if class-node.is-a(ClassRef) && !class-node.class-statement.functions["init"]
+			# No "init".
+			return new-obj
+		result-loc = new-temp
+		args-list-loc = emit-args-list(arg-locs)
+		id-loc = string-loc("init")
+		add("{result-loc} =l call $call_(l {id-loc}.c, l {new-obj}, l {arg-locs.size}, l {args-list-loc})")
+		return result-loc
+
+	emit-local-get(local)
+		if local.is-captured
+			result = new-temp
+			add("{result} =l loadl {local.generated}")
+			return result
+		return local.generated
+	emit-local-set(local, value-loc)
+		if local.is-captured
+			add("storel {value-loc}, {local.generated}")
+		else
+			add("{local.generated} =l copy {value-loc}")
+		return value-loc
+	emit-ivar-get(name)
+		offset = (cur-class.ivar-index(name) + 1) * 8
+		result = new-temp
+		add("{result} =l add %self, {offset}")
+		add("{result} =l loadl {result}")
+		return result
+	emit-ivar-set(name, value-loc)
+		offset = (cur-class.ivar-index(name) + 1) * 8
+		ptr = new-temp
+		add("{ptr} =l add %self, {offset}")
+		add("storel {value-loc}, {ptr}")
+		return value-loc
+	emit-argument-get(name)
+		return "%{mangle-name(name)}"
+	emit-argument-set(name, value-loc)
+		add("%{mangle-name(name)} =l copy {value-loc}")
+		return value-loc
+	emit-upvalue-get(capture-id, index)
+		result = new-temp
+		ptr = new-temp
+		add("{ptr} =l call $get_upvalue_(l {capture-id}, l {index})")
+		add("{result} =l loadl {ptr}")
+		return result
+	emit-upvalue-set(capture-id, index, value-loc)
+		result = new-temp
+		ptr = new-temp
+		add("{ptr} =l call $get_upvalue_(l {capture-id}, l {index})")
+		add("storel {value-loc}, {ptr}")
+		return value-loc
+
+	emit-function-ref(function-statement)
+		# Note that this doesn't actually reference an object; it will be treated
+		# specially by FunctionCallExpr.emit()/emit-function-call().
+		return "${function-statement.generated-name}"
+	emit-class-ref(class-statement)
+		return "${class-statement.generated-name}_class"
+
+	emit-short-circuit-expression(expression)
+		result = new-temp
+		continue-label = new-label
+		end-label = new-label
+		loc1 = expression.expr1.emit(self)
+		add("{result} =l copy {loc1}")
+		if expression.is-and
+			emit-truthy-test(result, continue-label, end-label)
+		else
+			emit-truthy-test(result, end-label, continue-label)
+		add(continue-label)
+		loc2 = expression.expr2.emit(self)
+		add("{result} =l copy {loc2}")
+		add(end-label)
+		return result
+	emit-short-circuit-not(expression)
+		result = new-temp
+		was-true-label = new-label
+		was-false-label = new-label
+		end-label = new-label
+		loc = expression.expr.emit(self)
+		emit-truthy-test(loc, was-true-label, was-false-label)
+		add(was-true-label)
+		add("{result} =l copy $false_obj")
+		add("jmp {end-label}")
+		add(was-false-label)
+		add("{result} =l copy $true_obj")
+		add("jmp {end-label}")
+		add(end-label)
+		return result
+
+	emit-interpolated-string-literal(segments)
+		accumulator = new-temp
+		add("{accumulator} =l call $new_Array()")
+		for segment: segments
+			loc = segment.emit(self)
+			add("call $Array_append(l {accumulator}, l {loc})")
+		result = new-temp
+		add("{result} =l call $Array_join(l {accumulator}, l 0)")
+		return result
+
+	emit-run-pipeline(expression)
+		# Make the pipes.
+		pipe-locs = []
+		pipes-left = expression.commands.size - 1
+		while pipes-left > 0
+			loc = new-temp
+			add("{loc} =l call $Class_instantiate(l $Pipe_class)")
+			init-str = string-loc("init")
+			add("call $call_(l {init-str}.c, l {loc}, l 0, l 0)")
+			pipe-locs.append(loc)
+			pipes-left -= 1
+
+		# Emit the RunCommands.
+		result-loc = new-temp
+		which-command = 0
+		for command: expression.commands
+			# Attach pipes/capture.
+			if which-command != 0
+				command.in-pipe-loc = pipe-locs[which-command - 1]
+			is-last-command = (which-command == expression.commands.size - 1)
+			if !is-last-command
+				command.out-pipe-loc = pipe-locs[which-command]
+			else if expression.capture
+				command.capture = true
+
+			# Emit.
+			command-result-loc = command.emit(self)
+
+			if is-last-command
+				add("{result-loc} =l copy {command-result-loc}")
+
+			which-command += 1
+
+		# Return the result of the last RunCommand.
+		return result-loc
+
+	emit-run-capture(pipeline)
+		run-result-loc = pipeline.emit(self)
+		output-result-loc = new-temp
+		output-str = string-loc("output")
+		add("{output-result-loc} =l call $call_(l {output-str}.c, l {run-result-loc}, l 0, l 0)")
+		trim-result-loc = new-temp
+		trim-str = string-loc("trim")
+		add("{trim-result-loc} =l call $call_(l {trim-str}.c, l {output-result-loc}, l 0, l 0)")
+		return trim-result-loc
+
+	emit-string-literal(value)
+		return "{string-loc(value)}.obj"
+	emit-int-literal(value)
+		result = new-temp
+		add("{result} =l call $new_Int(l {value})")
+		return result
+	emit-float-literal(value)
+		result = new-temp
+		add("{result} =l call $new_Float(d d_{value})")
+		return result
+	emit-bool-literal(value)
+		if value
+			return "$true_obj"
+		else
+			return "$false_obj"
+	emit-array-literal(items)
+		result = new-temp
+		add("{result} =l call $new_Array()")
+		for item: items
+			item-loc = item.emit(self)
+			add("call $Array_append(l {result}, l {item-loc})")
+		return result
+	emit-dict-literal(items)
+		result = new-temp
+		add("{result} =l call $new_Dict()")
+		for item: items
+			key-loc = string-loc(item.key)
+			value-loc = item.value.emit(self)
+			add("call $Dict_set_at(l {result}, l {key-loc}.obj, l {value-loc})")
+		return result
+	emit-nil-literal
+		return "0"
+	emit-self
+		return "%self"
+
+	emit-class-declarations(class-statement)
+		# Nothing needed.
+	emit-class-pre-contents(class-statement)
+		# Class object.
+		generated-name = class-statement.generated-name
+		class-name-str = string-loc(generated-name)
+		ivars-names-loc = "0"
+		if class-statement.ivars && class-statement.ivars.size > 0
+			ivars-list = []
+			for ivar: class-statement.ivars
+				name-str = string-loc(ivar)
+				ivars-list.append("l {name-str}.obj")
+			names-list-symbol = "${generated-name}.ivars_names"
+			ivars-names-loc = "${generated-name}_ivar_names_"
+			add("data {names-list-symbol} = {{ {ivars-list.join(', ')} }}")
+			num-ivars = class-statement.ivars.size
+			add("data {ivars-names-loc} = {{ l $Array_class {num-ivars} {num-ivars} {names-list-symbol} }}")
+		superclass-loc = "0"
+		if class-statement.superclass
+			superclass-loc = "${class-statement.superclass.generated-name}_class"
+		# Bug in QBE?  We shouldn't need so many ", l"'s.
+		add("data ${generated-name}_class = {{")
+		indent
+		add("l $Class_class,")
+		add("l {class-name-str}.obj,")
+		add("l {superclass-loc},")
+		add("l 0 {class-statement.total-ivars},")
+		add("l {ivars-names-loc}")
+		add(r'}')
+		dedent
+
+		# Function specs.
+		if class-statement.functions.size > 0
+			specs = []
+			for kv: class-statement.functions
+				function = kv.value
+				num-args = 0
+				if function.arguments
+					num-args = function.arguments.size
+				name-loc = string-loc(function.name)
+				specs.append("{name-loc}.c {num-args} ${function.generated-name}")
+			add("data ${class-statement.generated-name}.builtin_methods = {{ l")
+			indent
+			for spec: specs
+				add(spec)
+			add("0 0 0")
+			add(r"}")
+			dedent
+
+		add("")
+	emit-class-post-contents(class-statement)
+		# Nothing to do.
+
+	emit-module(module)
+		# Module variables.
+		generated-name = mangle-name(module.name)
+		add("data ${generated-name}.modvars = {{")
+		indent
+		add("l 0, 	# initialized")
+		if module.block.locals
+			for kv: module.block.locals
+				add("l 0, \t# ${mangle-name(kv.key)}")
+		add(r"}")
+		dedent
+
+		module.block.emit-top-level(self)
+
+		# Emit the initialization function.
+		# Body (deferred).
+		start-function()
+		indent
+		module.block.emit(self)
+		dedent
+		body-lines = deferred-lines
+		deferred-lines = []
+		# Preamble.
+		add("function ${generated-name}.initialize() {{")
+		add("@start")
+		indent
+		add("%fn.call_args =l alloc8 {max-call-args * 8}")
+		emit-extra-preamble()
+		exit-label = new-label
+		body-label = new-label
+		initialized-ptr = "${generated-name}.modvars"
+		initialized-loc = new-temp
+		add("{initialized-loc} =l loadl {initialized-ptr}")
+		add("jnz {initialized-loc}, {exit-label}, {body-label}")
+		add(exit-label)
+		add("ret")
+		add(body-label)
+		add("storel 1, {initialized-ptr}")
+		add("")
+		flush()
+		# Body.
+		flush(body-lines)
+		# Postamble.
+		add("ret")
+		add(r"}")
+		dedent
+		add("")
+		flush()
+	emit-module-local-get(module, name)
+		generated-name = mangle-name(module.name)
+		index = module.variable-index(name)
+		ptr-loc = new-temp
+		add("{ptr-loc} =l add ${generated-name}.modvars, {(index + 1) * 8}")
+		result = new-temp
+		add("{result} =l loadl {ptr-loc}")
+		return result
+	emit-module-local-set(module, name, value-loc)
+		generated-name = mangle-name(module.name)
+		index = module.variable-index(name)
+		ptr-loc = new-temp
+		add("{ptr-loc} =l add ${generated-name}.modvars, {(index + 1) * 8}")
+		add("storel {value-loc}, {ptr-loc}")
+		return value-loc
+	emit-module-initialization(module)
+		generated-name = mangle-name(module.name)
+		add("call ${generated-name}.initialize()")
+
+	emit-builtin-class(name)
+		return "${name}_class"
+	emit-builtin-function(name)
+		return "${name}"
+	emit-builtin-obj-object(name)
+		return "${name}_obj"
+
+	string-loc(str)
+		loc = strings[str]
+		if !loc
+			next-string-id += 1
+			match = string-start-re.match(str)
+			loc = nil
+			if match
+				adjusted = match[0].replace('-', '_')
+				loc = '$str.{adjusted}.{next-string-id}'
+			else
+				loc = '$str.{next-string-id}'
+			strings[str] = loc
+		return loc
+	emit-strings
+		for kv: strings
+			segments = []
+			remainder = kv.key
+			while !remainder.is-empty
+				match = quotable-run-re.match(remainder)
+				if match
+					segments.append(' "{match[0]}"')
+					remainder = match.remainder
+				match = unquotable-run-re.match(remainder)
+				if match
+					for c: match[0].bytes
+						segments.append(" {c}")
+					remainder = match.remainder
+			add('data {kv.value}.c = {{ b{segments.join()} 0 }}')
+			add('data {kv.value}.obj = {{ l $String_class, l {kv.value}.c, l {kv.key.bytes.size} }}')
+
+

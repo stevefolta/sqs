@@ -9,6 +9,7 @@ export class Block: ParseNode
 	(statements locals functions classes)
 	(capture-id, captured-locals)
 	(imported-modules module) 	# If "module" is present, the block *is* a module.
+	(generated-id)
 
 	init
 		statements = []
@@ -46,41 +47,24 @@ export class Block: ParseNode
 		if !imported-modules
 			imported-modules = []
 		imported-modules.append(module)
+	generated-id=(new-generated-id)
+		generated-id = new-generated-id
 
 	emit(builder)
-		# Emit local declarations.
-		if locals && locals.size > 0
-			local-specs = []
-			for kv: locals
-				local-specs.append("{mangle-name(kv.key)} = NULL")
-			builder.add('Object_ptr {local-specs.join(", ")};')
-
-		# Emit the captured locals.
-		if captured-locals
-			mangled-names = []
-			for local-name: captured-locals
-				mangled-names.append("&{mangle-name(local-name)}")
-			builder.add("Object** captures_[] = {{ {mangled-names.join(', ')} }};")
-			builder.add("UpvalFrame upval_frame_ = {{ {capture-id}, cur_upval_frame_, captures_ }};")
-			builder.add("cur_upval_frame_ = &upval_frame_;")
-			builder.push-unwinding(self)
-
-		# Emit.
+		builder.emit-block-start(self)
 		for statement: statements
 			statement.emit(builder)
+		builder.emit-block-end(self)
 
-		# Finish.
-		if captured-locals
-			builder.pop-unwinding(self)
-			emit-unwind(builder)
-
+	emit-top-level-declarations(builder)
+		for statement: statements
+			statement.emit-top-level-declarations(builder)
 	emit-top-level(builder)
 		for statement: statements
 			statement.emit-top-level(builder)
 
 	emit-unwind(builder)
-		if captured-locals
-			builder.add("cur_upval_frame_ = cur_upval_frame_->up;")
+		builder.emit-block-unwind(self)
 
 	resolve-names(builder)
 		if module
@@ -97,7 +81,7 @@ export class Block: ParseNode
 				statement.resolve-names(builder)
 		builder.pop-context
 
-	capture-index(name)
+	capture-index(captured-local)
 		# Set up captures, if we haven't yet.
 		if !captured-locals
 			capture-id = next-capture-id
@@ -107,11 +91,11 @@ export class Block: ParseNode
 		# Find existing index, if there is one.
 		index = 0
 		for local-name: captured-locals
-			if local-name == name
+			if local-name == captured-local.name
 				break
 			index += 1
 		if index >= captured-locals.size
-			captured-locals.append(name)
+			captured-locals.append(captured-local)
 		return index
 
 	find(name)
@@ -143,7 +127,7 @@ export class Block: ParseNode
 			return parent && parent.find(name)
 		find-autodeclaring(name)
 			# Already declared here?
-			expr = block.get-local(name)
+			expr = block.find(name)
 			if expr
 				return expr
 			# Not declared here, search up the chain.
@@ -164,37 +148,37 @@ export class Block: ParseNode
 				# It's a local in the block's method, turn it into an upvalue.
 				# If it were a local in an enclosing method, it would already be an
 				# UpvalueLocal.
-				node = UpvalueLocal(block, name)
+				node.is-captured = true
+				node = UpvalueLocal(block, node)
 			return node
 
 	class UpvalueLocal: ParseNode
 		(block, index)
 
-		init(block-in, name)
+		init(block-in, captured-local)
 			block = block-in
-			index = block.capture-index(name)
+			index = block.capture-index(captured-local)
 		emit(builder)
-			result = builder.new-temp
-			builder.add("Object* {result} = *get_upvalue_({block.capture-id}, {index});")
-			return result
+			return builder.emit-upvalue-get(block.capture-id, index)
 		emit-set(value, builder)
 			value-loc = value.emit(builder)
-			builder.add("*get_upvalue_({block.capture-id}, {index}) = {value-loc};")
-			return value-loc
+			return builder.emit-upvalue-set(block.capture-id, index, value-loc)
 
 
 class Local: ParseNode
-	(name)
+	(name is-captured generated)
 
 	init(name-in)
 		name = name-in
+	is-captured=(value)
+		is-captured = value
+	generated=(new-generated)
+		generated = new-generated
 	is-settable
 		return true
 	emit(builder)
-		return mangle-name(name)
+		return builder.emit-local-get(self)
 	emit-set(value, builder)
-		mangled-name = mangle-name(name)
 		value-loc = value.emit(builder)
-		builder.add('{mangled-name} = {value-loc};')
-		return mangled-name
+		return builder.emit-local-set(self, value-loc)
 

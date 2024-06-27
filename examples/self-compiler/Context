@@ -14,9 +14,9 @@ export class Context
 	get-class-for-superclass(name, builder)
 		return nil
 
-	c-prefix
+	generated-prefix(builder)
 		# Default: this context doesn't introduce a new level of namespace.
-		return parent && parent.c-prefix
+		return parent && parent.generated-prefix(builder)
 
 	find-class-for-superclass(name, builder)
 		context = self

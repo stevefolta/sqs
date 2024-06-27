@@ -22,6 +22,11 @@ export class ImportStatement: ParseNode
 			module.resolve-names(builder)
 			block.add-imported-module(module)
 
+	emit-top-level-declarations(builder)
+		for name: names
+			module = get-module(name)
+			if !module.declarations-emitted
+				module.emit-top-level-declarations(builder)
 	emit-top-level(builder)
 		for name: names
 			module = get-module(name)
@@ -32,8 +37,7 @@ export class ImportStatement: ParseNode
 		# Make sure the modules have been initialized.
 		for name: names
 			module = get-module(name)
-			builder.add("extern void {module.c-name}_initialize_(void);")
-			builder.add("{module.c-name}_initialize_();")
+			builder.emit-module-initialization(module)
 
 export class ExportStatement: ParseNode
 	(item)
@@ -43,23 +47,28 @@ export class ExportStatement: ParseNode
 
 	resolve-names(builder)
 		item.resolve-names(builder)
+	emit-top-level-declarations(builder)
+		item.emit-top-level-declarations(builder)
 	emit-top-level(builder)
 		item.emit-top-level(builder)
-	emit
-		# Nothing to do here.
+	emit(builder)
+		# Only SetExprs will do something here.
+		item.emit(builder)
 
 
 export class Module
-	(name block exported-classes exported-functions)
-	(c-name names-are-resolved is-emitted)
+	(name block exported-classes exported-functions exported-vars)
+	(names-are-resolved declarations-emitted is-emitted)
 
 	init(name-in)
 		name = name-in
-		c-name = mangle-name(name)
 		exported-classes = {}
 		exported-functions = {}
+		exported-vars = {}
 	block=(new-block)
 		block = new-block
+	reset-emission
+		declarations-emitted = is-emitted = false
 
 	resolve-names(builder)
 		if names-are-resolved
@@ -73,36 +82,15 @@ export class Module
 
 		builder.pop-context	# the GlobalContext.
 
-	emit-top-level(builder)
-		# Module variables.
-		builder.add("struct {{")
-		builder.indent
-		builder.add("bool initialized_;")
-		if block.locals
-			for kv: block.locals
-				builder.add("Object* {mangle-name(kv.key)};")
-		builder.dedent
-		builder.add("}} {c-name}_modvars_ = {{ false }};")
-		builder.add("")
+	emit-top-level-declarations(builder)
+		declarations-emitted = true
+		block.emit-top-level-declarations(builder)
 
+	emit-top-level(builder)
 		# Mark ourself as emitted before emitting the block, so its imports can't
 		# cause an infinite loop.
 		is-emitted = true
-
-		block.emit-top-level(builder)
-
-		# Emit the initialization function.
-		builder.add("void {c-name}_initialize_(void)")
-		builder.add("{{")
-		builder.indent
-		builder.add("if ({c-name}_modvars_.initialized_)")
-		builder.add("\treturn;")
-		builder.add("{c-name}_modvars_.initialized_ = true;")
-		builder.add("")
-		block.emit(builder)
-		builder.dedent
-		builder.add("}}")
-		builder.add("")
+		builder.emit-module(self)
 
 	context-for(builder)
 		# Called by Block.resolve-names() to get a context.
@@ -117,7 +105,18 @@ export class Module
 			# Treat it as a nullary function call.  FunctionCallExpr.emit will
 			# append arguments if any are given.
 			return FunctionCallExpr(FunctionRef(function), [])
+		var = exported-vars[name]
+		if var
+			return ModuleLocal(self, name)
 		return nil
+
+	variable-index(name)
+		index = 0
+		for kv: block.locals
+			if kv.key == name
+				return index
+			index += 1
+		return -1
 
 	class ModuleContext: Context
 		(module)
@@ -146,24 +145,23 @@ export class Module
 			local = module.block.autodeclare(name)
 			return ModuleLocal(module, name)
 
-		c-prefix
+		generated-prefix(builder)
 			# Modules are the top level; ignore the parent.
-			return mangle-name(module.name)
+			return builder.mangle-name(module.name)
 
 	class ModuleLocal: ParseNode
-		(name c-name)
+		(name module)
 
-		init(module, name)
-			name = name
-			c-name = "{module.c-name}_modvars_.{mangle-name(name)}"
+		init(module-in, name-in)
+			name = name-in
+			module = module-in
 		is-settable
 			return true
 		emit(builder)
-			return c-name
+			return builder.emit-module-local-get(module, name)
 		emit-set(value, builder)
 			value-loc = value.emit(builder)
-			builder.add("{c-name} = {value-loc};")
-			return c-name
+			return builder.emit-module-local-set(module, name, value-loc)
 
 
 modules = {}
@@ -177,4 +175,7 @@ export fn get-module(name)
 	module.block = parser.parse-block(module)
 	return module
 
+export fn reset-module-emission()
+	for kv: modules
+		kv.value.reset-emission()
 

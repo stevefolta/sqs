@@ -1,7 +1,6 @@
 #!/usr/bin/env sqs
 
-import Parser
-import Context
+import Parser Context CCodegen QBECodegen Runtime Modules Debugging
 
 
 # Main.
@@ -13,9 +12,12 @@ Options (both "option:" and "--option" forms are accepted):
 	build-dir: <dir> 	(Where .o files, etc. go.)
 	out: <file> 	(The name of the binary; defaults to "a.out")
 	-o <file> 	(Same as "out: <file>".)
+	--use-qbe | --use-c 	(Compiler backend to use.)
 '.strip
 
 build-dir = "build"
+cc = env["CC"] || "cc"
+cflags = [ "-I{build-dir}/runtime" "-Wno-unused-result" "-g" ]
 
 import Builtins
 
@@ -23,6 +25,9 @@ fn self-compiler-main()
 	# Gather the command-line arguments.
 	source-file = nil
 	next-option = nil
+	use-qbe = false
+	with dev-null = File("/dev/null", "w")
+		use-qbe = run([ "sh" "-c" "command -v qbe" ], { stdout = dev-null, stderr = dev-null }).ok
 	out-file = "a.out"
 	for arg: argv.slice(1)
 		if next-option
@@ -46,6 +51,12 @@ fn self-compiler-main()
 			else if option-name == "out" || option-name == "build-dir"
 				next-option = option-name
 				continue
+			else if option-name == "use-c"
+				use-qbe = false
+				continue
+			else if option-name == "use-qbe"
+				use-qbe = true
+				continue
 		# Anything else is the source file.
 		if source-file
 			print("You can only give one source file.")
@@ -57,69 +68,35 @@ fn self-compiler-main()
 		return 1
 
 	# Compile.
+	print("Compiling {source-file}...")
 	parser = Parser(File(source-file))
 	ast = parser.parse-block
 	$ mkdir -p {build-dir}
-	write-main-fn(ast)
-	build(out-file)
+	build(out-file, ast, use-qbe)
 	# ast.dump
 
-fn write-main-fn(ast)
-	with file = File("{build-dir}/main.c", "w")
-		builder = ProgramBuilder(GlobalContext(), file)
-		builder.add('#include "sqs_compiled.h"')
-		builder.add('')
-		ast.resolve-names(builder)
-		ast.emit-top-level(builder)
+fn build-main(ast, use-qbe)
+	if use-qbe
+		with builder = QBEProgramBuilder(GlobalContext(), build-dir)
+			builder.emit(ast)
+		print("Compiling main.qbe...")
+		$ qbe "{build-dir}/main.qbe" -o "{build-dir}/main.qbe.asm"
+		$ as "{build-dir}/main.qbe.asm" -o "{build-dir}/main.o"
+	else
+		with builder = CProgramBuilder(GlobalContext(), build-dir)
+			builder.emit(ast)
+		print("Compiling main.c...")
+		$ {cc} {cflags} -c "{build-dir}/main.c" -o "{build-dir}/main.o"
 
-		# sqs_init_classes()
-		builder.add("void sqs_init_classes()")
-		builder.add(r"{")
-		builder.indent
-		for class-statement: builder.all-classes
-			class-name = class-statement.c-name
-			if class-statement.functions.size > 0
-				builder.add("Class_add_builtin_methods(&{class-name}_class, {class-name}__builtin_methods_);")
-		builder.dedent
-		builder.add(r"}")
-		builder.add("")
-
-		# sqs_main()
-		builder.add("Object* sqs_main(Object* self, Object** args)")
-		builder.add(r"{")
-		builder.indent()
-		ast.emit(builder)
-		builder.add("return NULL;")
-		builder.dedent()
-		builder.add(r"}")
-		builder.add("")
-
-fn build(out-file)
-	cc = env["CC"] || "cc"
-	sqs-source = env["SQS_SOURCE"]
-	if !sqs-source
-		fail("Please set $SQS_SOURCE in your environment.")
-	self-compiler-source = env["SQS_COMPILER_SOURCE"] || "{sqs-source}/examples/self-compiler"
-	if !Path("{self-compiler-source}/sqs_compiled.h").exists
-		fail("Please set $SQS_COMPILER_SOURCE in your environment.")
-	cflags = [ "-I{self-compiler-source}" "-I{sqs-source}" "-Wno-unused-result" "-g" ]
+fn build(out-file, ast, use-qbe)
 	link-flags = [ "-lgc" ]
 
-	print("Compiling main.c...")
-	$ {cc} {cflags} -c "{build-dir}/main.c" -o "{build-dir}/main.o"
-	if !Path("{build-dir}/sqs_compiled.o").exists
-		print("Compiling sqs_compiled.c...")
-		$ {cc} {cflags} -c "{self-compiler-source}/sqs_compiled.c" -o "{build-dir}/sqs_compiled.o"
-	o-files = [ "{build-dir}/main.o" "{build-dir}/sqs_compiled.o" ]
-	sqs-files = "Object Class String Int Float Array Dict Boolean ByteArray Nil "
-	sqs-files += "File Pipe Path Print Run Regex Glob MiscFunctions Fail Env "
-	sqs-files += "BuiltinMethod Error UTF8 LinesIterator"
-	for file: sqs-files.split
-		o-file = "{build-dir}/{file}.o"
-		o-files.append(o-file)
-		if !Path(o-file).exists
-			print("Compiling {file}.c...")
-			$ {cc} {cflags} -c "{sqs-source}/{file}.c" -o {o-file}
+	# Build the runtime first -- main.c will depend on the files existing.
+	o-files = build-runtime(build-dir, cflags)
+
+	build-main(ast, use-qbe)
+
+	o-files += [ "{build-dir}/main.o" ]
 	print("Linking...")
 	$ {cc} {o-files} {link-flags} -o {out-file}
 
@@ -129,83 +106,6 @@ fn build(out-file)
 import ParseNode
 import Block
 import Calls
-
-
-# Codegen.
-
-import Codegen
-import FunctionStatement
-
-indent-spacers = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
-
-class ProgramBuilder
-	(context file indentation next-temp-num cur-class all-classes unwindings)
-
-	init(context-in, file-in)
-		context = context-in
-		file = file-in
-		indentation = 0
-		next-temp-num = 1
-		all-classes = []
-		unwindings = []
-	cur-class=(new-class)
-		cur-class = new-class
-	add-class(new-class)
-		all-classes.append(new-class)
-
-	add(line)
-		file.write(indent-spacers.slice(0, indentation))
-		file.write(line)
-		file.write("\n")
-	indent
-		indentation += 1
-	dedent
-		if indentation > 0
-			indentation -= 1
-
-	new-temp
-		temp-name = "temp_{next-temp-num}_"
-		next-temp-num += 1
-		return temp-name
-
-	push-context(new-context)
-		new-context.parent = context
-		context = new-context
-		return ContextCloser(self)
-	pop-context
-		context = context.parent
-
-	class ContextCloser
-		(builder)
-		init(builder-in)
-			builder = builder-in
-		close
-			builder.pop-context
-
-	# The unwinding stack is a mixture of ParseNodes to unwind to (loops and
-	# functions), and ParseNodes that emit unwindings.
-	push-unwinding(node)
-		unwindings.append(node)
-	pop-unwinding(node)
-		old-unwinding = unwindings.pop-back
-		if node != old-unwinding
-			fail("Internal error: mismatched unwinding.")
-	emit-unwind-loop
-		index = unwindings.size - 1
-		while index >= 0
-			unwind-point = unwindings[index]
-			if unwind-point.is-loop
-				break
-			unwind-point.emit-unwind(self)
-			index -= 1
-	emit-unwind-function
-		index = unwindings.size - 1
-		while index >= 0
-			unwind-point = unwindings[index]
-			if unwind-point.is-a(FunctionStatement)
-				break
-			unwind-point.emit-unwind(self)
-			index -= 1
 
 
 

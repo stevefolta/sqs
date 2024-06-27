@@ -1,0 +1,592 @@
+#!/usr/bin/env sqs
+
+import Codegen ParseNode FunctionStatement Builtins
+import Debugging
+
+
+export class CProgramBuilder: ProgramBuilder
+	(file)
+
+	init(context-in, build-dir)
+		super.init(context-in)
+		file = File("{build-dir}/main.c", "w")
+	close()
+		file.close()
+
+	mangle-name(name)
+		return name.replace("-", "_").replace("=", "_eq_")
+	function-prefix(parent-context, name)
+		prefix = parent-context && parent-context.generated-prefix(self)
+		fn-c-name = mangle-name(name)
+		if prefix
+			return "{prefix}__{fn-c-name}"
+		return fn-c-name
+	class-prefix(parent-context, name)
+		prefix = parent-context && parent-context.generated-prefix(self)
+		name = mangle-name(name)
+		if prefix
+			return "{prefix}__{name}"
+		return name
+
+	emit(ast)
+		add('#include "sqs_compiled.h"')
+		add('')
+		ast.resolve-names(self)
+		ast.emit-top-level-declarations(self)
+		ast.emit-top-level(self)
+
+		# sqs_init_classes()
+		add("void sqs_init_classes()")
+		add(r"{")
+		indent
+		for class-statement: all-classes
+			class-name = class-statement.generated-name
+			if class-statement.functions.size > 0
+				add("Class_add_builtin_methods(&{class-name}_class, {class-name}__builtin_methods_);")
+		dedent
+		add(r"}")
+		add("")
+
+		# sqs_main()
+		add("Object* sqs_main(Object* self, Object** args)")
+		add(r"{")
+		indent()
+		ast.emit(self)
+		self.add("return NULL;")
+		self.dedent()
+		self.add(r"}")
+		self.add("")
+
+	add(line)
+		file.write(indent-spacers.slice(0, indentation))
+		file.write(line)
+		file.write("\n")
+	indent
+		indentation += 1
+	dedent
+		if indentation > 0
+			indentation -= 1
+
+	new-temp
+		temp-name = "temp_{next-temp-num}_"
+		next-temp-num += 1
+		return temp-name
+
+	emit-function(function-statement)
+		add("Object* {function-statement.generated-name}(Object* self, Object** args_)")
+		add(r"{")
+		indent
+		if function-statement.arguments
+			index = 0
+			for arg: function-statement.arguments
+				add("Object* {mangle-name(arg)} = args_[{index}];")
+				index += 1
+		if function-statement.body
+			function-statement.body.emit(self)
+		if (function-statement.name == "init")
+			add("return self;")
+		else
+			add("return NULL;")
+		dedent
+		add(r"}")
+		add("")
+
+
+	emit-block-start(block)
+		# Emit local declarations.
+		if block.locals && block.locals.size > 0
+			local-specs = []
+			for kv: block.locals
+				local-specs.append("{mangle-name(kv.key)} = NULL")
+			add('Object_ptr {local-specs.join(", ")};')
+
+		# Emit the captured locals.
+		if block.captured-locals
+			mangled-names = []
+			for local: block.captured-locals
+				mangled-names.append("&{mangle-name(local.name)}")
+			add("Object** captures_[] = {{ {mangled-names.join(', ')} }};")
+			add("UpvalFrame upval_frame_ = {{ {block.capture-id}, cur_upval_frame_, captures_ }};")
+			add("cur_upval_frame_ = &upval_frame_;")
+			push-unwinding(block)
+
+	emit-block-end(block)
+		if block.captured-locals
+			pop-unwinding(block)
+			block.emit-unwind(self)
+
+	emit-block-unwind(block)
+		if block.captured-locals
+			add("cur_upval_frame_ = cur_upval_frame_->up;")
+
+	emit-if-statement(statement)
+		condition-loc = statement.condition.emit(self)
+		if statement.if-block
+			add("if (IS_TRUTHY({condition-loc})) {{")
+			indent
+			statement.if-block.emit(self)
+			add(r"}")
+			dedent
+			if statement.else-block
+				add(r"else {")
+				indent
+				statement.else-block.emit(self)
+				add(r"}")
+				dedent
+		else if statement.else-block
+			add("if (!IS_TRUTHY({condition-loc})) {{")
+			indent
+			statement.else-block.emit(self)
+			add(r"}")
+			dedent
+
+	emit-while-statement(statement)
+		add(r"while (true) {")
+		indent
+		condition-loc = statement.condition.emit(self)
+		add("if (!IS_TRUTHY({condition-loc}))")
+		add("\tbreak;")
+		add("")
+		if statement.body
+			push-unwinding(statement)
+			statement.body.emit(self)
+			pop-unwinding(statement)
+		add(r"}")
+		dedent
+
+	emit-for-statement(statement)
+		collection-loc = statement.collection.emit(self)
+		iterator-loc = new-temp
+		variable-loc = mangle-name(statement.variable-name)
+		add('Object* {iterator-loc} = call_("iterator", {collection-loc}, 0, NULL);')
+		add(r"while (true) {")
+		indent
+		add('Object* {variable-loc} = call_("next", {iterator-loc}, 0, NULL);')
+		add('if (!{variable-loc})')
+		add('\tbreak;')
+		add("")
+		if statement.body
+			push-unwinding(statement)
+			statement.body.emit(self)
+			pop-unwinding(statement)
+		add(r"}")
+		dedent
+	emit-for-statement-variable(statement)
+		return mangle-name(statement.variable-name)
+
+	emit-continue
+		emit-unwind-loop()
+		add("continue;")
+	emit-break
+		emit-unwind-loop()
+		add("break;")
+
+	emit-return-statement(value-loc)
+		if !value-loc
+			value-loc = "NULL"
+		emit-unwind-function
+		add("return {value-loc};")
+
+	emit-with-statement(statement)
+		# We'll use a temporary for the unwinding, to make sure the name isn't
+		# shadowed by a subblock.
+		# We also make it it's own block, so the name doesn't end up in the outer scope.
+		add(r"{")
+		expr-loc = statement.expr.emit(self)
+		unwind-loc = new-temp
+		statement.unwind-loc = unwind-loc
+		add("Object* {unwind-loc} = {expr-loc};")
+		add("Object* {mangle-name(statement.name)} = {unwind-loc};")
+		if statement.body
+			push-unwinding(statement)
+			statement.body.emit(self)
+			pop-unwinding(statement)
+		statement.emit-unwind(self)
+		add(r"}")
+	emit-with-statement-variable(statement)
+		return mangle-name(statement.name)
+	emit-with-unwind(statement)
+		add('call_("close", {statement.unwind-loc}, 0, NULL);')
+
+	emit-run-statement(statement)
+		# Create the array of arguments.
+		args-array = new-temp
+		add("Array* {args-array} = new_Array();")
+		for arg: statement.arguments
+			arg-loc = arg.emit(self)
+			add("Array_append_strings({args-array}, {arg-loc});")
+
+		# Create the options.
+		options-loc = "NULL"
+		if statement.in-pipe-loc || statement.out-pipe-loc || statement.capture
+			options-dict = new-temp
+			options-loc = "((Object*) {options-dict})"
+			add("Dict* {options-dict} = new_Dict();")
+			if statement.in-pipe-loc
+				add('Dict_set_at({options-dict}, new_c_static_String("stdin"), {statement.in-pipe-loc});')
+			if statement.out-pipe-loc
+				add('Dict_set_at({options-dict}, new_c_static_String("stdout"), {statement.out-pipe-loc});')
+				# Don't wait for this process, only wait for the last process in the
+				# pipeline.
+				add('Dict_set_at({options-dict}, new_c_static_String("wait"), &false_obj);')
+			else if statement.capture
+				add('Dict_set_at({options-dict}, new_c_static_String("capture"), &true_obj);')
+
+		# Emit the call.
+		result = new-temp
+		add('Object* {result} = Run(NULL, (Object*[]) {{ (Object*) {args-array}, {options-loc} }});')
+		return result
+
+
+	emit-call(name, receiver-loc, arg-locs)
+		arg-list = "NULL"
+		if arg-locs.size > 0
+			arg-list = "(Object*[]) {{ {arg-locs.join(', ')} }}"
+		result = new-temp
+		add('Object* {result} = call_("{name}", {receiver-loc}, {arg-locs.size}, {arg-list});')
+		return result
+
+	emit-super-call(name, arg-locs)
+		result = new-temp
+		arg-list = "NULL"
+		if arg-locs.size > 0
+			arg-list = "(Object*[]) {{ {arg-locs.join(', ')} }}"
+		add('Object* {result} = super_call_("{name}", &{cur-class.generated-name}_class, self, {arg-locs.size}, {arg-list});')
+		return result
+
+	emit-function-call(fn-loc, arg-locs)
+		result = new-temp
+		args-text = "NULL"
+		if arg-locs.size > 0
+			args-text = arg-locs.join(', ')
+			args-text = "(Object*[]) {{ {arg-locs.join(', ')} }}"
+		add("Object* {result} = {fn-loc}(self, {args-text});")
+		return result
+
+	emit-instantiation(class-node, arg-locs)
+		class-loc = class-node.emit(self)
+		new-obj = new-temp
+		add("Object* {new-obj} = Class_instantiate((Class*) {class-loc});")
+		# Emit "init" call (if there is one).
+		if class-node.is-a(ClassRef) && !class-node.class-statement.functions["init"]
+			# No "init".
+			return new-obj
+		args-text = "NULL"
+		if arg-locs.size > 0
+			args-text = "(Object*[]) {{ {arg-locs.join(', ')} }}"
+		result = new-temp
+		add('Object* {result} = call_("init", {new-obj}, {arg-locs.size}, {args-text});')
+		return result
+
+	emit-local-get(local)
+		return mangle-name(local.name)
+	emit-local-set(local, value-loc)
+		mangled-name = mangle-name(local.name)
+		add('{mangled-name} = {value-loc};')
+		return mangled-name
+	emit-ivar-get(name)
+		return "(({cur-class.generated-name}*) self)->{mangle-name(name)}"
+	emit-ivar-set(name, value-loc)
+		mangled-name = mangle-name(name)
+		add("(({cur-class.generated-name}*) self)->{mangled-name} = {value-loc};")
+		return value-loc
+	emit-argument-get(name)
+		return mangle-name(name)
+	emit-argument-set(name, value-loc)
+		add("{mangle-name(name)} = {value-loc};")
+		return value-loc
+	emit-upvalue-get(capture-id, index)
+		result = new-temp
+		add("Object* {result} = *get_upvalue_({capture-id}, {index});")
+		return result
+	emit-upvalue-set(capture-id, index, value-loc)
+		add("*get_upvalue_({capture-id}, {index}) = {value-loc};")
+		return value-loc
+
+	emit-function-ref(function-statement)
+		# Note that this doesn't actually reference an object; it will be treated
+		# specially by FunctionCallExpr.emit()/emit-function-call().
+		c-name = function-statement.generated-name
+		add("extern Object* {c-name}(Object* self, Object** args);")
+		return c-name
+	emit-class-ref(class-statement)
+		class-c-name = "{class-statement.generated-name}_class"
+		add("extern Class {class-c-name};")
+		return "(Object*) &{class-c-name}"
+
+	emit-short-circuit-expression(expression)
+		loc1 = expression.expr1.emit(self)
+		result = new-temp
+		add("Object* {result} = {loc1};")
+		if expression.is-and
+			add("if (IS_TRUTHY({result})) {{")
+		else
+			add("if (!IS_TRUTHY({result})) {{")
+		indent
+		loc2 = expression.expr2.emit(self)
+		add("{result} = {loc2};")
+		add(r"}")
+		dedent
+		return result
+	emit-short-circuit-not(expression)
+		loc = expression.expr.emit(self)
+		return "make_bool(!IS_TRUTHY({loc}))"
+
+	emit-interpolated-string-literal(segments)
+		accumulator = new-temp
+		add("Array* {accumulator} = new_Array();")
+		for segment: segments
+			loc = segment.emit(self)
+			add("Array_append({accumulator}, {loc});")
+		result = new-temp
+		add("Object* {result} = (Object*) Array_join({accumulator}, NULL);")
+		return result
+
+	emit-run-pipeline(expression)
+		# Make the pipes.
+		pipe-locs = []
+		pipes-left = expression.commands.size - 1
+		while pipes-left > 0
+			loc = new-temp
+			add('Object* {loc} = Class_instantiate(&Pipe_class);')
+			add('call_("init", {loc}, 0, NULL);')
+			pipe-locs.append(loc)
+			pipes-left -= 1
+
+		# Emit the RunCommands.
+		result-loc = new-temp
+		which-command = 0
+		for command: expression.commands
+			# Attach pipes/capture.
+			if which-command != 0
+				command.in-pipe-loc = pipe-locs[which-command - 1]
+			is-last-command = (which-command == expression.commands.size - 1)
+			if !is-last-command
+				command.out-pipe-loc = pipe-locs[which-command]
+			else if expression.capture
+				command.capture = true
+
+			# Emit.
+			command-result-loc = command.emit(self)
+
+			if is-last-command
+				add("Object* {result-loc} = {command-result-loc};")
+
+			which-command += 1
+
+		# Return the result of the last RunCommand.
+		return result-loc
+
+	emit-run-capture(pipeline)
+		run-result-loc = pipeline.emit(self)
+		output-result-loc = new-temp
+		add('Object* {output-result-loc} = call_("output", {run-result-loc}, 0, NULL);')
+		trim-result-loc = new-temp
+		add('Object* {trim-result-loc} = call_("trim", {output-result-loc}, 0, NULL);')
+		return trim-result-loc
+
+	emit-string-literal(value)
+		return '((Object*) new_c_static_String("{c-quote-string(value)}"))'
+	emit-int-literal(value)
+		return "((Object*) new_Int({value}))"
+	emit-float-literal(value)
+		return "((Object*) new_Float({value}))"
+	emit-bool-literal(value)
+		if value
+			return "&true_obj"
+		return "&false_obj"
+	emit-array-literal(items)
+		result = new-temp
+		add("Array* {result} = new_Array();")
+		for item: items
+			item-loc = item.emit(self)
+			add("Array_append({result}, {item-loc});")
+		return "((Object*) {result})"
+	emit-dict-literal(items)
+		result = new-temp
+		add("Dict* {result} = new_Dict();")
+		for item: items
+			item-loc = item.value.emit(self)
+			add('Dict_set_at({result}, new_c_static_String("{c-quote-string(item.key)}"), {item-loc});')
+		return "((Object*) {result})"
+	emit-nil-literal
+		return "NULL"
+	emit-self
+		return "self"
+
+	emit-class-declarations(class-statement)
+		# Struct definition.
+		c-name = class-statement.generated-name
+		add("typedef struct {c-name} {{")
+		indent()
+		add("Class* class_;")
+		emit-field-declarations(class-statement)
+		add("} {c-name};")
+		dedent()
+
+		# Class object forward declaration.
+		add("extern Class {c-name}_class;")
+		add("")
+	emit-field-declarations(class-statement)
+		if class-statement.is-a(BuiltinClass)
+			if class-statement.total-ivars > 0
+				add("Object* anonymous_ivars_[{class-statement.total-ivars}];")
+			return
+		# ClassStatement
+		if class-statement.superclass
+			emit-field-declarations(class-statement.superclass)
+		if class-statement.ivars
+			for ivar: class-statement.ivars
+				add("Object* {mangle-name(ivar)};")
+
+	emit-class-pre-contents(class-statement)
+		# Class object.
+		generated-name = class-statement.generated-name
+		add('declare_static_string({generated-name}_class_name_, "{class-statement.name}");')
+		ivars-names-loc = "NULL"
+		if class-statement.ivars && class-statement.ivars.size > 0
+			ivars-list = []
+			for ivar: class-statement.ivars
+				ivars-list.append('inline_string_("{ivar}")')
+			ivars-list = '{{ {ivars-list.join(", ")} }}'
+			num-ivars = class-statement.ivars.size
+			add('Array {generated-name}_ivar_names_ = {{ &Array_class, {num-ivars}, {num-ivars}, (Object*[]) {ivars-list} }};')
+			ivars-names-loc = "&{generated-name}_ivar_names_"
+		if class-statement.superclass
+			add("extern Class {class-statement.superclass.generated-name}_class;")
+		add("Class {generated-name}_class = {{")
+		indent
+		add('&Class_class,')
+		add('&{generated-name}_class_name_,')
+		if class-statement.superclass
+			add("&{class-statement.superclass.generated-name}_class,")
+		else
+			add('NULL,')
+		add('NULL,')
+		add("NumIvarsFor({generated-name}),")
+		add("{ivars-names-loc},")
+		dedent
+		add(r"};")
+		add("")
+
+	emit-class-post-contents(class-statement)
+		# Function specs.
+		# We do this after emitting the functions, so we don't have to
+		# forward-declare them.
+		if class-statement.functions.size > 0
+			add("static const BuiltinMethodSpec {class-statement.generated-name}__builtin_methods_[] = {{")
+			indent
+			for kv: class-statement.functions
+				function = kv.value
+				num-args = 0
+				if function.arguments
+					num-args = function.arguments.size
+				add('{{ "{function.name}", {num-args}, {function.generated-name} }},')
+			add(r"{ NULL },")
+			add(r"};")
+			dedent
+			add("")
+
+	emit-module(module)
+		# Module variables.
+		c-name = mangle-name(module.name)
+		add("struct {{")
+		indent
+		add("bool initialized_;")
+		if module.block.locals
+			for kv: module.block.locals
+				add("Object* {mangle-name(kv.key)};")
+		dedent
+		add("}} {c-name}_modvars_ = {{ false }};")
+		add("")
+
+		module.block.emit-top-level(self)
+
+		# Emit the initialization function.
+		add("void {c-name}_initialize_(void)")
+		add("{{")
+		indent
+		add("if ({c-name}_modvars_.initialized_)")
+		add("\treturn;")
+		add("{c-name}_modvars_.initialized_ = true;")
+		add("")
+		module.block.emit(self)
+		dedent
+		add("}}")
+		add("")
+	emit-module-local-get(module, name)
+		c-name = "{mangle-name(module.name)}_modvars_.{mangle-name(name)}"
+		return c-name
+	emit-module-local-set(module, name, value-loc)
+		c-name = "{mangle-name(module.name)}_modvars_.{mangle-name(name)}"
+		add("{c-name} = {value-loc};")
+		return c-name
+	emit-module-initialization(module)
+		c-name = mangle-name(module.name)
+		add("extern void {c-name}_initialize_(void);")
+		add("{c-name}_initialize_();")
+
+
+	emit-builtin-class(name)
+		return "((Object*) &{name}_class)"
+	emit-builtin-function(name)
+		return name
+	emit-builtin-obj-object(name)
+		return "(Object*) &{name}_obj"
+
+
+substitution-list = [
+	[ "\x5C" "\x5C\x5C" ], 	# Backslash.
+	[ '"', r'\"' ],
+	[ "\n" r"\n" ], [ "\r" r"\r" ], [ "\t" r"\t" ], [ "\e" r"\x1B" ],
+	[ "\b" r"\b" ], [ "\a" r"\a" ], [ "\v" r"\v" ], [ "\f" r"\f" ],
+	]
+substitutions = {}
+for sub: substitution-list
+	substitutions[sub[0]] = sub[1]
+
+export fn c-quote-string(str)
+	fn hex-escape(c)
+		escaped-bytes = ByteArray(6)
+		escaped-bytes[0] = 92 	# '\'
+		escaped-bytes[1] = 120 	# 'x'
+		# C will try to use as many characters as possible for a hex constant, not
+		# just two, so use string concatenation to get around that.
+		escaped-bytes[4] = escaped-bytes[5] = 34
+		nybble = c >> 4
+		if nybble < 10
+			escaped-bytes[2] = 48 + nybble
+		else
+			escaped-bytes[2] = 65 + nybble - 10
+		nybble = c & 15
+		if nybble < 10
+			escaped-bytes[3] = 48 + nybble
+		else
+			escaped-bytes[3] = 65 + nybble - 10
+		return escaped-bytes.as-string
+
+	bytes = str.bytes
+	segments = []
+	segment-start = 0
+	index = 0
+	fn finish-segment
+		if index > segment-start
+			segments.append(bytes.slice(segment-start, index).as-string)
+		segment-start = index + 1
+	
+	for c: bytes
+		if (c > 34 && c < 92) || (c > 92 && c < 127) || c == 32 || c == 33
+			# Unescaped characters: anything between ' ' and '~', except '\\' and '"'.
+			# These just go into the segment.
+		else
+			finish-segment()
+			char-str = bytes.slice(index, index + 1).as-string
+			substitution = substitutions[char-str]
+			if substitution
+				segments.append(substitution)
+			else
+				segments.append(hex-escape(c))
+		index += 1
+	finish-segment()
+	return segments.join()
+

@@ -1,64 +1,193 @@
 #!/usr/bin/env sqs
 
 import Debugging
+import FunctionStatement
 
 
-export fn mangle-name(name)
-	return name.replace("-", "_").replace("=", "_eq_")
+indent-spacers-string = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
+
+export fn indent-spacers
+	return indent-spacers-string
+export fn indentation-for(level)
+	return indent-spacers-string.slice(0, level)
 
 
-substitution-list = [
-	[ "\x5C" "\x5C\x5C" ], 	# Backslash.
-	[ '"', r'\"' ],
-	[ "\n" r"\n" ], [ "\r" r"\r" ], [ "\t" r"\t" ], [ "\e" r"\x1B" ],
-	[ "\b" r"\b" ], [ "\a" r"\a" ], [ "\v" r"\v" ], [ "\f" r"\f" ],
-	]
-substitutions = {}
-for sub: substitution-list
-	substitutions[sub[0]] = sub[1]
+export class ProgramBuilder
+	(context indentation next-temp-num cur-class all-classes unwindings)
 
-export fn c-quote-string(str)
-	fn hex-escape(c)
-		escaped-bytes = ByteArray(6)
-		escaped-bytes[0] = 92 	# '\'
-		escaped-bytes[1] = 120 	# 'x'
-		# C will try to use as many characters as possible for a hex constant, not
-		# just two, so use string concatenation to get around that.
-		escaped-bytes[4] = escaped-bytes[5] = 34
-		nybble = c >> 4
-		if nybble < 10
-			escaped-bytes[2] = 48 + nybble
-		else
-			escaped-bytes[2] = 65 + nybble - 10
-		nybble = c & 15
-		if nybble < 10
-			escaped-bytes[3] = 48 + nybble
-		else
-			escaped-bytes[3] = 65 + nybble - 10
-		return escaped-bytes.as-string
+	init(context-in)
+		context = context-in
+		indentation = 0
+		next-temp-num = 1
+		all-classes = []
+		unwindings = []
+	close()
+	cur-class=(new-class)
+		cur-class = new-class
+	add-class(new-class)
+		all-classes.append(new-class)
 
-	bytes = str.bytes
-	segments = []
-	segment-start = 0
-	index = 0
-	fn finish-segment
-		if index > segment-start
-			segments.append(bytes.slice(segment-start, index).as-string)
-		segment-start = index + 1
-	
-	for c: bytes
-		if (c > 34 && c < 92) || (c > 92 && c < 127) || c == 32 || c == 33
-			# Unescaped characters: anything between ' ' and '~', except '\\' and '"'.
-			# These just go into the segment.
-		else
-			finish-segment()
-			char-str = bytes.slice(index, index + 1).as-string
-			substitution = substitutions[char-str]
-			if substitution
-				segments.append(substitution)
-			else
-				segments.append(hex-escape(c))
-		index += 1
-	finish-segment()
-	return segments.join()
+	push-context(new-context)
+		new-context.parent = context
+		context = new-context
+		return ContextCloser(self)
+	pop-context
+		context = context.parent
+
+	virtual
+		fail("Internal error: unimplemented virtual function")
+
+	mangle-name(name)
+		virtual
+	function-prefix(parent-context, name)
+		virtual
+	class-prefix(parent-context, name)
+		virtual
+
+	emit-block-start(block)
+		virtual
+	emit-block-end(block)
+		virtual
+	emit-block-unwind(block)
+		virtual
+
+	emit-if-statement(statement)
+		virtual
+	emit-while-statement(statement)
+		virtual
+	emit-for-statement(statement)
+		virtual
+	emit-for-statement-variable(statement)
+		virtual
+	emit-continue
+		virtual
+	emit-break
+		virtual
+	emit-return-statement(value-loc)
+		virtual
+	emit-with-statement(statement)
+		virtual
+	emit-with-statement-variable(statement)
+		virtual
+	emit-with-unwind(statement)
+		virtual
+	emit-run-statement(statement)
+		virtual
+
+	emit-call(name, receiver-loc, arg-locs)
+		virtual
+	emit-super-call(name, receiver-loc, arg-locs)
+		virtual
+	emit-function-call(fn-loc, arg-locs)
+		virtual
+	emit-instantiation(class-loc, arg-locs)
+		virtual
+
+	emit-local-get(local)
+		virtual
+	emit-local-set(local, value-loc)
+		virtual
+	emit-ivar-get(name)
+		virtual
+	emit-ivar-set(name, value-loc)
+		virtual
+	emit-argument-get(name)
+		virtual
+	emit-argument-set(name, value-loc)
+		virtual
+	emit-upvalue-get(capture-id, index)
+		virtual
+	emit-upvalue-set(capture-id, index, value-loc)
+		virtual
+
+	emit-function-ref(function-statement)
+		virtual
+	emit-class-ref(class-statement)
+		virtual
+
+	emit-short-circuit-expression(expression)
+		virtual
+	emit-short-circuit-not(expression)
+		virtual
+	emit-interpolated-string-literal(segments)
+		virtual
+	emit-run-pipeline(expression)
+		virtual
+	emit-run-capture(pipeline)
+		virtual
+
+	emit-string-literal(value)
+		virtual
+	emit-int-literal(value)
+		virtual
+	emit-float-literal(value)
+		virtual
+	emit-bool-literal(value)
+		virtual
+	emit-array-literal(items)
+		virtual
+	emit-dict-literal(items)
+		virtual
+	emit-nil-literal
+		virtual
+	emit-self
+		virtual
+
+	emit-function(function-statement)
+		virtual
+	emit-class-declarations(class-statement)
+		virtual
+	emit-class-pre-contents(class-statement)
+		virtual
+	emit-class-post-contents(class-statement)
+		virtual
+
+	emit-module(module)
+		virtual
+	emit-module-local-get(module, name)
+		virtual
+	emit-module-local-set(module, name, value-loc)
+		virtual
+	emit-module-initialization(module)
+		virtual
+
+	emit-builtin-class(name)
+		virtual
+	emit-builtin-function(name)
+		virtual
+	emit-builtin-obj-object(name)
+		virtual
+
+	class ContextCloser
+		(builder)
+		init(builder-in)
+			builder = builder-in
+		close
+			builder.pop-context
+
+	# The unwinding stack is a mixture of ParseNodes to unwind to (loops and
+	# functions), and ParseNodes that emit unwindings.
+	push-unwinding(node)
+		unwindings.append(node)
+	pop-unwinding(node)
+		old-unwinding = unwindings.pop-back
+		if node != old-unwinding
+			fail("Internal error: mismatched unwinding.")
+	emit-unwind-loop
+		index = unwindings.size - 1
+		while index >= 0
+			unwind-point = unwindings[index]
+			if unwind-point.is-loop
+				break
+			unwind-point.emit-unwind(self)
+			index -= 1
+	emit-unwind-function
+		index = unwindings.size - 1
+		while index >= 0
+			unwind-point = unwindings[index]
+			if unwind-point.is-a(FunctionStatement)
+				break
+			unwind-point.emit-unwind(self)
+			index -= 1
+
 

@@ -4,7 +4,7 @@ import ParseNode Context Codegen Builtins Expressions Calls Debugging
 
 
 export class ClassStatement: ParseNode
-	(name, superclass-name, superclass, ivars, functions, enclosed-classes, c-name)
+	(name, superclass-name, superclass, ivars, functions, enclosed-classes, generated-name)
 
 	init(name-in)
 		name = name-in
@@ -19,6 +19,17 @@ export class ClassStatement: ParseNode
 		if ivars && ivars.contains(name)
 			return IvarExpr(name)
 		return nil
+	ivar-index(name)
+		if ivars
+			index = 0
+			for ivar: ivars
+				if ivar == name
+					if superclass
+						index += superclass.total-ivars
+						return index
+				index += 1
+		if superclass
+			return superclass.ivar-index(name)
 	total-ivars
 		num-ivars = 0
 		if superclass
@@ -26,56 +37,28 @@ export class ClassStatement: ParseNode
 		if ivars
 			num-ivars += ivars.size
 		return num-ivars
-	c-ivar-index-name(name)
-		if ivars && ivars.contains(name)
-			return "{c-name}_{mangle-name(name)}__index"
-		return superclass && superclass.c-ivar-index-name(name)
-	c-class-loc
-		return "&{c-name}_class"
 
-	emit-top-level(builder)
+	emit-top-level-declarations(builder)
 		enclosing-class = builder.cur-class
 		builder.cur-class = self
 		builder.add-class(self)
 
-		# Class object.
-		builder.add('declare_static_string({c-name}_class_name_, "{name}");')
-		ivars-names-loc = "NULL"
-		if ivars && ivars.size > 0
-			ivars-list = []
-			for ivar: ivars
-				ivars-list.append('inline_string_("{ivar}")')
-			ivars-list = '{{ {ivars-list.join(", ")} }}'
-			builder.add('Array {c-name}_ivar_names_ = {{ &Array_class, {ivars.size}, {ivars.size}, (Object*[]) {ivars-list} }};')
-			ivars-names-loc = "&{c-name}_ivar_names_"
-		builder.add("Class {c-name}_class = {{")
-		builder.indent
-		builder.add('&Class_class,')
-		builder.add('&{c-name}_class_name_,')
-		if superclass
-			builder.add("&{superclass.c-name}_class,")
-		else
-			builder.add('NULL,')
-		builder.add('NULL,')
-		builder.add("{total-ivars},")
-		builder.add("{ivars-names-loc},")
-		builder.dedent
-		builder.add(r"};")
-		builder.add("")
+		builder.emit-class-declarations(self)
 
-		# Ivar indices.
-		if ivars && ivars.size > 0
-			ivar-index = 0
-			if superclass
-				ivar-index = superclass.total-ivars
-			builder.add("enum {{")
-			builder.indent
-			for ivar: ivars
-				builder.add("{c-name}_{mangle-name(ivar)}__index = {ivar-index},")
-				ivar-index += 1
-			builder.add(r"};")
-			builder.dedent
-			builder.add("")
+		# Functions & classes.
+		for kv: functions
+			kv.value.emit-top-level-declarations(builder)
+		if enclosed-classes
+			for kv: enclosed-classes
+				kv.value.emit-top-level-declarations(builder)
+
+		builder.cur-class = enclosing-class
+
+	emit-top-level(builder)
+		enclosing-class = builder.cur-class
+		builder.cur-class = self
+
+		builder.emit-class-pre-contents(self)
 
 		# Functions & classes.
 		for kv: functions
@@ -84,22 +67,7 @@ export class ClassStatement: ParseNode
 			for kv: enclosed-classes
 				kv.value.emit-top-level(builder)
 
-		# Function specs.
-		# We do this after emitting the functions, so we don't have to
-		# forward-declare them.
-		if functions.size > 0
-			builder.add("static const BuiltinMethodSpec {c-name}__builtin_methods_[] = {{")
-			builder.indent
-			for kv: functions
-				function = kv.value
-				num-args = 0
-				if function.arguments
-					num-args = function.arguments.size
-				builder.add('{{ "{function.name}", {num-args}, {function.c-name} }},')
-			builder.add(r"{ NULL },")
-			builder.add(r"};")
-			builder.dedent
-			builder.add("")
+		builder.emit-class-post-contents(self)
 
 		builder.cur-class = enclosing-class
 
@@ -115,7 +83,7 @@ export class ClassStatement: ParseNode
 		if !superclass
 			superclass = BuiltinClass(Array.superclass) 	# Object
 		builder.push-context(ClassContext(self))
-		c-name = builder.context.c-prefix
+		generated-name = builder.context.generated-prefix(builder)
 		for kv: functions
 			kv.value.resolve-names(builder)
 		builder.pop-context
@@ -124,6 +92,14 @@ export class ClassStatement: ParseNode
 			for kv: enclosed-classes
 				kv.value.resolve-names(builder)
 			builder.pop-context
+
+	parse-key-c-field(line)
+		# The first c-field is used for automatically-generated c-fn's.  This is
+		# where we get its name from a C declaration.
+		# We take the last identifier before the ";" (if there is one).
+		field-name-re = Regex(r'(?P<name>[[:alnum:]_]+)[^[:alnum:]_]*;')
+		if match = field-name-re.match(line)
+			key-c-field = match['name']
 
 	class ClassContext: Context
 		(class-statement)
@@ -160,12 +136,8 @@ export class ClassStatement: ParseNode
 
 			return parent && parent.find(name)
 
-		c-prefix
-			prefix = parent && parent.c-prefix
-			name = mangle-name(class-statement.name)
-			if prefix
-				return "{prefix}__{name}"
-			return name
+		generated-prefix(builder)
+			return builder.class-prefix(parent, class-statement.name)
 
 		find-ivar(name)
 			cur-class = class-statement
@@ -198,10 +170,8 @@ class IvarExpr: ParseNode
 	is-settable
 		return true
 	emit(builder)
-		return "ivar_get_({builder.cur-class.c-ivar-index-name(name)})"
+		return builder.emit-ivar-get(name)
 	emit-set(value, builder)
-		mangled-name = mangle-name(name)
 		value-loc = value.emit(builder)
-		builder.add("ivar_set_({builder.cur-class.c-ivar-index-name(name)}, {value-loc});")
-		return value-loc
+		return builder.emit-ivar-set(name, value-loc)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env sqs
 
-import ParseNode Codegen
+import ParseNode Codegen Debugging
 
 
 export class Variable: ParseNode
@@ -43,11 +43,11 @@ export class SetExpr: ParseNode
 
 export class NilLiteral: ParseNode
 	emit(builder)
-		return "NULL"
+		return builder.emit-nil-literal()
 
 export class SelfExpr: ParseNode
 	emit(builder)
-		return "self"
+		return builder.emit-self()
 
 
 export class ShortCircuitExpression: ParseNode
@@ -61,19 +61,7 @@ export class ShortCircuitExpression: ParseNode
 		expr1.resolve-names(builder)
 		expr2.resolve-names(builder)
 	emit(builder)
-		loc1 = expr1.emit(builder)
-		result = builder.new-temp
-		builder.add("Object* {result} = {loc1};")
-		if is-and
-			builder.add("if (IS_TRUTHY({result})) {{")
-		else
-			builder.add("if (!IS_TRUTHY({result})) {{")
-		builder.indent
-		loc2 = expr2.emit(builder)
-		builder.add("{result} = {loc2};")
-		builder.add(r"}")
-		builder.dedent
-		return result
+		return builder.emit-short-circuit-expression(self)
 
 
 export class ShortCircuitNot: ParseNode
@@ -84,8 +72,7 @@ export class ShortCircuitNot: ParseNode
 	resolve-names(builder)
 		expr.resolve-names(builder)
 	emit(builder)
-		loc = expr.emit(builder)
-		return "make_bool(!IS_TRUTHY({loc}))"
+		return builder.emit-short-circuit-not(self)
 
 export class StringLiteralExpr: ParseNode
 	(value)
@@ -95,7 +82,7 @@ export class StringLiteralExpr: ParseNode
 	append(more-text)
 		value += more-text
 	emit(builder)
-		return '((Object*) new_c_static_String("{c-quote-string(value)}"))'
+		return builder.emit-string-literal(value)
 
 export class IntLiteralExpr: ParseNode
 	(value)
@@ -103,14 +90,14 @@ export class IntLiteralExpr: ParseNode
 	init(value-str)
 		value = Int(value-str)
 	emit(builder)
-		return "((Object*) new_Int({value}))"
+		return builder.emit-int-literal(value)
 
 export class FloatLiteralExpr: ParseNode
 	(value)
 	init(value-str)
 		value = Float(value-str)
 	emit(builder)
-		return "((Object*) new_Float({value}))"
+		return builder.emit-float-literal(value)
 
 export class BooleanLiteral: ParseNode
 	(value)
@@ -118,9 +105,7 @@ export class BooleanLiteral: ParseNode
 	init(value-in)
 		value = value-in
 	emit(builder)
-		if value
-			return "&true_obj"
-		return "&false_obj"
+		return builder.emit-bool-literal(value)
 
 export class InterpolatedStringLiteral: ParseNode
 	(segments)
@@ -131,14 +116,7 @@ export class InterpolatedStringLiteral: ParseNode
 		for segment: segments
 			segment.resolve-names(builder)
 	emit(builder)
-		accumulator = builder.new-temp
-		builder.add("Array* {accumulator} = new_Array();")
-		for segment: segments
-			loc = segment.emit(builder)
-			builder.add("Array_append({accumulator}, {loc});")
-		result = builder.new-temp
-		builder.add("Object* {result} = (Object*) Array_join({accumulator}, NULL);")
-		return result
+		return builder.emit-interpolated-string-literal(segments)
 
 export class ArrayLiteral: ParseNode
 	(items)
@@ -151,12 +129,7 @@ export class ArrayLiteral: ParseNode
 		for item: items
 			item.resolve-names(builder)
 	emit(builder)
-		result = builder.new-temp
-		builder.add("Array* {result} = new_Array();")
-		for item: items
-			item-loc = item.emit(builder)
-			builder.add("Array_append({result}, {item-loc});")
-		return "((Object*) {result})"
+		return builder.emit-array-literal(items)
 
 export class DictLiteral: ParseNode
 	(items)
@@ -169,12 +142,7 @@ export class DictLiteral: ParseNode
 		for kv: items
 			kv.value.resolve-names(builder)
 	emit(builder)
-		result = builder.new-temp
-		builder.add("Dict* {result} = new_Dict();")
-		for item: items
-			item-loc = item.value.emit(builder)
-			builder.add('Dict_set_at({result}, new_c_static_String("{c-quote-string(item.key)}"), {item-loc});')
-		return "((Object*) {result})"
+		return builder.emit-dict-literal(items)
 
 
 export class RunPipeline: ParseNode
@@ -189,39 +157,7 @@ export class RunPipeline: ParseNode
 			command.resolve-names(builder)
 
 	emit(builder)
-		# Make the pipes.
-		pipe-locs = []
-		pipes-left = commands.size - 1
-		while pipes-left > 0
-			loc = builder.new-temp
-			builder.add('Object* {loc} = Class_instantiate(&Pipe_class);')
-			builder.add('call_("init", {loc}, 0, NULL);')
-			pipe-locs.append(loc)
-			pipes-left -= 1
-
-		# Emit the RunCommands.
-		result-loc = builder.new-temp
-		which-command = 0
-		for command: commands
-			# Attach pipes/capture.
-			if which-command != 0
-				command.in-pipe-loc = pipe-locs[which-command - 1]
-			is-last-command = (which-command == commands.size - 1)
-			if !is-last-command
-				command.out-pipe-loc = pipe-locs[which-command]
-			else if capture
-				command.capture = true
-
-			# Emit.
-			command-result-loc = command.emit(builder)
-
-			if is-last-command
-				builder.add("Object* {result-loc} = {command-result-loc};")
-
-			which-command += 1
-
-		# Return the result of the last RunCommand.
-		return result-loc
+		return builder.emit-run-pipeline(self)
 
 
 export class RunCapture: ParseNode
@@ -234,12 +170,7 @@ export class RunCapture: ParseNode
 		pipeline.resolve-names(builder)
 
 	emit(builder)
-		run-result-loc = pipeline.emit(builder)
-		output-result-loc = builder.new-temp
-		builder.add('Object* {output-result-loc} = call_("output", {run-result-loc}, 0, NULL);')
-		trim-result-loc = builder.new-temp
-		builder.add('Object* {trim-result-loc} = call_("trim", {output-result-loc}, 0, NULL);')
-		return trim-result-loc
+		return builder.emit-run-capture(pipeline)
 
 
 

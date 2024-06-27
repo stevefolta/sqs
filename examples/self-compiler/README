@@ -1,10 +1,7 @@
-This compiles an sqs script into C, then calls the C compiler to compile that
-into a binary.  It's meant more as an example of a larger (perhaps overly
-large) sqs script than as anything useful.  The compiled binary probably won't
-run *that* much faster than running the script in the interpreter.  But it does
-work, so if you really need to build a binary for some reason...
-
-It uses the same runtime as the interpreter, so it needs access to the
-interpreter sources.  Set $SQS_SOURCE in your environment to point to those
-sources.
+This compiles an sqs script into QBE (if available) or C, then calls QBE or the
+C compiler to compile that into a binary.  It's meant more as an example of a
+larger (perhaps overly large) sqs script than as anything useful.  The compiled
+binary probably won't run *that* much faster than running the script in the
+interpreter.  But it does work, so if you really need to build a binary for
+some reason...
 
