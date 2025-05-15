@@ -86,6 +86,14 @@ It's idiomatic in sqs to call other programs to manipulate the filesystem (eg. <
 </p>
 </dd>
 
+<dt> symlink(<i>target</i>, <i>link-path</i>) </dt>
+<dd class="fn">
+Creates a symbolic link named <i>link-path</i> that points to <i>target</i>.  Note that <i>link-path</i> must be the full path of the new link; it cannot just be the directory to put it in.
+<p>
+This is faster than using <code>$ ln -s {target} {link-path}</code>, so it can be helpful for scripts that need to create a lot of symlinks.
+</p>
+</dd>
+
 </dl>
 
 

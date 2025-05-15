@@ -87,9 +87,19 @@ Object* Rename(Object* self, Object** args)
 	const char* new_path = enforce_path(args[1], "rename new-path");
 	int result = rename(old_path, new_path);
 	if (result != 0)
-		Error("rename() failed (%s)\n", strerror(errno));
+		Error("rename() failed (%s).", strerror(errno));
 	return NULL;
 }
 
+
+Object* Symlink(struct Object* self, struct Object** args)
+{
+	const char* target = enforce_path(args[0], "symlink target");
+	const char* link_path = enforce_path(args[1], "symlink link-path");
+	int result = symlink(target, link_path);
+	if (result != 0)
+		Error("symlink() failed (%s).", strerror(errno));
+	return NULL;
+}
 
 
